@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 
@@ -7,9 +8,10 @@ class UserTokenService:
 
     COOKIE_SETTINGS = {
         "httponly": True,
-        "secure": True,
+        "secure": not settings.DEBUG,
         "samesite": "Strict",
-        "max_age": COOKIE_MAX_AGE
+        "max_age": COOKIE_MAX_AGE,
+        "path": "/",
     }
 
     @staticmethod
@@ -17,7 +19,7 @@ class UserTokenService:
         refresh = RefreshToken.for_user(user)
         return {
             "refresh": str(refresh),
-            "access": str(refresh.access_token)
+            "access": str(refresh.access_token),
         }
 
     @staticmethod
@@ -39,5 +41,5 @@ class UserTokenService:
 
     @classmethod
     def clear_refresh_cookie(cls, response):
-        response.delete_cookie(cls.COOKIE_NAME)
+        response.delete_cookie(cls.COOKIE_NAME, path="/")
         return response
