@@ -1,3 +1,5 @@
-from django.contrib import admin
+from utils.base.admin_base import NameOnlyAdmin
 
-# Register your models here.
+
+class CategoryAdmin(NameOnlyAdmin):
+    pass
