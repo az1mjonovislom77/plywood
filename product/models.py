@@ -11,9 +11,9 @@ class Product(models.Model):
         PREMIUM = 'premium', "Premium"
 
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, db_index=True)
     color = models.CharField(max_length=200, null=True, blank=True)
-    quality = models.CharField(choices=Quality.choices, default=Quality.STANDARD, max_length=20)
+    quality = models.CharField(choices=Quality.choices, default=Quality.STANDARD, max_length=20, db_index=True)
     width = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     height = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     thick = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
