@@ -1,5 +1,9 @@
-from utils.base.admin_base import NameOnlyAdmin
+from customer.models import Customer
+from django.contrib import admin
 
 
-class CustomerAdmin(NameOnlyAdmin):
+class CustomerAdmin(admin.ModelAdmin):
     pass
+
+
+admin.site.register(Customer, CustomerAdmin)
