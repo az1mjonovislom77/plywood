@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from product.models import Product
 from utils.base.serializers_base import BaseReadSerializer
 
