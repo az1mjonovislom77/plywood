@@ -6,6 +6,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+        read_only_fields = ["arrival_price", "sale_price", "count", ]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
