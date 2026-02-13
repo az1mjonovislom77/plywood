@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
@@ -6,6 +7,7 @@ from .models import Acceptance, AcceptanceHistory
 from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer
 
 
+@extend_schema(tags=["Acceptance"])
 class AcceptanceViewSet(BaseUserViewSet):
     queryset = Acceptance.objects.select_related("product").all()
     serializer_class = AcceptanceSerializer
@@ -24,6 +26,7 @@ class AcceptanceViewSet(BaseUserViewSet):
         )
 
 
+@extend_schema(tags=["AcceptanceHistory"])
 class AcceptanceHistoryViewSet(ModelViewSet):
     queryset = AcceptanceHistory.objects.select_related("product", "acceptance").all()
     serializer_class = AcceptanceHistorySerializer

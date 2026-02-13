@@ -4,6 +4,6 @@ from .views import AcceptanceViewSet, AcceptanceHistoryViewSet
 router = DefaultRouter()
 
 router.register("acceptances", AcceptanceViewSet, basename="acceptance")
-router.register("acceptance-histories", AcceptanceHistoryViewSet, basename="acceptance-history")
+router.register("history", AcceptanceHistoryViewSet, basename="acceptance-history")
 
 urlpatterns = router.urls
