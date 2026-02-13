@@ -32,3 +32,4 @@ class AcceptanceHistoryViewSet(ModelViewSet):
     serializer_class = AcceptanceHistorySerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get"]
+    pagination_class = None
