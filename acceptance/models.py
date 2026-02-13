@@ -20,7 +20,7 @@ class Acceptance(models.Model):
 
 
 class AcceptanceHistory(models.Model):
-    acceptance = models.OneToOneField('warehouse.Acceptance', on_delete=models.CASCADE, related_name='history')
+    acceptance = models.OneToOneField('Acceptance', on_delete=models.CASCADE, related_name='history')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="acceptance_histories")
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2)
