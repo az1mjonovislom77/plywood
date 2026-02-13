@@ -14,16 +14,7 @@ class AcceptanceViewSet(BaseUserViewSet):
 
     @transaction.atomic
     def perform_create(self, serializer):
-        acceptance = serializer.save()
-        AcceptanceHistory.objects.create(
-            acceptance=acceptance,
-            product=acceptance.product,
-            arrival_price=acceptance.arrival_price,
-            sale_price=acceptance.sale_price,
-            count=acceptance.count,
-            arrival_date=acceptance.arrival_date,
-            description=acceptance.description,
-        )
+        serializer.save()
 
 
 @extend_schema(tags=["AcceptanceHistory"])
