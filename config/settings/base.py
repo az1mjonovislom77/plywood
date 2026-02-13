@@ -25,7 +25,8 @@ LOCAL_APPS = [
     'product',
     'category',
     'customer',
-    'acceptance'
+    'acceptance',
+    'order'
 ]
 
 THIRD_PARTY_APPS = [
