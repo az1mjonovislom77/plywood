@@ -21,6 +21,7 @@ class Product(models.Model):
     count = models.PositiveIntegerField(default=0)
     arrival_date = models.DateField(default=timezone.now)
     description = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ['-id']
