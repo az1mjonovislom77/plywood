@@ -1,7 +1,8 @@
 from django.db import transaction
 from django.db.models import Prefetch
-from order.models import Order, OrderItem, Cutting, Banding
+from order.models import Order, OrderItem, Cutting, Banding, Basket
 from order.service.basket import BasketService
+from product.models import Product
 
 
 class OrderService:
@@ -26,32 +27,17 @@ class OrderService:
 
     @staticmethod
     @transaction.atomic
-    def checkout(user, payment_method, discount=0, discount_type="c", covered_amount=0, banding_data=None,
-                 cutting_data=None):
+    def checkout(user, payment_method, discount=0, discount_type="c", covered_amount=0):
 
         basket = BasketService.get_basket(user)
         if not basket:
             raise ValueError("Basket not found")
 
-        basket = type(basket).objects.select_for_update().get(id=basket.id)
+        basket = Basket.objects.select_for_update().get(id=basket.id)
         basket_items = basket.items.select_related("product")
 
         if not basket_items.exists():
             raise ValueError("Basket empty")
-
-        banding = None
-
-        if banding_data:
-            banding = Banding.objects.create(
-                thickness_id=banding_data.get("thickness"),
-                width=banding_data.get("width"),
-                height=banding_data.get("height"),
-            )
-
-        cutting = None
-
-        if cutting_data:
-            cutting = Cutting.objects.create(count=cutting_data.get("count"), price=cutting_data.get("price"))
 
         order = Order.objects.create(
             user=user,
@@ -59,14 +45,22 @@ class OrderService:
             discount=discount,
             discount_type=discount_type,
             covered_amount=covered_amount,
-            banding=banding,
-            cutting=cutting,
         )
 
-        OrderItem.objects.bulk_create([
-            OrderItem(order=order, product=item.product, price=item.product.sale_price, quantity=1)
-            for item in basket_items])
+        order_items = []
 
+        for item in basket_items:
+
+            product = item.product
+            quantity = 1
+            updated = Product.objects.filter(id=product.id, count__gte=quantity).update(count=F("count") - quantity)
+
+            if not updated:
+                raise ValueError(f"{product.name} stock not enough")
+
+            order_items.append(OrderItem(order=order, product=product, price=product.sale_price, quantity=quantity))
+
+        OrderItem.objects.bulk_create(order_items)
         order.calculate_total()
 
         basket_items.delete()
