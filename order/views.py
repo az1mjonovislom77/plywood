@@ -105,6 +105,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         order = OrderService.checkout(
             user=request.user,
             payment_method=serializer.validated_data["payment_method"],
+            items=serializer.validated_data["items"],
             discount=serializer.validated_data.get("discount"),
             discount_type=serializer.validated_data.get("discount_type"),
             covered_amount=serializer.validated_data.get("covered_amount"),
