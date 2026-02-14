@@ -78,6 +78,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ["id", "product", "price", "quantity"]
 
 
+class OrderItemCreateSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField()
+
+    class Meta:
+        model = OrderItem
+        fields = ["product_id", "quantity"]
+
+    def validate_product_id(self, value):
+        if not Product.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Product not found")
+        return value
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     banding = BandingGetSerializer(read_only=True)
@@ -92,6 +105,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderCreateSerializer(serializers.Serializer):
+    items = OrderItemCreateSerializer(many=True)
     payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
     discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
     discount_type = serializers.ChoiceField(choices=Order.DiscountType.choices, default=Order.DiscountType.CASH)

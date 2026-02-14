@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, F
 from order.models import Order, OrderItem, Cutting, Banding, Basket
 from order.service.basket import BasketService
 from product.models import Product
@@ -27,7 +27,8 @@ class OrderService:
 
     @staticmethod
     @transaction.atomic
-    def checkout(user, payment_method, discount=0, discount_type="c", covered_amount=0):
+    def checkout(user, payment_method, items, discount=0, discount_type="c", covered_amount=0, banding_data=None,
+                 cutting_data=None):
 
         basket = BasketService.get_basket(user)
         if not basket:
@@ -39,32 +40,58 @@ class OrderService:
         if not basket_items.exists():
             raise ValueError("Basket empty")
 
+        items_map = {}
+
+        for item in items:
+            product_id = item["product_id"]
+            quantity = item["quantity"]
+
+            items_map[product_id] = quantity
+
+        banding = None
+        if banding_data:
+            banding = Banding.objects.create(**banding_data)
+
+        cutting = None
+        if cutting_data:
+            cutting = Cutting.objects.create(**cutting_data)
+
         order = Order.objects.create(
             user=user,
             payment_method=payment_method,
             discount=discount,
             discount_type=discount_type,
             covered_amount=covered_amount,
+            banding=banding,
+            cutting=cutting
         )
 
         order_items = []
+        created_product_ids = []
 
-        for item in basket_items:
+        for basket_item in basket_items:
+            product = basket_item.product
+            quantity = items_map.get(product.id)
 
-            product = item.product
-            quantity = 1
+            if quantity is None:
+                continue
+
             updated = Product.objects.filter(id=product.id, count__gte=quantity).update(count=F("count") - quantity)
 
             if not updated:
                 raise ValueError(f"{product.name} stock not enough")
 
-            order_items.append(OrderItem(order=order, product=product, price=product.sale_price, quantity=quantity))
+            order_items.append(OrderItem(order=order, product=product, quantity=quantity, price=product.sale_price))
+            created_product_ids.append(product.id)
 
         OrderItem.objects.bulk_create(order_items)
+
+        basket.items.filter(product_id__in=created_product_ids).delete()
+
         order.calculate_total()
 
-        basket_items.delete()
-        basket.is_active = False
-        basket.save(update_fields=["is_active"])
+        if not basket.items.exists():
+            basket.is_active = False
+            basket.save(update_fields=["is_active"])
 
-        return order
+        return Order.objects.prefetch_related("items__product").get(id=order.id)
