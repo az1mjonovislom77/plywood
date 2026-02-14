@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from order.models import Basket, Cutting, BasketItem
+from order.models import Basket, Cutting, BasketItem, Banding, Thickness
 from product.models import Product
 from product.serializers import ProductSerializer
 from utils.base.serializers_base import BaseReadSerializer
@@ -34,3 +34,22 @@ class BasketAddItemSerializer(serializers.Serializer):
 class CuttingSerializer(BaseReadSerializer):
     class Meta(BaseReadSerializer.Meta):
         model = Cutting
+
+
+class ThicknessSerializer(BaseReadSerializer):
+    class Meta(BaseReadSerializer.Meta):
+        model = Thickness
+
+
+class BandingGetSerializer(serializers.ModelSerializer):
+    thickness = ThicknessSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Banding
+        fields = ["id", "thickness", "width", "height"]
+
+
+class BandingPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Banding
+        fields = ["id", "thickness", "width", "height"]

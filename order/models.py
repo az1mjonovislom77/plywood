@@ -31,9 +31,9 @@ class Thickness(models.Model):
 
 
 class Banding(models.Model):
+    thickness = models.ForeignKey(Thickness, on_delete=models.SET_NULL, related_name="bandings", null=True, blank=True)
     width = models.DecimalField(max_digits=10, decimal_places=2)
     height = models.DecimalField(max_digits=10, decimal_places=2)
-    meter = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return str(self.width)
@@ -45,3 +45,13 @@ class Cutting(models.Model):
 
     def __str__(self):
         return str(self.count)
+
+
+class Order(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="orders")
+    banding = models.ForeignKey(Banding, on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
+    cutting = models.ForeignKey(Cutting, on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
+    quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return str(self.product.id)

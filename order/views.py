@@ -2,8 +2,9 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from order.models import Cutting
-from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItemSerializer
+from order.models import Cutting, Banding, Thickness
+from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItemSerializer, \
+    ThicknessSerializer, BandingGetSerializer, BandingPostSerializer
 from order.service.basket import BasketService
 from utils.base.views_base import BaseUserViewSet
 
@@ -45,5 +46,25 @@ class BasketViewSet(viewsets.GenericViewSet):
 class CuttingViewSet(BaseUserViewSet):
     queryset = Cutting.objects.all()
     serializer_class = CuttingSerializer
+
+    ordering = ["-id"]
+
+
+@extend_schema(tags=["Banding"])
+class BandingViewSet(BaseUserViewSet):
+    queryset = Banding.objects.select_related("thickness")
+
+    ordering = ["-id"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return BandingPostSerializer
+        return BandingGetSerializer
+
+
+@extend_schema(tags=["Thickness"])
+class ThicknessViewSet(BaseUserViewSet):
+    queryset = Thickness.objects.all()
+    serializer_class = ThicknessSerializer
 
     ordering = ["-id"]
