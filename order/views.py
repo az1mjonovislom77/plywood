@@ -72,7 +72,7 @@ class ThicknessViewSet(BaseUserViewSet):
 @extend_schema(tags=["Order"])
 class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "post"]
+    http_method_names = ["get", "post", "put", "delete"]
     pagination_class = None
 
     def get_serializer_class(self):
@@ -112,3 +112,26 @@ class OrderViewSet(viewsets.GenericViewSet):
             cutting_data=serializer.validated_data.get("cutting"))
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, pk=None):
+        order = OrderService.get_by_id(user=request.user, order_id=pk)
+
+        if not order:
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = OrderSerializer(order, data=request.data, partial=True)
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+
+    def destroy(self, request, pk=None):
+        order = OrderService.get_by_id(user=request.user, order_id=pk)
+
+        if not order:
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        order.delete()
+
+        return Response({"detail": "Order deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
