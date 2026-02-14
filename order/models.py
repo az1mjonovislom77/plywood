@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from product.models import Product
 from user.models import User
@@ -16,7 +17,6 @@ class Basket(models.Model):
 class BasketItem(models.Model):
     basket = models.ForeignKey(Basket, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
         unique_together = ("basket", "product")
@@ -31,27 +31,85 @@ class Thickness(models.Model):
 
 
 class Banding(models.Model):
-    thickness = models.ForeignKey(Thickness, on_delete=models.SET_NULL, related_name="bandings", null=True, blank=True)
-    width = models.DecimalField(max_digits=10, decimal_places=2)
-    height = models.DecimalField(max_digits=10, decimal_places=2)
+    thickness = models.ForeignKey("Thickness", on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name="bandings")
+    width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def linear_meter(self):
+        return (self.width + self.height) * Decimal("2")
+
+    def calculate_price(self):
+        if self.thickness:
+            return self.linear_meter() * self.thickness.price
+
+        return Decimal("0")
 
     def __str__(self):
-        return str(self.width)
+        return f"{self.linear_meter()} m"
 
 
 class Cutting(models.Model):
     count = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
+    def calculate_price(self):
+        if self.count:
+            return self.price * self.count
+        return Decimal("0")
+
     def __str__(self):
         return str(self.count)
 
 
 class Order(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="orders")
-    banding = models.ForeignKey(Banding, on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
-    cutting = models.ForeignKey(Cutting, on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
-    quantity = models.PositiveIntegerField(default=1)
+    class DiscountType(models.TextChoices):
+        PERCENTAGE = "p", "Percentage"
+        CASH = "c", "Cash"
+
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Cash"
+        CARD = "card", "Card"
+        NASIYA = "nasiya", "Nasiya"
+
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders")
+    discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
+    covered_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    banding = models.ForeignKey("Banding", on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
+    cutting = models.ForeignKey("Cutting", on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return str(self.product.id)
+        return f"Order #{self.id}"
+
+    def calculate_total(self):
+
+        total = sum(item.price * item.quantity
+                    for item in self.items.all())
+        if self.banding:
+            total += self.banding.calculate_price()
+        if self.cutting:
+            total += self.cutting.calculate_price()
+        if self.discount > 0:
+            if self.discount_type == self.DiscountType.PERCENTAGE:
+                total -= total * (self.discount / Decimal("100"))
+            else:
+                total -= self.discount
+        self.total_price = max(total, Decimal("0"))
+        self.save(update_fields=["total_price"])
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey("Product", on_delete=models.PROTECT, related_name="order_items")
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        unique_together = ("order", "product")
+
+    def __str__(self):
+        return f"{self.product.name} x {self.quantity}"
