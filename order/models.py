@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import models
 from django.utils import timezone
-
+from django.core.exceptions import ValidationError
 from product.models import Product
 from user.models import User
 
@@ -75,6 +75,8 @@ class Order(models.Model):
         NASIYA = "nasiya", "Nasiya"
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders")
+    customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="orders", null=True,
+                                 blank=True)
     discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
@@ -88,9 +90,8 @@ class Order(models.Model):
         return f"Order #{self.id}"
 
     def calculate_total(self):
+        total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
 
-        total = sum(item.price * item.quantity
-                    for item in self.items.all())
         if self.banding:
             total += self.banding.calculate_price()
         if self.cutting:
@@ -101,7 +102,12 @@ class Order(models.Model):
             else:
                 total -= self.discount
         self.total_price = max(total, Decimal("0"))
-        self.save(update_fields=["total_price"])
+
+    def clean(self):
+        if self.covered_amount < 0:
+            raise ValidationError("Covered amount cannot be negative")
+        if self.covered_amount > self.total_price:
+            raise ValidationError("Covered amount cannot exceed total price")
 
 
 class OrderItem(models.Model):

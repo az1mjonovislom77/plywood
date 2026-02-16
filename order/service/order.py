@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Prefetch, F
+from customer.models import Customer
 from order.models import Order, OrderItem, Cutting, Banding, Basket
 from order.service.basket import BasketService
 from product.models import Product
@@ -27,8 +28,8 @@ class OrderService:
 
     @staticmethod
     @transaction.atomic
-    def checkout(user, payment_method, items, discount=0, discount_type="c", covered_amount=0, banding_data=None,
-                 cutting_data=None):
+    def checkout(user, payment_method, items, customer_id=None, covered_amount=0, discount=0, discount_type="c",
+                 banding_data=None, cutting_data=None):
 
         basket = BasketService.get_basket(user)
         if not basket:
@@ -40,24 +41,22 @@ class OrderService:
         if not basket_items.exists():
             raise ValueError("Basket empty")
 
-        items_map = {}
+        items_map = {item["product_id"]: item["quantity"]
+                     for item in items}
 
-        for item in items:
-            product_id = item["product_id"]
-            quantity = item["quantity"]
+        banding = Banding.objects.create(**banding_data) if banding_data else None
+        cutting = Cutting.objects.create(**cutting_data) if cutting_data else None
 
-            items_map[product_id] = quantity
-
-        banding = None
-        if banding_data:
-            banding = Banding.objects.create(**banding_data)
-
-        cutting = None
-        if cutting_data:
-            cutting = Cutting.objects.create(**cutting_data)
+        customer = None
+        if customer_id:
+            try:
+                customer = Customer.objects.get(id=customer_id)
+            except Customer.DoesNotExist:
+                raise ValueError("Customer not found")
 
         order = Order.objects.create(
             user=user,
+            customer=customer,
             payment_method=payment_method,
             discount=discount,
             discount_type=discount_type,
@@ -89,9 +88,22 @@ class OrderService:
         basket.items.filter(product_id__in=created_product_ids).delete()
 
         order.calculate_total()
+        order.full_clean()
+        order.save(update_fields=["total_price"])
+
+        if order.payment_method == Order.PaymentMethod.NASIYA:
+
+            if not order.customer:
+                raise ValueError("Customer required for nasiya payment")
+
+            remaining = order.total_price - order.covered_amount
+
+            if remaining > 0:
+                order.customer.increase_debt(remaining)
 
         if not basket.items.exists():
             basket.is_active = False
             basket.save(update_fields=["is_active"])
 
-        return Order.objects.prefetch_related("items__product").get(id=order.id)
+        return (Order.objects.select_related("customer", "banding", "cutting")
+                .prefetch_related("items__product").get(id=order.id))

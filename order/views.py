@@ -106,6 +106,7 @@ class OrderViewSet(viewsets.GenericViewSet):
             user=request.user,
             payment_method=serializer.validated_data["payment_method"],
             items=serializer.validated_data["items"],
+            customer_id=serializer.validated_data.get("customer_id"),
             discount=serializer.validated_data.get("discount"),
             discount_type=serializer.validated_data.get("discount_type"),
             covered_amount=serializer.validated_data.get("covered_amount"),
