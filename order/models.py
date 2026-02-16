@@ -73,6 +73,7 @@ class Order(models.Model):
         CASH = "cash", "Cash"
         CARD = "card", "Card"
         NASIYA = "nasiya", "Nasiya"
+        MIXED = "mixed", "Mixed"
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders")
     customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="orders", null=True,
