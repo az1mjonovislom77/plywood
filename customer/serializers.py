@@ -1,7 +1,9 @@
+from rest_framework import serializers
 from customer.models import Customer
-from utils.base.serializers_base import BaseReadSerializer
 
 
-class CustomerSerializer(BaseReadSerializer):
-    class Meta(BaseReadSerializer.Meta):
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
         model = Customer
+        fields = ["full_name", "phone_number", "location", "debt", "about", "description"]
+        read_only_fields = ["debt"]
