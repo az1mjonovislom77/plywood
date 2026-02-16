@@ -57,6 +57,7 @@ class OrderService:
         order = Order.objects.create(
             user=user,
             customer=customer,
+            is_anonymous=(customer is None),
             payment_method=payment_method,
             discount=discount,
             discount_type=discount_type,
@@ -91,15 +92,10 @@ class OrderService:
         order.full_clean()
         order.save(update_fields=["total_price"])
 
-        if order.payment_method == Order.PaymentMethod.NASIYA:
+        remaining = order.total_price - order.covered_amount
 
-            if not order.customer:
-                raise ValueError("Customer required for nasiya payment")
-
-            remaining = order.total_price - order.covered_amount
-
-            if remaining > 0:
-                order.customer.increase_debt(remaining)
+        if order.payment_method == Order.PaymentMethod.NASIYA and order.customer and remaining > 0:
+            order.customer.increase_debt(remaining)
 
         if not basket.items.exists():
             basket.is_active = False

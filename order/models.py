@@ -78,6 +78,7 @@ class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders")
     customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="orders", null=True,
                                  blank=True)
+    is_anonymous = models.BooleanField(default=False)
     discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
