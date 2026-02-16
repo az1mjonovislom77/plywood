@@ -88,7 +88,7 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ["product_id", "quantity"]
+        fields = ["id", "product_id", "quantity"]
 
     def validate_product_id(self, value):
         if not Product.objects.filter(id=value).exists():
