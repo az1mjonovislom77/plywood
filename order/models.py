@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -103,7 +103,11 @@ class Order(models.Model):
                 total -= total * (self.discount / Decimal("100"))
             else:
                 total -= self.discount
-        self.total_price = max(total, Decimal("0"))
+
+        total = max(total, Decimal("0"))
+        total = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        self.total_price = total
 
     def clean(self):
         if self.covered_amount < 0:
