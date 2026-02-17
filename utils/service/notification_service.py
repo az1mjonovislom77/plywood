@@ -12,10 +12,10 @@ class ProductNotificationService:
     @staticmethod
     def get_low_stock_info():
         threshold = ProductNotificationService.get_low_stock_threshold()
-        low_stock_products = Product.objects.filter(count__lt=threshold).values("id", "name", "count").order_by("count")
-        total_product_types = Product.objects.count()
+
+        queryset = Product.objects.filter(count__lt=threshold).values("id", "name", "count").order_by("count")
 
         return {
-            "product_types": total_product_types,
-            "low_stock": list(low_stock_products)
+            "low_stock_products": queryset.count(),
+            "products": list(queryset)
         }
