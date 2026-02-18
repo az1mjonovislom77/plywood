@@ -8,6 +8,6 @@ router.register('currency', CurrencyViewSet, basename='currency')
 urlpatterns = [
     path('', include(router.urls)),
     path("notifications/low-stock/", LowStockNotificationView.as_view(), name="stock-notification"),
-    path("dashboard/stats/", DashboardStatsView.as_view(), ),
+    path("dashboard/stats/", DashboardStatsView.as_view()),
 
 ]
