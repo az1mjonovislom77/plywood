@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from utils.base.views_base import BaseUserViewSet
 from utils.models import Currency
 from utils.serializers import CurrencySerializer
+from utils.service.dasboard_stats import DashboardStatsService
 from utils.service.notification_service import ProductNotificationService
 
 
@@ -21,4 +22,13 @@ class LowStockNotificationView(APIView):
 
     def get(self, request):
         data = ProductNotificationService.get_low_stock_info()
+        return Response(data)
+
+
+@extend_schema(tags=["Dashboard"])
+class DashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        data = DashboardStatsService.get_stats()
         return Response(data)
