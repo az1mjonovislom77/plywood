@@ -15,7 +15,7 @@ class Last7dayStatsService:
         start_date = today - timedelta(days=6)
 
         profit_expr = ExpressionWrapper(
-            (F("sale_price") - F("product__arrival_price")) * F("quantity"),
+            (F("price") - F("product__arrival_price")) * F("quantity"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
