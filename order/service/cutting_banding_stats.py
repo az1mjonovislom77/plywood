@@ -11,11 +11,11 @@ class DashboardStatsService:
     @staticmethod
     def get_cutting_banding_income():
         today = timezone.now().date()
-
         cutting_expr = ExpressionWrapper(F("cutting__price") * F("cutting__count"),
                                          output_field=DecimalField(max_digits=14, decimal_places=2))
-        banding_expr = ExpressionWrapper(F("banding__thickness__price") *
-                                         (F("banding__width") + F("banding__height")) * 2,
+
+        banding_expr = ExpressionWrapper((F("banding__width") + F("banding__height")) *
+                                         Decimal("2.0") * F("banding__thickness__price"),
                                          output_field=DecimalField(max_digits=14, decimal_places=2))
 
         stats = Order.objects.aggregate(
@@ -25,7 +25,13 @@ class DashboardStatsService:
             today_banding_income=Coalesce(Sum(banding_expr, filter=Q(created_at__date=today)), Decimal("0.00")),
         )
 
-        stats["total_income"] = (stats["total_cutting_income"] + stats["total_banding_income"])
-        stats["today_income"] = (stats["today_cutting_income"] + stats["today_banding_income"])
+        stats["total_income"] = (
+                stats["total_cutting_income"] +
+                stats["total_banding_income"]
+        )
+        stats["today_income"] = (
+                stats["today_cutting_income"] +
+                stats["today_banding_income"]
+        )
 
         return stats
