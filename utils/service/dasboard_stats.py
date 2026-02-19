@@ -13,7 +13,7 @@ class DashboardStatsService:
     def get_stats():
         today = timezone.now().date()
 
-        profit_expression = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
+        profit_expression = ExpressionWrapper((F("sell_price") - F("product__arrival_price")) * F("quantity"),
                                               output_field=DecimalField(max_digits=14, decimal_places=2))
 
         stats = Order.objects.aggregate(
