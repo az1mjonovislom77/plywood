@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from order.views.stats_views import OrderStatsView, CuttingBandingIncomeStatsView
+from order.views.stats_views import OrderStatsView, CuttingBandingIncomeStatsView, Last7DaysIncomeView
 from order.views.views import BasketViewSet, CuttingViewSet, BandingViewSet, ThicknessViewSet, OrderViewSet
 
 router = DefaultRouter()
@@ -14,4 +14,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path("stats/order/", OrderStatsView.as_view()),
     path("income/cutting-banding/", CuttingBandingIncomeStatsView.as_view(), name="cutting-banding-income"),
+    path("last-7-days/", Last7DaysIncomeView.as_view()),
 ]
