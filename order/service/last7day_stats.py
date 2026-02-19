@@ -13,7 +13,7 @@ class Last7dayStatsService:
         today = timezone.now().date()
         start_date = today - timedelta(days=6)
 
-        profit_expr = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
+        profit_expr = ExpressionWrapper((F("sale_price") - F("product__arrival_price")) * F("quantity"),
                                         output_field=DecimalField(max_digits=14, decimal_places=2))
 
         queryset = (
