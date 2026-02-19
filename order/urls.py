@@ -14,5 +14,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path("stats/order/", OrderStatsView.as_view()),
     path("income/cutting-banding/", CuttingBandingIncomeStatsView.as_view(), name="cutting-banding-income"),
-    path("last-7-days/", Last7DaysIncomeView.as_view()),
+    path("last7days/", Last7DaysIncomeView.as_view()),
 ]
