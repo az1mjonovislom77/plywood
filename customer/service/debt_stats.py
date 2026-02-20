@@ -12,8 +12,7 @@ class DashboardStatsService:
     def get_debt_stats():
         customer_stats = Customer.objects.aggregate(
             total_debt=Coalesce(Sum("debt"), Decimal("0.00")),
-            debtor_customers=Coalesce(Count("id", filter=Q(debt__gt=0)), 0)
-        )
+            debtor_customers=Coalesce(Count("id", filter=Q(debt__gt=0)), 0))
 
         nasiya_sales = Order.objects.filter(payment_method=Order.PaymentMethod.NASIYA).count()
 

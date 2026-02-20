@@ -2,7 +2,6 @@ from django.db.models import Sum, F, DecimalField, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from decimal import Decimal
-
 from order.models import Order
 
 

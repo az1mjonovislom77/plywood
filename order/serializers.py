@@ -36,7 +36,7 @@ class CuttingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cutting
-        fields = ["count", "price", "total_price"]
+        fields = ["id", "count", "price", "total_price"]
 
     def get_total_price(self, obj):
         return obj.calculate_price()

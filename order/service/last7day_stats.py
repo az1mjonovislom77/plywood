@@ -3,7 +3,6 @@ from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
-
 from order.models import OrderItem
 
 
