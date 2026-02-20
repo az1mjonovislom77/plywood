@@ -12,26 +12,18 @@ class OrderStatsService:
     def get_stats():
         today = timezone.now().date()
 
-        profit_expr = ExpressionWrapper(
-            (F("price") - F("product__arrival_price")) * F("quantity"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        profit_expr = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
+                                        output_field=DecimalField(max_digits=14, decimal_places=2))
 
-        total_sales = Order.objects.aggregate(
-            total=Coalesce(Count("id"), Value(0))
-        )["total"]
+        total_sales = Order.objects.aggregate(total=Coalesce(Count("id"), Value(0)))["total"]
 
         today_income = OrderItem.objects.filter(order__created_at__date=today).aggregate(
             income=Coalesce(Sum(profit_expr), Value(Decimal("0.00")),
                             output_field=DecimalField(max_digits=14, decimal_places=2)))["income"]
 
         total_income = OrderItem.objects.aggregate(
-            income=Coalesce(
-                Sum(profit_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )["income"]
+            income=Coalesce(Sum(profit_expr), Value(Decimal("0.00")),
+                            output_field=DecimalField(max_digits=14, decimal_places=2)))["income"]
 
         return {
             "total_sales": total_sales,

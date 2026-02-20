@@ -14,25 +14,16 @@ class Last7dayStatsService:
         today = timezone.now().date()
         start_date = today - timedelta(days=6)
 
-        profit_expr = ExpressionWrapper(
-            (F("price") - F("product__arrival_price")) * F("quantity"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        profit_expr = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
+                                        output_field=DecimalField(max_digits=14, decimal_places=2))
 
-        queryset = (
-            OrderItem.objects
-            .filter(order__created_at__date__gte=start_date)
-            .annotate(day=TruncDate("order__created_at"))
-            .values("day")
-            .annotate(
-                income=Coalesce(
-                    Sum(profit_expr),
-                    Value(Decimal("0.00")),
-                    output_field=DecimalField(max_digits=14, decimal_places=2)
-                )
-            )
-            .order_by("day")
-        )
+        queryset = (OrderItem.objects
+                    .filter(order__created_at__date__gte=start_date)
+                    .annotate(day=TruncDate("order__created_at"))
+                    .values("day")
+                    .annotate(income=Coalesce(Sum(profit_expr), Value(Decimal("0.00")),
+                                              output_field=DecimalField(max_digits=14, decimal_places=2)))
+                    .order_by("day"))
 
         income_map = {item["day"]: item["income"] for item in queryset}
 

@@ -25,13 +25,7 @@ class DashboardStatsService:
             today_banding_income=Coalesce(Sum(banding_expr, filter=Q(created_at__date=today)), Decimal("0.00")),
         )
 
-        stats["total_income"] = (
-                stats["total_cutting_income"] +
-                stats["total_banding_income"]
-        )
-        stats["today_income"] = (
-                stats["today_cutting_income"] +
-                stats["today_banding_income"]
-        )
+        stats["total_income"] = (stats["total_cutting_income"] + stats["total_banding_income"])
+        stats["today_income"] = (stats["today_cutting_income"] + stats["today_banding_income"])
 
         return stats
