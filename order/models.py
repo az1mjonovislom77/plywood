@@ -39,7 +39,7 @@ class Banding(models.Model):
     height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def linear_meter(self):
-        return (self.width + self.height) * Decimal("2")
+        return ((self.width + self.height) * Decimal("2")) / Decimal("1000")
 
     def calculate_price(self):
         if self.thickness:
