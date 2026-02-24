@@ -7,7 +7,7 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Acceptance
-        fields = ["id", "product", "product_name", "arrival_price", "sale_price", "count", "arrival_date",
+        fields = ["id", "product", "price_type", "product_name", "arrival_price", "sale_price", "count", "arrival_date",
                   "description"]
 
 
