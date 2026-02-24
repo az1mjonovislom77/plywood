@@ -33,7 +33,7 @@ class Acceptance(models.Model):
 
 
 class AcceptanceHistory(models.Model):
-    class PriceType(models.TextChoices):
+    class PriceTypeChoice(models.TextChoices):
         DOLLAR = "dollar", "Dollar"
         SUM = "sum", "Sum"
 
@@ -42,7 +42,7 @@ class AcceptanceHistory(models.Model):
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2)
     exchange_rate = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
-    price_type = models.CharField(max_length=10, choices=PriceType.choices)
+    price_type = models.CharField(max_length=10, choices=PriceTypeChoice.choices)
     count = models.PositiveIntegerField()
     arrival_date = models.DateField()
     description = models.TextField(null=True, blank=True)

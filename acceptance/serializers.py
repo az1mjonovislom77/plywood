@@ -13,9 +13,8 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
 class AcceptanceHistorySerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
-    price_type_display = serializers.CharField(source="get_price_type_display", read_only=True)
 
     class Meta:
         model = AcceptanceHistory
-        fields = ["id", "acceptance", "product", "product_name", "exchange_rate", "price_type_display", "arrival_price",
+        fields = ["id", "acceptance", "product", "product_name", "exchange_rate", "price_type", "arrival_price",
                   "sale_price", "count", "arrival_date", "description", "created_at"]
