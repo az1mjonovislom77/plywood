@@ -14,11 +14,24 @@ def handle_acceptance_create(sender, instance, created, **kwargs):
         return
 
     with transaction.atomic():
+
+        rate_value = None
+
+        if instance.price_type == Acceptance.PriceType.DOLLAR:
+            rate = CurrencyRate.objects.filter(date__lte=instance.arrival_date).order_by("-date").first()
+
+            if not rate:
+                raise ValidationError("Dollar rate not found")
+
+            rate_value = rate.rate
+
         AcceptanceHistory.objects.create(
             acceptance=instance,
             product=instance.product,
             arrival_price=instance.arrival_price,
             sale_price=instance.sale_price,
+            price_type=instance.price_type,
+            exchange_rate=rate_value,
             count=instance.count,
             arrival_date=instance.arrival_date,
             description=instance.description,
@@ -27,14 +40,9 @@ def handle_acceptance_create(sender, instance, created, **kwargs):
         arrival_price = instance.arrival_price
         sale_price = instance.sale_price
 
-        if instance.price_type == Acceptance.PriceType.DOLLAR:
-            rate = CurrencyRate.objects.filter(date__lte=instance.arrival_date).order_by("-date").first()
-
-            if not rate:
-                raise ValidationError("Dollar rate not found")
-
-            arrival_price = (arrival_price * rate.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            sale_price = (sale_price * rate.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if rate_value is not None:
+            arrival_price = (arrival_price * rate_value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            sale_price = (sale_price * rate_value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         Product.objects.filter(id=instance.product.id).update(
             count=F("count") + instance.count,

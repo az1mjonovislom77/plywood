@@ -1,8 +1,6 @@
 from django.db import models
 from django.utils import timezone
 from product.models import Product
-from django.core.exceptions import ValidationError
-from decimal import Decimal, ROUND_HALF_UP
 
 
 class CurrencyRate(models.Model):
@@ -35,10 +33,16 @@ class Acceptance(models.Model):
 
 
 class AcceptanceHistory(models.Model):
+    class PriceType(models.TextChoices):
+        DOLLAR = "dollar", "Dollar"
+        SUM = "sum", "Sum"
+
     acceptance = models.OneToOneField('Acceptance', on_delete=models.CASCADE, related_name='history')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="acceptance_histories")
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2)
+    exchange_rate = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    price_type = models.CharField(max_length=10, choices=PriceType.choices)
     count = models.PositiveIntegerField()
     arrival_date = models.DateField()
     description = models.TextField(null=True, blank=True)
