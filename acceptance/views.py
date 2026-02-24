@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from utils.base.views_base import BaseUserViewSet
 from .models import Acceptance, AcceptanceHistory
-from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer, CurrencyRateSerializer
+from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer
 
 
 @extend_schema(tags=["Acceptance"])
