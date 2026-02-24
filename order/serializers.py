@@ -101,12 +101,18 @@ class OrderSerializer(serializers.ModelSerializer):
     banding = BandingGetSerializer(read_only=True)
     cutting = CuttingSerializer(read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
+    customer_fullname = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
 
-        fields = ["id", "user", "customer", "is_anonymous", "discount_type", "discount", "payment_method",
+        fields = ["id", "user", "customer_fullname", "is_anonymous", "discount_type", "discount", "payment_method",
                   "covered_amount", "banding", "cutting", "total_price", "items", "created_at"]
+
+    def get_customer_fullname(self, obj):
+        if obj.customer:
+            return obj.customer.full_name
+        return None
 
 
 class OrderCreateSerializer(serializers.Serializer):
