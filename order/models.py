@@ -37,6 +37,7 @@ class Banding(models.Model):
                                   related_name="bandings")
     width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def linear_meter(self):
         return ((self.width + self.height) * Decimal("2")) / Decimal("1000")
@@ -54,6 +55,7 @@ class Banding(models.Model):
 class Cutting(models.Model):
     count = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def calculate_price(self):
         if self.count:

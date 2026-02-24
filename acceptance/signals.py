@@ -27,13 +27,12 @@ def update_product_on_acceptance_create(sender, instance, created, **kwargs):
     if not created:
         return
 
-    with transaction.atomic():
-        product = instance.product
-        Product.objects.filter(id=product.id).update(count=F('count') + instance.count)
+    update_data = {"count": F("count") + instance.count}
 
-        if instance.arrival_price and instance.arrival_price > 0:
-            Product.objects.filter(id=product.id).update(arrival_price=instance.arrival_price)
+    if instance.arrival_price and instance.arrival_price > 0:
+        update_data["arrival_price"] = instance.arrival_price
 
-        if instance.sale_price and instance.sale_price > 0:
-            Product.objects.filter(id=product.id).update(
-                sale_price=instance.sale_price)
+    if instance.sale_price and instance.sale_price > 0:
+        update_data["sale_price"] = instance.sale_price
+
+    Product.objects.filter(id=instance.product.id).update(**update_data)
