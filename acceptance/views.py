@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from utils.base.views_base import BaseUserViewSet
 from .models import Acceptance, AcceptanceHistory
-from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer
+from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer, CurrencyRateSerializer
 
 
 @extend_schema(tags=["Acceptance"])
@@ -27,6 +27,15 @@ class AcceptanceViewSet(BaseUserViewSet):
 class AcceptanceHistoryViewSet(ModelViewSet):
     queryset = AcceptanceHistory.objects.select_related("product", "acceptance").all()
     serializer_class = AcceptanceHistorySerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get"]
+    pagination_class = None
+
+
+@extend_schema(tags=["CurrencyRate"])
+class CurrencyRateViewSet(ModelViewSet):
+    queryset = CurrencyRate.objects.all()
+    serializer_class = CurrencyRateSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get"]
     pagination_class = None

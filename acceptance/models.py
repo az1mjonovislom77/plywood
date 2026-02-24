@@ -27,18 +27,6 @@ class Acceptance(models.Model):
     description = models.TextField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    def save(self, *args, **kwargs):
-
-        if not self.pk and self.price_type == self.PriceType.DOLLAR:
-
-            rate = CurrencyRate.objects.filter(date__lte=self.arrival_date).order_by("-date").first()
-            if not rate:
-                raise ValidationError("Dollar rate not found for this date")
-            self.arrival_price = (self.arrival_price * rate.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            self.sale_price = (self.sale_price * rate.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-        super().save(*args, **kwargs)
-
     class Meta:
         ordering = ["-created_at"]
 
