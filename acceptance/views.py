@@ -32,15 +32,6 @@ class AcceptanceHistoryViewSet(ModelViewSet):
     pagination_class = None
 
 
-@extend_schema(tags=["CurrencyRate"])
-class CurrencyRateViewSet(ModelViewSet):
-    queryset = CurrencyRate.objects.all()
-    serializer_class = CurrencyRateSerializer
-    permission_classes = [IsAuthenticated]
-    http_method_names = ["get"]
-    pagination_class = None
-
-
 @extend_schema(tags=["UpdateCurrency"])
 class UpdateCurrencyRateView(APIView):
     permission_classes = [IsAuthenticated]
