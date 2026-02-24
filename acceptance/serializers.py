@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Acceptance, AcceptanceHistory, CurrencyRate
+from .models import Acceptance, AcceptanceHistory
 
 
 class AcceptanceSerializer(serializers.ModelSerializer):
