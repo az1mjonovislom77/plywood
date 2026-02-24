@@ -16,5 +16,5 @@ class AcceptanceHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AcceptanceHistory
-        fields = ["id", "acceptance", "product", "product_name", "arrival_price", "sale_price", "count", "arrival_date",
-                  "description", "created_at"]
+        fields = ["id", "acceptance", "product", "product_name", "exchange_rate", "price_type", "arrival_price",
+                  "sale_price", "count", "arrival_date", "description", "created_at"]
