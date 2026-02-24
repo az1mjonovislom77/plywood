@@ -2,7 +2,6 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from utils.base.views_base import BaseUserViewSet
 from utils.models import Currency
 from utils.serializers import CurrencySerializer

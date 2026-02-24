@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from product.models import Product
+from product.models import Product, Quality
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -17,3 +17,9 @@ class ProductSerializer(serializers.ModelSerializer):
             data.pop("arrival_price", None)
 
         return data
+
+
+class QualitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Quality
+        fields = "__all__"

@@ -3,6 +3,16 @@ from django.utils import timezone
 from category.models import Category
 
 
+class Quality(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     class Quality(models.TextChoices):
         STANDARD = 'standard', "Standard"

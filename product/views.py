@@ -1,7 +1,9 @@
 from drf_spectacular.utils import extend_schema
-from product.models import Product
+from rest_framework.permissions import IsAuthenticated
+
+from product.models import Product, Quality
 from rest_framework import filters
-from product.serializers import ProductSerializer
+from product.serializers import ProductSerializer, QualitySerializer
 from utils.base.views_base import BaseUserViewSet, User
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -19,3 +21,13 @@ class ProductViewSet(BaseUserViewSet):
     def perform_destroy(self, instance):
         instance.is_active = False
         instance.save(update_fields=["is_active"])
+
+
+class QualityViewSet(BaseUserViewSet):
+    queryset = Quality.objects.all()
+    serializer_class = QualitySerializer
+    http_method_names = ["get"]
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    ordering = ["-id"]
