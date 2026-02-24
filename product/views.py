@@ -23,6 +23,7 @@ class ProductViewSet(BaseUserViewSet):
         instance.save(update_fields=["is_active"])
 
 
+@extend_schema(tags=["Quality"])
 class QualityViewSet(BaseUserViewSet):
     queryset = Quality.objects.all()
     serializer_class = QualitySerializer
