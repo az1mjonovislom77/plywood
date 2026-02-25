@@ -113,11 +113,18 @@ class Order(models.Model):
 
         self.total_price = total
 
-    def calculate_total_temp(self):
-        total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
+    def clean(self):
+        if self.covered_amount < 0:
+            raise ValidationError("Covered amount cannot be negative")
+
+        if not self.pk:
+            return
+
+        total = sum((item.price * item.quantity for item in self.items.all()),Decimal("0"))
 
         if self.banding:
             total += self.banding.calculate_price()
+
         if self.cutting:
             total += self.cutting.calculate_price()
 
@@ -127,18 +134,7 @@ class Order(models.Model):
             else:
                 total -= self.discount
 
-        total = max(total, Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-        return total
-
-    def clean(self):
-        if self.pk:
-            total = self.calculate_total_temp()
-        else:
-            total = self.total_price or Decimal("0")
-
-        if self.covered_amount < 0:
-            raise ValidationError("Covered amount cannot be negative")
+        total = max(total, Decimal("0")).quantize(Decimal("0.01"),rounding=ROUND_HALF_UP)
 
         if self.covered_amount > total:
             raise ValidationError("Covered amount cannot exceed total price")
