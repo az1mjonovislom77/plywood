@@ -71,11 +71,16 @@ class BandingPostSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
+    product_id = serializers.IntegerField()
 
     class Meta:
         model = OrderItem
-        fields = ["id", "product", "price", "quantity"]
+        fields = ["id", "product_id", "price", "quantity"]
+
+    def validate_product_id(self, value):
+        if not Product.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Product not found")
+        return value
 
 
 class OrderItemCreateSerializer(serializers.ModelSerializer):

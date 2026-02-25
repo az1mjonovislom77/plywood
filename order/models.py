@@ -11,9 +11,10 @@ class Basket(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["user"], condition=models.Q(is_active=True),
-                                    name="unique_active_basket_per_user")]
+        constraints = [models.UniqueConstraint(
+            fields=["user"],
+            condition=models.Q(is_active=True),
+            name="unique_active_basket_per_user")]
 
 
 class BasketItem(models.Model):
@@ -21,7 +22,8 @@ class BasketItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ("basket", "product")
+        constraints = [
+            models.UniqueConstraint(fields=["basket", "product"], name="unique_product_per_basket")]
 
 
 class Thickness(models.Model):
@@ -111,10 +113,34 @@ class Order(models.Model):
 
         self.total_price = total
 
+    def calculate_total_temp(self):
+        total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
+
+        if self.banding:
+            total += self.banding.calculate_price()
+        if self.cutting:
+            total += self.cutting.calculate_price()
+
+        if self.discount > 0:
+            if self.discount_type == self.DiscountType.PERCENTAGE:
+                total -= total * (self.discount / Decimal("100"))
+            else:
+                total -= self.discount
+
+        total = max(total, Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        return total
+
     def clean(self):
+        if self.pk:
+            total = self.calculate_total_temp()
+        else:
+            total = self.total_price or Decimal("0")
+
         if self.covered_amount < 0:
             raise ValidationError("Covered amount cannot be negative")
-        if self.covered_amount > self.total_price:
+
+        if self.covered_amount > total:
             raise ValidationError("Covered amount cannot exceed total price")
 
 
