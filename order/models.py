@@ -120,21 +120,19 @@ class Order(models.Model):
         if not self.pk:
             return
 
-        total = sum((item.price * item.quantity for item in self.items.all()),Decimal("0"))
+        total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
 
         if self.banding:
             total += self.banding.calculate_price()
-
         if self.cutting:
             total += self.cutting.calculate_price()
-
         if self.discount > 0:
             if self.discount_type == self.DiscountType.PERCENTAGE:
                 total -= total * (self.discount / Decimal("100"))
             else:
                 total -= self.discount
 
-        total = max(total, Decimal("0")).quantize(Decimal("0.01"),rounding=ROUND_HALF_UP)
+        total = max(total, Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         if self.covered_amount > total:
             raise ValidationError("Covered amount cannot exceed total price")

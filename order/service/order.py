@@ -10,21 +10,19 @@ class OrderService:
 
     @staticmethod
     def get_all(user):
-        return (
-            Order.objects
-            .filter(user=user)
-            .select_related("banding", "cutting")
-            .prefetch_related(Prefetch("items", queryset=OrderItem.objects.select_related("product")))
-            .order_by("-id"))
+        return (Order.objects
+                .filter(user=user)
+                .select_related("banding", "cutting")
+                .prefetch_related(Prefetch("items", queryset=OrderItem.objects.select_related("product")))
+                .order_by("-id"))
 
     @staticmethod
     def get_by_id(user, order_id):
-        return (
-            Order.objects
-            .filter(user=user, id=order_id)
-            .select_related("banding", "cutting")
-            .prefetch_related("items__product")
-            .first())
+        return (Order.objects
+                .filter(user=user, id=order_id)
+                .select_related("banding", "cutting")
+                .prefetch_related("items__product")
+                .first())
 
     @staticmethod
     @transaction.atomic

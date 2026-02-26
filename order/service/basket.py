@@ -1,6 +1,5 @@
 from django.db import transaction
 from django.db.models import Prefetch
-
 from order.models import Basket, BasketItem
 
 
@@ -17,8 +16,7 @@ class BasketService:
             Basket.objects
             .filter(user=user, is_active=True)
             .select_related("user")
-            .prefetch_related(Prefetch("items", queryset=BasketItem.objects.select_related("product"))).first()
-        )
+            .prefetch_related(Prefetch("items", queryset=BasketItem.objects.select_related("product"))).first())
 
         if not basket:
             basket = BasketService.get_or_create_basket(user)
