@@ -26,7 +26,8 @@ LOCAL_APPS = [
     'category',
     'customer',
     'acceptance',
-    'order'
+    'order',
+    'supplier'
 ]
 
 THIRD_PARTY_APPS = [
@@ -95,7 +96,6 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
-
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),

@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import F
 from django.core.exceptions import ValidationError
 from product.models import Product
+from supplier.models import Supplier, SupplierTransaction
 from .models import Acceptance, AcceptanceHistory, CurrencyRate
 
 
@@ -27,6 +28,7 @@ def handle_acceptance_create(sender, instance, created, **kwargs):
 
         AcceptanceHistory.objects.create(
             acceptance=instance,
+            supplier=instance.supplier,
             product=instance.product,
             arrival_price=instance.arrival_price,
             sale_price=instance.sale_price,
@@ -48,4 +50,14 @@ def handle_acceptance_create(sender, instance, created, **kwargs):
             count=F("count") + instance.count,
             arrival_price=arrival_price,
             sale_price=sale_price
+        )
+
+        total_amount = arrival_price * instance.count
+
+        Supplier.objects.filter(id=instance.supplier.id).update(debt=F("debt") + total_amount)
+        SupplierTransaction.objects.create(
+            supplier=instance.supplier,
+            transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+            amount=total_amount,
+            description=f"Acceptance #{instance.id}"
         )
