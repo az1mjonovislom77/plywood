@@ -27,6 +27,7 @@ class SupplierViewSet(BaseUserViewSet):
 @extend_schema(tags=["Supplier"])
 class SupplierPaymentView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = SupplierPaymentSerializer
 
     def post(self, request):
         serializer = SupplierPaymentSerializer(data=request.data)
@@ -43,6 +44,7 @@ class SupplierPaymentView(APIView):
 @extend_schema(tags=["Supplier"])
 class SupplierTransactionView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = SupplierTransactionSerializer
 
     def get(self, request, supplier_id):
         transactions = Supplier.objects.get(id=supplier_id).transactions.all()
