@@ -24,6 +24,7 @@ class SupplierViewSet(BaseUserViewSet):
         instance.save(update_fields=["is_active"])
 
 
+@extend_schema(tags=["Supplier"])
 class SupplierPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -39,6 +40,7 @@ class SupplierPaymentView(APIView):
         return Response(SupplierSerializer(supplier).data, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["Supplier"])
 class SupplierTransactionView(APIView):
     permission_classes = [IsAuthenticated]
 
