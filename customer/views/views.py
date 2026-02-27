@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from customer.models import Customer
@@ -21,6 +22,7 @@ class CustomerViewSet(BaseUserViewSet):
 
 @extend_schema(tags=["CustomerDebt"])
 class CoverDebtAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = CoverDebtSerializer
 
     def post(self, request, pk):
@@ -38,6 +40,8 @@ class CoverDebtAPIView(APIView):
 
 @extend_schema(tags=["CustomerDebt"])
 class CustomerHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CustomerHistoryResponseSerializer
 
     def get(self, request, pk):
         data = DebtService.get_customer_history(pk)
