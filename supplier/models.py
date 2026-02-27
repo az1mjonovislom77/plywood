@@ -5,6 +5,7 @@ class Supplier(models.Model):
     full_name = models.CharField(max_length=200)
     phone_number = models.CharField(max_length=20)
     debt = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    company = models.CharField(max_length=200, null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:

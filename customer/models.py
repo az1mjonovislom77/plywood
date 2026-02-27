@@ -9,6 +9,7 @@ class Customer(models.Model):
     phone_number = models.CharField(max_length=20, null=True, blank=True, db_index=True)
     location = models.CharField(max_length=100, null=True, blank=True)
     debt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    covered_debt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     about = models.CharField(max_length=200, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
 
@@ -27,3 +28,12 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.full_name
+
+
+class Payment(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="payments")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
