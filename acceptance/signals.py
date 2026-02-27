@@ -46,18 +46,18 @@ def handle_acceptance_create(sender, instance, created, **kwargs):
             arrival_price = (arrival_price * rate_value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             sale_price = (sale_price * rate_value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-        Product.objects.filter(id=instance.product.id).update(
-            count=F("count") + instance.count,
-            arrival_price=arrival_price,
-            sale_price=sale_price
-        )
+        Product.objects.filter(pk=instance.product_id).update(count=F("count") + instance.count,
+                                                              arrival_price=arrival_price,
+                                                              sale_price=sale_price)
 
         total_amount = arrival_price * instance.count
 
-        Supplier.objects.filter(id=instance.supplier.id).update(debt=F("debt") + total_amount)
-        SupplierTransaction.objects.create(
-            supplier=instance.supplier,
-            transaction_type=SupplierTransaction.TransactionType.PURCHASE,
-            amount=total_amount,
-            description=f"Acceptance #{instance.id}"
-        )
+        if instance.supplier_id:
+            Supplier.objects.filter(pk=instance.supplier_id).update(debt=F("debt") + total_amount)
+
+            SupplierTransaction.objects.create(
+                supplier_id=instance.supplier_id,
+                transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+                amount=total_amount,
+                description=f"Acceptance #{instance.id}"
+            )
