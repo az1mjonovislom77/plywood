@@ -22,6 +22,7 @@ class CustomerViewSet(BaseUserViewSet):
 
 @extend_schema(tags=["CustomerDebt"])
 class CoverDebtAPIView(APIView):
+    serializer_class = CoverDebtSerializer
 
     def post(self, request, pk):
         serializer = CoverDebtSerializer(data=request.data)
