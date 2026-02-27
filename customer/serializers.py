@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from customer.models import Customer, Payment
+from customer.models import Customer, BalanceHistory
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -18,7 +18,12 @@ class CoverDebtSerializer(serializers.Serializer):
         return value
 
 
-class PaymentHistorySerializer(serializers.ModelSerializer):
+class BalanceHistorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = Payment
-        fields = ["id", "amount", "created_at"]
+        model = BalanceHistory
+        fields = ["id", "type", "amount", "created_at"]
+
+
+class CustomerHistoryResponseSerializer(serializers.Serializer):
+    history = BalanceHistorySerializer(many=True)
+    stats = serializers.DictField()

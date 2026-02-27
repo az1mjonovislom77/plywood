@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import Prefetch, F
 from customer.models import Customer
+from customer.models import BalanceHistory
 from order.models import Order, OrderItem, Cutting, Banding, Basket
 from order.service.basket import BasketService
 from product.models import Product
@@ -92,8 +93,21 @@ class OrderService:
 
         remaining = order.total_price - order.covered_amount
 
-        if order.payment_method == Order.PaymentMethod.NASIYA and order.customer and remaining > 0:
-            order.customer.increase_debt(remaining)
+        if order.customer:
+
+            customer = Customer.objects.select_for_update().get(id=order.customer.id)
+
+            if order.covered_amount > 0:
+                BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.PAYMENT,
+                                              amount=order.covered_amount)
+
+            if order.payment_method == Order.PaymentMethod.NASIYA and remaining > 0:
+                Customer.objects.filter(id=customer.id).update(debt=F("debt") + remaining)
+                BalanceHistory.objects.create(
+                    customer=customer,
+                    type=BalanceHistory.Type.DEBT_ADD,
+                    amount=remaining
+                )
 
         if not basket.items.exists():
             basket.is_active = False

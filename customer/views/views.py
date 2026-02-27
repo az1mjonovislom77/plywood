@@ -1,11 +1,10 @@
 from django.core.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
-from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from customer.models import Customer, Payment
+from customer.models import Customer
 from rest_framework import filters, status
-from customer.serializers import CustomerSerializer, CoverDebtSerializer, PaymentHistorySerializer
+from customer.serializers import CustomerSerializer, CoverDebtSerializer, CustomerHistoryResponseSerializer
 from customer.service.cover_debt import DebtService
 from utils.base.views_base import BaseUserViewSet
 
@@ -29,22 +28,19 @@ class CoverDebtAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         try:
-            customer, payment = DebtService.cover_debt(customer_id=pk, amount=serializer.validated_data["amount"])
-
-            return Response({
-                "remaining_debt": customer.debt,
-                "total_covered": customer.covered_debt,
-                "payment_id": payment.id
-            }, status=status.HTTP_201_CREATED)
+            customer = DebtService.cover_debt(customer_id=pk, amount=serializer.validated_data["amount"])
+            return Response(
+                {"message": "Debt covered", "current_debt": customer.debt}, status=status.HTTP_200_OK)
 
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(tags=["CustomerDebt"])
-class CustomerPaymentHistoryAPIView(ListAPIView):
-    serializer_class = PaymentHistorySerializer
-    pagination_class = None
+class CustomerHistoryAPIView(APIView):
 
-    def get_queryset(self):
-        return Payment.objects.filter(customer_id=self.kwargs["pk"])
+    def get(self, request, pk):
+        data = DebtService.get_customer_history(pk)
+
+        serializer = CustomerHistoryResponseSerializer(data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
