@@ -55,10 +55,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-DEBUG_TOOLBAR_CONFIG = {
-    "SHOW_TOOLBAR_CALLBACK": lambda request: True,
-}
-INTERNAL_IPS = ["127.0.0.1", "35.173.69.207"]
+INTERNAL_IPS = ["127.0.0.1"]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
