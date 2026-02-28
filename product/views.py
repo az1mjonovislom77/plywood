@@ -55,13 +55,3 @@ class QualityViewSet(BaseUserViewSet):
     pagination_class = None
 
     ordering = ["-id"]
-
-
-from django.http import HttpResponse
-
-
-def show_ip(request):
-    return HttpResponse(f"""
-    REMOTE_ADDR: {request.META.get('REMOTE_ADDR')} <br>
-    HTTP_X_FORWARDED_FOR: {request.META.get('HTTP_X_FORWARDED_FOR')}
-    """)
