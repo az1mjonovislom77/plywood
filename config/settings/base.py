@@ -55,9 +55,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+INTERNAL_IPS = ["*"]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
