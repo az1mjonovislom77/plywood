@@ -1,6 +1,9 @@
 from django.db import models
 from django.utils import timezone
 from category.models import Category
+from django.core.validators import FileExtensionValidator
+
+from product.utils import check_image_size
 
 
 class Quality(models.Model):
@@ -23,6 +26,10 @@ class Product(models.Model):
     name = models.CharField(max_length=200, db_index=True)
     color = models.CharField(max_length=200, null=True, blank=True)
     quality = models.CharField(choices=Quality.choices, default=Quality.STANDARD, max_length=20, db_index=True)
+    image = models.ImageField(upload_to='product/', validators=[
+        FileExtensionValidator(
+            allowed_extensions=['jpg', 'jpeg', 'png', 'svg', 'webp', 'JPG', 'JPEG', 'PNG', 'SVG', 'WEBP']),
+        check_image_size], blank=True, null=True)
     width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     thick = models.DecimalField(max_digits=10, decimal_places=2, default=0)
