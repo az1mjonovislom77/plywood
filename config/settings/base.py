@@ -55,7 +55,10 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-INTERNAL_IPS = ["*"]
+import socket
+
+hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+INTERNAL_IPS = ["127.0.0.1", ] + [ip[:-1] + "1" for ip in ips]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
