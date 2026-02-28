@@ -1,34 +1,51 @@
-from django.db.models import Sum, F, ExpressionWrapper, DecimalField, Value, Count
+from decimal import Decimal
+from django.db.models import (F, Sum, Count, Value, DecimalField, ExpressionWrapper)
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from decimal import Decimal
-from order.models import Order, OrderItem
+from order.models import OrderItem, Order
 from product.models import Product
 
 
 class DashboardStatsService:
 
     @staticmethod
-    def get_stats():
-        today = timezone.now().date()
+    def _profit_expression():
+        return ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
+                                 output_field=DecimalField(max_digits=14, decimal_places=2), )
 
-        profit_expr = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),output_field=DecimalField(max_digits=14, decimal_places=2))
-        today_income = OrderItem.objects.filter(order__created_at__date=today).aggregate(
-            income=Coalesce(Sum(profit_expr),Value(Decimal("0.00")),output_field=DecimalField(max_digits=14, decimal_places=2)))["income"]
-        total_income = OrderItem.objects.aggregate(
-            income=Coalesce(Sum(profit_expr),Value(Decimal("0.00")),output_field=DecimalField(max_digits=14, decimal_places=2)))["income"]
+    @classmethod
+    def get_stats(cls):
+        today = timezone.localdate()
+        profit_expr = cls._profit_expression()
 
-        total_sales = Order.objects.aggregate(count=Coalesce(Count("id"), Value(0)))["count"]
-        total_discount = Order.objects.aggregate(
-            discount=Coalesce(Sum("discount"), Value(Decimal("0.00")),
-                              output_field=DecimalField(max_digits=14, decimal_places=2)))["discount"]
+        orderitem_agg = OrderItem.objects.aggregate(
+            total_income=Coalesce(
+                Sum(profit_expr),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+            today_income=Coalesce(
+                Sum(profit_expr,
+                    filter=Q(order__created_at__date=today)), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+
+        order_agg = Order.objects.aggregate(
+            total_sales=Count("id"),
+            total_discount=Coalesce(
+                Sum("discount"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
 
         total_products = Product.objects.count()
 
         return {
-            "today_income": today_income,
-            "total_income": total_income,
-            "total_sales": total_sales,
-            "total_discount": total_discount,
+            "today_income": orderitem_agg["today_income"],
+            "total_income": orderitem_agg["total_income"],
+            "total_sales": order_agg["total_sales"],
+            "total_discount": order_agg["total_discount"],
             "total_products": total_products,
         }
