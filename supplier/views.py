@@ -3,10 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status, filters
-
 from utils.base.views_base import BaseUserViewSet
 from .models import Supplier
 from .serializers import (SupplierSerializer, SupplierTransactionSerializer, SupplierPaymentSerializer)
+from .service.stats import get_supplier_transactions_with_stats, SupplierStatsService
 from .service.supplier import SupplierService
 
 
@@ -44,11 +44,22 @@ class SupplierPaymentView(APIView):
 @extend_schema(tags=["Supplier"])
 class SupplierTransactionView(APIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = SupplierTransactionSerializer
 
     def get(self, request, supplier_id):
-        transactions = Supplier.objects.get(id=supplier_id).transactions.all()
+        supplier, transactions, stats = get_supplier_transactions_with_stats(supplier_id)
 
         serializer = SupplierTransactionSerializer(transactions, many=True)
 
-        return Response(serializer.data)
+        return Response({
+            "stats": stats,
+            "transactions": serializer.data
+        })
+
+
+@extend_schema(tags=["SupplierStats"])
+class SupplierDebtStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        stats = SupplierStatsService.get_debt_stats()
+        return Response(stats)

@@ -23,7 +23,6 @@ class SupplierService:
 
         SupplierTransaction.objects.create(
             supplier=supplier,
-            transaction_type=SupplierTransaction.TransactionType.PAYMENT,
-            amount=amount, description="Debt payment")
+            transaction_type=SupplierTransaction.TransactionType.PAYMENT, amount=amount, description="Debt payment")
 
         return supplier
