@@ -9,5 +9,5 @@ router.register('quality', QualityViewSet, basename='quality')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path("ip/", show_ip),
+
 ]

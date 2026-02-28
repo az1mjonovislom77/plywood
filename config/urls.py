@@ -5,6 +5,8 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 import debug_toolbar
 
+from product.views import show_ip
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/', include('user.urls')),
@@ -15,6 +17,7 @@ urlpatterns = [
     path('acceptance/', include('acceptance.urls')),
     path('order/', include('order.urls')),
     path('supplier/', include('supplier.urls')),
+    path("ip/", show_ip),
 
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
