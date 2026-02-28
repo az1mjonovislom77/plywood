@@ -44,6 +44,7 @@ class SupplierPaymentView(APIView):
 @extend_schema(tags=["Supplier"])
 class SupplierTransactionView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = SupplierTransactionSerializer
 
     def get(self, request, supplier_id):
         supplier, transactions, stats = get_supplier_transactions_with_stats(supplier_id)
