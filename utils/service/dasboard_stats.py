@@ -19,25 +19,15 @@ class DashboardStatsService:
         profit_expr = cls._profit_expression()
 
         orderitem_agg = OrderItem.objects.aggregate(
-            total_income=Coalesce(
-                Sum(profit_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
-            ),
-            today_income=Coalesce(
-                Sum(profit_expr,
-                    filter=Q(order__created_at__date=today)), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
-            ),
-        )
+            total_income=Coalesce(Sum(profit_expr), Value(Decimal("0.00")),
+                                  output_field=DecimalField(max_digits=14, decimal_places=2)),
+            today_income=Coalesce(Sum(profit_expr, filter=Q(order__created_at__date=today)), Value(Decimal("0.00")),
+                                  output_field=DecimalField(max_digits=14, decimal_places=2)))
 
         order_agg = Order.objects.aggregate(
             total_sales=Count("id"),
-            total_discount=Coalesce(
-                Sum("discount"),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
-            ),
+            total_discount=Coalesce(Sum("discount"), Value(Decimal("0.00")),
+                                    output_field=DecimalField(max_digits=14, decimal_places=2)),
         )
 
         total_products = Product.objects.count()
