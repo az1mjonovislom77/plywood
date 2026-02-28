@@ -36,7 +36,7 @@ class Product(models.Model):
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     count = models.PositiveIntegerField(default=0)
-    arrival_date = models.DateField(default=timezone.now)
+    arrival_date = models.DateField(default=timezone.localdate)
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 

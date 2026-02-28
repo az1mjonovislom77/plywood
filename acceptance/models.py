@@ -23,7 +23,7 @@ class Acceptance(models.Model):
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     price_type = models.CharField(max_length=10, choices=PriceType.choices, default=PriceType.SUM)
     count = models.PositiveIntegerField(default=0)
-    arrival_date = models.DateField(default=timezone.now)
+    arrival_date = models.DateField(default=timezone.localdate)
     description = models.TextField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
