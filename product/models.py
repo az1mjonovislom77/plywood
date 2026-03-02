@@ -1,9 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from category.models import Category
-from django.core.validators import FileExtensionValidator
-
 from product.utils import check_image_size
+from django.core.validators import FileExtensionValidator
 
 
 class Quality(models.Model):

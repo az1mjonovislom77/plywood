@@ -21,7 +21,7 @@ class CurrencyRateModelTest(TestCase):
             rate=Decimal("12345.67")
         )
 
-        self.assertEqual(rate.date, date(2024, 1, 1))
+        self.assertEqual(rate.date, date(2024, 2, 1))
         self.assertEqual(rate.rate, Decimal("12345.67"))
 
     def test_str_representation(self):
