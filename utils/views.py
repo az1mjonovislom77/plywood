@@ -38,6 +38,7 @@ class DashboardStatsView(APIView):
 
 @extend_schema(tags=["Dashboard"])
 class DashboardRangeStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         date_from = request.query_params.get("from")
