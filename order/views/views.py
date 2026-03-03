@@ -1,6 +1,6 @@
 from django.utils import timezone
-from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -80,7 +80,10 @@ class ThicknessViewSet(BaseUserViewSet):
     ordering = ["-id"]
 
 
-@extend_schema(tags=["Order"])
+@extend_schema(tags=["Order"],
+               parameters=[OpenApiParameter(
+                   name="date", type=OpenApiTypes.DATE,
+                   location=OpenApiParameter.QUERY, required=False)])
 class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
