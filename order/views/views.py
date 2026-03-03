@@ -93,7 +93,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        queryset = OrderService.get_all(user=self.request.user)
+        queryset = OrderService.get_all()
 
         date_param = self.request.query_params.get("date")
 
@@ -112,7 +112,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        order = OrderService.get_by_id(user=request.user, order_id=pk, )
+        order = OrderService.get_by_id(order_id=pk)
 
         if not order:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
@@ -140,7 +140,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, )
 
     def update(self, request, pk=None):
-        order = OrderService.get_by_id(user=request.user, order_id=pk, )
+        order = OrderService.get_by_id(order_id=pk)
 
         if not order:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
@@ -152,7 +152,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     def destroy(self, request, pk=None):
-        order = OrderService.get_by_id(user=request.user, order_id=pk, )
+        order = OrderService.get_by_id(order_id=pk)
 
         if not order:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
