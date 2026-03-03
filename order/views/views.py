@@ -1,3 +1,5 @@
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +10,7 @@ from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItem
 from order.service.basket import BasketService
 from order.service.order import OrderService
 from utils.base.views_base import BaseUserViewSet
+from django.utils.dateparse import parse_date
 
 
 @extend_schema(tags=["Basket"])
@@ -46,14 +49,22 @@ class CuttingViewSet(BaseUserViewSet):
     queryset = Cutting.objects.all()
     serializer_class = CuttingSerializer
 
-    ordering = ["-id"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        date_param = self.request.query_params.get("date") or timezone.localdate()
+        return self.queryset.filter(created_at__date=date_param)
 
 
 @extend_schema(tags=["Banding"])
 class BandingViewSet(BaseUserViewSet):
-    queryset = Banding.objects.select_related("thickness")
+    queryset = Banding.objects.select_related("thickness").all()
 
-    ordering = ["-id"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        date_param = self.request.query_params.get("date") or timezone.localdate()
+        return self.queryset.filter(created_at__date=date_param)
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -75,13 +86,20 @@ class OrderViewSet(viewsets.GenericViewSet):
     http_method_names = ["get", "post", "put", "delete"]
     pagination_class = None
 
+    ordering = ["-created_at"]
+
     def get_serializer_class(self):
         if self.action == "create":
             return OrderCreateSerializer
         return OrderSerializer
 
     def get_queryset(self):
-        return OrderService.get_all(user=self.request.user)
+        queryset = OrderService.get_all(user=self.request.user)
+
+        date_param = self.request.query_params.get("date")
+        parsed_date = parse_date(date_param) if date_param else timezone.localdate()
+
+        return queryset.filter(created_at__date=parsed_date)
 
     def list(self, request):
         serializer = OrderSerializer(self.get_queryset(), many=True)
