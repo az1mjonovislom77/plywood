@@ -1,4 +1,5 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -36,7 +37,11 @@ class DashboardStatsView(APIView):
         return Response(data)
 
 
-@extend_schema(tags=["Dashboard"])
+@extend_schema(tags=["Dashboard"],
+               parameters=[OpenApiParameter(name="date", type=OpenApiTypes.DATE,
+                                            location=OpenApiParameter.QUERY,
+                                            required=False,
+                                            description="Filter by date (YYYY-MM-DD)")])
 class DashboardRangeStatsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
