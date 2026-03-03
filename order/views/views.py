@@ -81,10 +81,19 @@ class ThicknessViewSet(BaseUserViewSet):
 
 
 @extend_schema_view(
-    list=extend_schema(tags=["Order"],
-                       parameters=[
-                           OpenApiParameter(name="date", type=OpenApiTypes.DATE,
-                                            location=OpenApiParameter.QUERY, required=False)]))
+    list=extend_schema(
+        tags=["Order"],
+        parameters=[
+            OpenApiParameter(
+                name="date",
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filter by date (YYYY-MM-DD). Default: today",
+            )
+        ],
+    )
+)
 class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
@@ -114,7 +123,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         order = OrderService.get_by_id(user=request.user, order_id=pk)
 
         if not order:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
 
         serializer = self.get_serializer(order)
 
@@ -133,18 +142,18 @@ class OrderViewSet(viewsets.GenericViewSet):
             discount_type=serializer.validated_data.get("discount_type"),
             covered_amount=serializer.validated_data.get("covered_amount"),
             banding_data=serializer.validated_data.get("banding"),
-            cutting_data=serializer.validated_data.get("cutting"))
+            cutting_data=serializer.validated_data.get("cutting"),
+        )
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED, )
 
     def update(self, request, pk=None):
         order = OrderService.get_by_id(user=request.user, order_id=pk)
 
         if not order:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
 
         serializer = OrderSerializer(order, data=request.data, partial=True)
-
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -154,8 +163,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         order = OrderService.get_by_id(user=request.user, order_id=pk)
 
         if not order:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
 
         order.delete()
-
-        return Response({"detail": "Order deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"detail": "Order deleted successfully"}, status=status.HTTP_204_NO_CONTENT, )
