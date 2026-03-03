@@ -1,10 +1,9 @@
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from order.models import Cutting, Banding, Thickness
 from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItemSerializer, \
     ThicknessSerializer, BandingGetSerializer, BandingPostSerializer, OrderCreateSerializer, OrderSerializer
@@ -12,6 +11,7 @@ from order.service.basket import BasketService
 from order.service.order import OrderService
 from utils.base.views_base import BaseUserViewSet
 from django.utils.dateparse import parse_date
+from rest_framework.exceptions import ValidationError
 
 
 @extend_schema(tags=["Basket"])
@@ -81,36 +81,56 @@ class ThicknessViewSet(BaseUserViewSet):
     ordering = ["-id"]
 
 
-@extend_schema(tags=["Order"], parameters=[OpenApiParameter(
-    name="date",
-    type=OpenApiTypes.DATE,
-    location=OpenApiParameter.QUERY,
-    required=False)])
-class OrderAPIView(APIView):
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Order"],
+        parameters=[
+            OpenApiParameter(
+                name="date",
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+                required=False)]))
+class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "put", "delete"]
+    pagination_class = None
+    ordering = ["-created_at"]
 
-    def get(self, request, pk=None):
-        if pk:
-            order = OrderService.get_by_id(user=request.user, order_id=pk)
+    def get_serializer_class(self):
+        if self.action == "create":
+            return OrderCreateSerializer
+        return OrderSerializer
 
-            if not order:
-                return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
+    def get_queryset(self):
+        queryset = OrderService.get_all(user=self.request.user)
 
-            serializer = OrderSerializer(order)
-            return Response(serializer.data)
+        date_param = self.request.query_params.get("date")
 
-        queryset = OrderService.get_all(user=request.user)
+        if date_param:
+            parsed_date = parse_date(date_param)
+            if not parsed_date:
+                raise ValidationError({"date": "Invalid date format. Use YYYY-MM-DD"})
+        else:
+            parsed_date = timezone.localdate()
 
-        date_param = request.query_params.get("date")
-        parsed_date = parse_date(date_param) if date_param else timezone.localdate()
+        return queryset.filter(created_at__date=parsed_date)
 
-        queryset = queryset.filter(created_at__date=parsed_date)
-
-        serializer = OrderSerializer(queryset, many=True)
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def post(self, request):
-        serializer = OrderCreateSerializer(data=request.data)
+    def retrieve(self, request, pk=None):
+        order = OrderService.get_by_id(user=request.user, order_id=pk, )
+
+        if not order:
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
+
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         order = OrderService.checkout(
@@ -125,10 +145,11 @@ class OrderAPIView(APIView):
             cutting_data=serializer.validated_data.get("cutting"),
         )
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED, )
+        response_serializer = OrderSerializer(order)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, )
 
-    def put(self, request, pk):
-        order = OrderService.get_by_id(user=request.user, order_id=pk)
+    def update(self, request, pk=None):
+        order = OrderService.get_by_id(user=request.user, order_id=pk, )
 
         if not order:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
@@ -139,12 +160,12 @@ class OrderAPIView(APIView):
 
         return Response(serializer.data)
 
-    def delete(self, request, pk):
-        order = OrderService.get_by_id(user=request.user, order_id=pk)
+    def destroy(self, request, pk=None):
+        order = OrderService.get_by_id(user=request.user, order_id=pk, )
 
         if not order:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
 
         order.delete()
 
-        return Response({"detail": "Order deleted successfully"}, status=status.HTTP_204_NO_CONTENT, )
+        return Response(status=status.HTTP_204_NO_CONTENT)
