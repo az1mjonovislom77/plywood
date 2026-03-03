@@ -49,16 +49,12 @@ class ThicknessSerializer(BaseReadSerializer):
 
 class BandingGetSerializer(serializers.ModelSerializer):
     thickness = ThicknessSerializer(read_only=True)
-    linear_meter = serializers.SerializerMethodField()
     total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Banding
 
-        fields = ["id", "thickness", "width", "height", "linear_meter", "total_price", "created_at"]
-
-    def get_linear_meter(self, obj):
-        return obj.linear_meter()
+        fields = ["id", "thickness", "length", "total_price", "created_at"]
 
     def get_total_price(self, obj):
         return obj.calculate_price()
@@ -67,7 +63,7 @@ class BandingGetSerializer(serializers.ModelSerializer):
 class BandingPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Banding
-        fields = ["id", "thickness", "width", "height"]
+        fields = ["id", "thickness", "length"]
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

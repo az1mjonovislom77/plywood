@@ -11,11 +11,11 @@ class CuttingAdmin(admin.ModelAdmin):
 
 
 class ThicknessAdmin(admin.ModelAdmin):
-    list_display = ("id", "size", "price")
+    list_display = ("id", "text", "price")
 
 
 class BandingAdmin(admin.ModelAdmin):
-    list_display = ("id", "width", "height")
+    list_display = ("id", "length")
 
 
 class OrderAdmin(admin.ModelAdmin):

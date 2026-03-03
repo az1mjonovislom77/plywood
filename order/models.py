@@ -12,8 +12,7 @@ class Basket(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(
-            fields=["user"],
-            condition=models.Q(is_active=True),
+            fields=["user"], condition=models.Q(is_active=True),
             name="unique_active_basket_per_user")]
 
 
@@ -27,31 +26,26 @@ class BasketItem(models.Model):
 
 
 class Thickness(models.Model):
-    size = models.DecimalField(max_digits=10, decimal_places=2)
+    text = models.CharField(max_length=200)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return str(self.size)
+        return str(self.text)
 
 
 class Banding(models.Model):
     thickness = models.ForeignKey("Thickness", on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name="bandings")
-    width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    length = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_at = models.DateTimeField(default=timezone.now)
-
-    def linear_meter(self):
-        return ((self.width + self.height) * Decimal("2")) / Decimal("1000")
 
     def calculate_price(self):
         if self.thickness:
-            return self.linear_meter() * self.thickness.price
-
+            return self.length * self.thickness.price
         return Decimal("0")
 
     def __str__(self):
-        return f"{self.linear_meter()} m"
+        return f"{self.length}"
 
 
 class Cutting(models.Model):
