@@ -6,7 +6,7 @@ from django.utils import timezone
 from order.models import OrderItem, Order
 
 
-class DashboardStatsService:
+class DashboardRangeStatsService:
 
     @staticmethod
     def _product_profit_expression():
