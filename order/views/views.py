@@ -103,6 +103,10 @@ class OrderViewSet(viewsets.GenericViewSet):
 
         return queryset.filter(created_at__date=parsed_date)
 
+    @extend_schema(tags=["Order"],
+                   parameters=[
+                       OpenApiParameter(name="date", type=OpenApiTypes.DATE,
+                                        location=OpenApiParameter.QUERY, required=False)])
     def list(self, request):
         serializer = OrderSerializer(self.get_queryset(), many=True)
 
