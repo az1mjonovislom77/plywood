@@ -81,9 +81,8 @@ class ThicknessViewSet(BaseUserViewSet):
 
 
 @extend_schema(tags=["Order"],
-               parameters=[OpenApiParameter(
-                   name="date", type=OpenApiTypes.DATE,
-                   location=OpenApiParameter.QUERY, required=False)])
+               parameters=[OpenApiParameter(name="date", type=OpenApiTypes.DATE,
+                                            location=OpenApiParameter.QUERY, required=False)])
 class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]

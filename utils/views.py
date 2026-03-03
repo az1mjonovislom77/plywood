@@ -62,9 +62,8 @@ class DashboardRangeStatsAPIView(APIView):
 
 
 @extend_schema(tags=["Dashboard"],
-               parameters=[OpenApiParameter(
-                   name="date", type=OpenApiTypes.DATE,
-                   location=OpenApiParameter.QUERY, required=False)])
+               parameters=[OpenApiParameter(name="date", type=OpenApiTypes.DATE,
+                                            location=OpenApiParameter.QUERY, required=False)])
 class DashboardDailyStatsAPIView(APIView):
 
     def get(self, request):
