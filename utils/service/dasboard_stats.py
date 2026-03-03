@@ -1,12 +1,9 @@
 from decimal import Decimal
-from django.db.models import (
-    F, Sum, Count, Value, DecimalField,
-    ExpressionWrapper, Q
-)
-from django.db.models.functions import Coalesce
 from django.utils import timezone
-from order.models import OrderItem, Order
 from product.models import Product
+from order.models import OrderItem, Order
+from django.db.models.functions import Coalesce
+from django.db.models import F, Sum, Count, Value, DecimalField, ExpressionWrapper, Q
 
 
 class DashboardStatsService:
@@ -93,5 +90,5 @@ class DashboardStatsService:
             "total_sales": order_agg["total_sales"],
             "total_discount": order_agg["total_discount"],
             "total_products": total_products,
-            
+
         }
