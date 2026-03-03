@@ -1,5 +1,5 @@
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
@@ -80,6 +80,11 @@ class ThicknessViewSet(BaseUserViewSet):
     ordering = ["-id"]
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Order"],
+                       parameters=[
+                           OpenApiParameter(name="date", type=OpenApiTypes.DATE,
+                                            location=OpenApiParameter.QUERY, required=False)]))
 class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
@@ -100,10 +105,6 @@ class OrderViewSet(viewsets.GenericViewSet):
 
         return queryset.filter(created_at__date=parsed_date)
 
-    @extend_schema(tags=["Order"],
-                   parameters=[
-                       OpenApiParameter(name="date", type=OpenApiTypes.DATE,
-                                        location=OpenApiParameter.QUERY, required=False)])
     def list(self, request):
         serializer = OrderSerializer(self.get_queryset(), many=True)
 
