@@ -65,6 +65,7 @@ class DashboardRangeStatsAPIView(APIView):
                parameters=[OpenApiParameter(name="date", type=OpenApiTypes.DATE,
                                             location=OpenApiParameter.QUERY, required=False)])
 class DashboardDailyStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         date_str = request.query_params.get("date")
