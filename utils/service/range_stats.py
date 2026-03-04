@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.utils import timezone
-from order.models import OrderItem, Order
+from order.models import OrderItem, Order, Banding, Cutting
 from django.utils.dateparse import parse_date
 from django.db.models.functions import Coalesce
 from django.db.models import F, Sum, Value, DecimalField, ExpressionWrapper, Q
@@ -36,12 +36,12 @@ class DashboardRangeStatsService:
         )
 
         banding_expr = ExpressionWrapper(
-            F("banding__length") * F("banding__thickness__price"),
+            F("length") * F("thickness__price"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
         cutting_expr = ExpressionWrapper(
-            F("cutting__price") * F("cutting__count"),
+            F("price") * F("count"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
@@ -53,40 +53,29 @@ class DashboardRangeStatsService:
             )
         )["total"]
 
-        order_stats = Order.objects.filter(order_filter).aggregate(
-
-            banding_income=Coalesce(
+        banding_income = Banding.objects.filter(created_at__date__range=(start_date, end_date)).aggregate(
+            total=Coalesce(
                 Sum(banding_expr),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
+            )
+        )["total"]
 
-            cutting_income=Coalesce(
+        cutting_income = Cutting.objects.filter(created_at__date__range=(start_date, end_date)).aggregate(
+            total=Coalesce(
                 Sum(cutting_expr),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-
-            total_discount=Coalesce(
-                Sum("discount"),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-
-            total_debt=Coalesce(
-                Sum(debt_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
             )
-        )
+        )["total"]
 
-        total_income = (product_income + order_stats["banding_income"] + order_stats["cutting_income"])
+        total_income = (product_income + banding_income + cutting_income)
 
         return {
             "from": start_date,
             "to": end_date,
             "total_income": total_income,
             "product_income": product_income,
-            "banding_income": order_stats["banding_income"],
-            "cutting_income": order_stats["cutting_income"]
+            "banding_income": banding_income,
+            "cutting_income": cutting_income
         }
