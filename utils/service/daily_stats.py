@@ -22,6 +22,13 @@ class DailyDashboardStatsService:
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
+    @staticmethod
+    def _banding_expression():
+        return ExpressionWrapper(
+            F("banding__length") * F("banding__thickness__price"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
+
     @classmethod
     def get_daily_stats(cls, date_str=None):
 
@@ -37,6 +44,7 @@ class DailyDashboardStatsService:
 
         product_gross_expr = cls._product_gross_expression()
         debt_expr = cls._debt_expression()
+        banding_expr = cls._banding_expression()
 
         product_sales = OrderItem.objects.filter(item_filter).aggregate(
             total=Coalesce(
@@ -48,7 +56,7 @@ class DailyDashboardStatsService:
 
         banding_income = Order.objects.filter(order_filter).aggregate(
             total=Coalesce(
-                Sum("banding__thickness__price"),
+                Sum(banding_expr),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             )
@@ -56,7 +64,10 @@ class DailyDashboardStatsService:
 
         cutting_income = Order.objects.filter(order_filter).aggregate(
             total=Coalesce(
-                Sum("cutting__price"),
+                Sum(ExpressionWrapper(
+                    F("cutting__price") * F("cutting__count"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2)
+                )),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             )
