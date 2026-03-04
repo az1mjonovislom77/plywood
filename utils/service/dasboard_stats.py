@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.utils import timezone
 from product.models import Product
-from order.models import OrderItem, Order
+from order.models import OrderItem, Order, Banding, Cutting
 from django.db.models.functions import Coalesce
 from django.db.models import F, Sum, Count, Value, DecimalField, ExpressionWrapper, Q
 
@@ -23,12 +23,12 @@ class DashboardStatsService:
         )
 
         banding_expr = ExpressionWrapper(
-            F("banding__length") * F("banding__thickness__price"),
+            F("length") * F("thickness__price"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
         cutting_expr = ExpressionWrapper(
-            F("cutting__price") * F("cutting__count"),
+            F("price") * F("count"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
@@ -47,16 +47,10 @@ class DashboardStatsService:
             )
         )
 
-        order_stats = Order.objects.aggregate(
+        banding_stats = Banding.objects.aggregate(
 
             total_banding=Coalesce(
                 Sum(banding_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-
-            total_cutting=Coalesce(
-                Sum(cutting_expr),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
@@ -66,12 +60,24 @@ class DashboardStatsService:
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
+        )
+
+        cutting_stats = Cutting.objects.aggregate(
+
+            total_cutting=Coalesce(
+                Sum(cutting_expr),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            ),
 
             today_cutting=Coalesce(
                 Sum(cutting_expr, filter=Q(created_at__date=today)),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
+        )
+
+        order_stats = Order.objects.aggregate(
 
             total_sales=Count("id"),
 
@@ -96,14 +102,14 @@ class DashboardStatsService:
 
         total_income = (
                 product_stats["total_product_profit"]
-                + order_stats["total_banding"]
-                + order_stats["total_cutting"]
+                + banding_stats["total_banding"]
+                + cutting_stats["total_cutting"]
         )
 
         today_income = (
                 product_stats["today_product_profit"]
-                + order_stats["today_banding"]
-                + order_stats["today_cutting"]
+                + banding_stats["today_banding"]
+                + cutting_stats["today_cutting"]
         )
 
         return {
