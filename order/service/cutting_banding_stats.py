@@ -12,7 +12,7 @@ class DashboardStatsService:
         today = timezone.now().date()
         cutting_expr = ExpressionWrapper(F("cutting__price") * F("cutting__count"),
                                          output_field=DecimalField(max_digits=14, decimal_places=2))
-        banding_expr = ExpressionWrapper((F("banding__length")) * Decimal("2.0") * F("banding__thickness__price"),
+        banding_expr = ExpressionWrapper((F("banding__length")) * F("banding__thickness__price"),
                                          output_field=DecimalField(max_digits=14, decimal_places=2))
 
         stats = Order.objects.aggregate(
