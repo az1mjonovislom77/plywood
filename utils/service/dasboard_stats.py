@@ -27,6 +27,11 @@ class DashboardStatsService:
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
+        cutting_expr = ExpressionWrapper(
+            F("cutting__price") * F("cutting__count"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
+
         product_stats = OrderItem.objects.aggregate(
 
             total_product_profit=Coalesce(
@@ -51,7 +56,7 @@ class DashboardStatsService:
             ),
 
             total_cutting=Coalesce(
-                Sum("cutting__price"),
+                Sum(cutting_expr),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
@@ -63,7 +68,7 @@ class DashboardStatsService:
             ),
 
             today_cutting=Coalesce(
-                Sum("cutting__price", filter=Q(created_at__date=today)),
+                Sum(cutting_expr, filter=Q(created_at__date=today)),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
