@@ -25,42 +25,62 @@ class DashboardRangeStatsService:
         item_filter = Q(order__created_at__date__range=(start_date, end_date))
         order_filter = Q(created_at__date__range=(start_date, end_date))
 
-        product_profit = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
-                                           output_field=DecimalField(max_digits=14, decimal_places=2))
+        product_profit = ExpressionWrapper(
+            (F("price") - F("product__arrival_price")) * F("quantity"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
-        debt_expr = ExpressionWrapper(F("total_price") - F("covered_amount"),
-                                      output_field=DecimalField(max_digits=14, decimal_places=2))
+        debt_expr = ExpressionWrapper(
+            F("total_price") - F("covered_amount"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
+
+        banding_expr = ExpressionWrapper(
+            F("banding__length") * F("banding__thickness__price"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
+
+        cutting_expr = ExpressionWrapper(
+            F("cutting__price") * F("cutting__count"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
         product_income = OrderItem.objects.filter(item_filter).aggregate(
             total=Coalesce(
-                Sum(product_profit), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+                Sum(product_profit),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )["total"]
 
         order_stats = Order.objects.filter(order_filter).aggregate(
 
             banding_income=Coalesce(
-                Sum("banding__thickness__price"), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)),
+                Sum(banding_expr),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            ),
 
             cutting_income=Coalesce(
-                Sum("cutting__price"), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)),
+                Sum(cutting_expr),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            ),
 
             total_discount=Coalesce(
-                Sum("discount"), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)),
+                Sum("discount"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            ),
 
             total_debt=Coalesce(
-                Sum(debt_expr), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)))
-
-        total_income = (
-                product_income
-                + order_stats["banding_income"]
-                + order_stats["cutting_income"]
-                - order_stats["total_discount"]
-                - order_stats["total_debt"]
+                Sum(debt_expr),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
         )
+
+        total_income = (product_income + order_stats["banding_income"] + order_stats["cutting_income"])
 
         return {
             "from": start_date,
@@ -68,6 +88,5 @@ class DashboardRangeStatsService:
             "total_income": total_income,
             "product_income": product_income,
             "banding_income": order_stats["banding_income"],
-            "cutting_income": order_stats["cutting_income"],
-            "daily_debt": order_stats["total_debt"],
+            "cutting_income": order_stats["cutting_income"]
         }

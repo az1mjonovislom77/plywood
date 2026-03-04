@@ -12,11 +12,20 @@ class DashboardStatsService:
     def get_stats(cls):
         today = timezone.localdate()
 
-        product_profit = ExpressionWrapper((F("price") - F("product__arrival_price")) * F("quantity"),
-                                           output_field=DecimalField(max_digits=14, decimal_places=2))
+        product_profit = ExpressionWrapper(
+            (F("price") - F("product__arrival_price")) * F("quantity"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
-        debt_expr = ExpressionWrapper(F("total_price") - F("covered_amount"),
-                                      output_field=DecimalField(max_digits=14, decimal_places=2))
+        debt_expr = ExpressionWrapper(
+            F("total_price") - F("covered_amount"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
+
+        banding_expr = ExpressionWrapper(
+            F("banding__length") * F("banding__thickness__price"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
         product_stats = OrderItem.objects.aggregate(
 
@@ -36,7 +45,7 @@ class DashboardStatsService:
         order_stats = Order.objects.aggregate(
 
             total_banding=Coalesce(
-                Sum("banding__thickness__price"),
+                Sum(banding_expr),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
@@ -48,7 +57,7 @@ class DashboardStatsService:
             ),
 
             today_banding=Coalesce(
-                Sum("banding__thickness__price", filter=Q(created_at__date=today)),
+                Sum(banding_expr, filter=Q(created_at__date=today)),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
@@ -84,14 +93,12 @@ class DashboardStatsService:
                 product_stats["total_product_profit"]
                 + order_stats["total_banding"]
                 + order_stats["total_cutting"]
-                - order_stats["total_debt"]
         )
 
         today_income = (
                 product_stats["today_product_profit"]
                 + order_stats["today_banding"]
                 + order_stats["today_cutting"]
-                - order_stats["today_debt"]
         )
 
         return {

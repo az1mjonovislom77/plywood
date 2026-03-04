@@ -10,13 +10,17 @@ class DailyDashboardStatsService:
 
     @staticmethod
     def _product_gross_expression():
-        return ExpressionWrapper(F("price") * F("quantity"),
-                                 output_field=DecimalField(max_digits=14, decimal_places=2))
+        return ExpressionWrapper(
+            F("price") * F("quantity"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
     @staticmethod
     def _debt_expression():
-        return ExpressionWrapper(F("total_price") - F("covered_amount"),
-                                 output_field=DecimalField(max_digits=14, decimal_places=2))
+        return ExpressionWrapper(
+            F("total_price") - F("covered_amount"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
     @classmethod
     def get_daily_stats(cls, date_str=None):
@@ -46,25 +50,33 @@ class DailyDashboardStatsService:
             total=Coalesce(
                 Sum("banding__thickness__price"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )["total"]
 
         cutting_income = Order.objects.filter(order_filter).aggregate(
             total=Coalesce(
                 Sum("cutting__price"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )["total"]
 
         total_debt = Order.objects.filter(order_filter).aggregate(
             total=Coalesce(
                 Sum(debt_expr),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )["total"]
 
         total_discount = Order.objects.filter(order_filter).aggregate(
             total=Coalesce(
                 Sum("discount"),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )["total"]
 
         cashbox_total = (
                 product_sales
@@ -80,4 +92,5 @@ class DailyDashboardStatsService:
             "product_sales": product_sales,
             "banding_income": banding_income,
             "cutting_income": cutting_income,
+            "daily_debt": total_debt,
         }
