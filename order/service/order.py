@@ -1,20 +1,15 @@
 from django.db import transaction
-from django.db.models import Prefetch, F
+from django.db.models import F
 from customer.models import Customer
 from customer.models import BalanceHistory
 from order.models import Order, OrderItem, Cutting, Banding, Basket
 from order.service.basket import BasketService
 from product.models import Product
+from order.models import OrderHistory
+from user.models import User
 
 
 class OrderService:
-
-    @staticmethod
-    def get_all():
-        return (Order.objects
-                .select_related("banding", "cutting")
-                .prefetch_related(Prefetch("items", queryset=OrderItem.objects.select_related("product")))
-                .order_by("-id"))
 
     @staticmethod
     def get_by_id(order_id):
@@ -39,8 +34,13 @@ class OrderService:
         if not basket_items.exists():
             raise ValueError("Basket empty")
 
-        items_map = {item["product_id"]: item["quantity"]
-                     for item in items}
+        items_map = {item["product_id"]: item["quantity"] for item in items}
+
+        basket_product_ids = set(basket_items.values_list("product_id", flat=True))
+
+        for product_id in items_map.keys():
+            if product_id not in basket_product_ids:
+                raise ValueError("Product not in basket")
 
         banding = Banding.objects.create(**banding_data) if banding_data else None
         cutting = Cutting.objects.create(**cutting_data) if cutting_data else None
@@ -51,9 +51,13 @@ class OrderService:
                 customer = Customer.objects.get(id=customer_id)
             except Customer.DoesNotExist:
                 raise ValueError("Customer not found")
+        source = (Order.OrderSource.CASHIER
+                  if user.role == user.UserRoles.CASHIER
+                  else Order.OrderSource.SELLER)
 
         order = Order.objects.create(
             user=user,
+            source=source,
             customer=customer,
             is_anonymous=(customer is None),
             payment_method=payment_method,
@@ -64,6 +68,16 @@ class OrderService:
             cutting=cutting
         )
 
+        OrderHistory.objects.create(
+            order=order,
+            user=user,
+            action=OrderHistory.Action.CREATE,
+            visible_for=(
+                OrderHistory.VisibleFor.CASHIER
+                if user.role == User.UserRoles.CASHIER
+                else OrderHistory.VisibleFor.SELLER
+            )
+        )
         order_items = []
         created_product_ids = []
 
@@ -73,6 +87,9 @@ class OrderService:
 
             if quantity is None:
                 continue
+
+            if quantity <= 0:
+                raise ValueError("Invalid quantity")
 
             updated = Product.objects.filter(id=product.id, count__gte=quantity).update(count=F("count") - quantity)
 
@@ -102,11 +119,7 @@ class OrderService:
 
             if order.payment_method == Order.PaymentMethod.NASIYA and remaining > 0:
                 Customer.objects.filter(id=customer.id).update(debt=F("debt") + remaining)
-                BalanceHistory.objects.create(
-                    customer=customer,
-                    type=BalanceHistory.Type.DEBT_ADD,
-                    amount=remaining
-                )
+                BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.DEBT_ADD, amount=remaining)
 
         if not basket.items.exists():
             basket.is_active = False

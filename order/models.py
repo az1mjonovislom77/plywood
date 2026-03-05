@@ -73,10 +73,24 @@ class Order(models.Model):
         NASIYA = "nasiya", "Nasiya"
         MIXED = "mixed", "Mixed"
 
+    class OrderSource(models.TextChoices):
+        SELLER = "seller", "Seller"
+        CASHIER = "cashier", "Cashier"
+
+    class OrderStatus(models.TextChoices):
+        ACCEPT = "accept", "Accept"
+        WAITING = "waiting", "Waiting"
+        CANCEL = "cancel", "Cancel"
+
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders")
     customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="orders", null=True,
                                  blank=True)
-    is_anonymous = models.BooleanField(default=False)
+    is_anonymous = models.BooleanField(default=True)
+    source = models.CharField(max_length=10, choices=OrderSource.choices, default=OrderSource.SELLER)
+    order_status = models.CharField(max_length=10, choices=OrderStatus.choices, default=OrderStatus.WAITING)
+    accepted_by = models.ForeignKey("user.User", null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="accepted_orders")
+    accepted_at = models.DateTimeField(null=True, blank=True)
     discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
@@ -143,3 +157,25 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
+
+
+class OrderHistory(models.Model):
+    class Action(models.TextChoices):
+        CREATE = "create", "Create"
+        ACCEPT = "accept", "Accept"
+        CANCEL = "cancel", "Cancel"
+        UPDATE = "update", "Update"
+
+    class VisibleFor(models.TextChoices):
+        SELLER = "seller", "Seller"
+        CASHIER = "cashier", "Cashier"
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="history")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=20, choices=Action.choices)
+    visible_for = models.CharField(max_length=10, choices=VisibleFor.choices)
+    description = models.TextField(blank=True, null=True, max_length=500)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]

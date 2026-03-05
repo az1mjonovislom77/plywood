@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from order.views.stats_views import OrderStatsView, CuttingBandingIncomeStatsView, Last7DaysIncomeView
-from order.views.views import BasketViewSet, CuttingViewSet, BandingViewSet, ThicknessViewSet, OrderViewSet
+from order.views.views import BasketViewSet, CuttingViewSet, BandingViewSet, ThicknessViewSet, OrderViewSet, \
+    OrderHistoryViewSet
 
 router = DefaultRouter()
 router.register('basket', BasketViewSet, basename='basket')
@@ -9,6 +10,7 @@ router.register('cutting', CuttingViewSet, basename='cutting')
 router.register('banding', BandingViewSet, basename='banding')
 router.register('thickness', ThicknessViewSet, basename='thickness')
 router.register('order', OrderViewSet, basename='order')
+router.register("history", OrderHistoryViewSet, basename="order-history")
 
 urlpatterns = [
     path('', include(router.urls)),

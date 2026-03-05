@@ -3,14 +3,19 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from order.models import Cutting, Banding, Thickness
+from order.models import Cutting, Banding, Thickness, OrderHistory
 from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItemSerializer, \
-    ThicknessSerializer, BandingGetSerializer, BandingPostSerializer, OrderCreateSerializer, OrderSerializer
+    ThicknessSerializer, BandingGetSerializer, BandingPostSerializer, OrderCreateSerializer, OrderSerializer, \
+    OrderHistorySerializer, OrderCancelSerializer
 from order.service.basket import BasketService
 from order.service.order import OrderService
+from order.service.order_query import OrderQueryService
 from utils.base.views_base import BaseUserViewSet
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import action
+from order.service.order_workflow import OrderWorkflowService
+from user.models import User
 
 
 @extend_schema(tags=["Basket"])
@@ -39,6 +44,10 @@ class BasketViewSet(viewsets.GenericViewSet):
 
     def destroy(self, request, pk=None):
         product_id = request.query_params.get("product_id", None)
+
+        if not product_id:
+            raise ValidationError({"product_id": "product_id required"})
+
         basket = BasketService.remove_product(user=request.user, product_id=product_id)
 
         return Response(BasketSerializer(basket).data)
@@ -93,7 +102,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        queryset = OrderService.get_all()
+        queryset = OrderQueryService.list_for_user(self.request.user)
 
         date_param = self.request.query_params.get("date")
 
@@ -108,16 +117,16 @@ class OrderViewSet(viewsets.GenericViewSet):
 
     def list(self, request):
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={"request": request})
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        order = OrderService.get_by_id(order_id=pk)
+        order = self.get_queryset().filter(id=pk).first()
 
         if not order:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND, )
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = self.get_serializer(order)
+        serializer = self.get_serializer(order, context={"request": request})
         return Response(serializer.data)
 
     def create(self, request):
@@ -136,8 +145,8 @@ class OrderViewSet(viewsets.GenericViewSet):
             cutting_data=serializer.validated_data.get("cutting"),
         )
 
-        response_serializer = OrderSerializer(order)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, )
+        response = OrderSerializer(order, context={"request": request})
+        return Response(response.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
         order = OrderService.get_by_id(order_id=pk)
@@ -160,3 +169,56 @@ class OrderViewSet(viewsets.GenericViewSet):
         order.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None)
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+
+        if request.user.role != User.UserRoles.CASHIER:
+            return Response({"detail": "Only cashier can accept orders"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            order = OrderWorkflowService.cashier_accept(order_id=pk, user=request.user)
+
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = OrderSerializer(order, context={"request": request})
+        return Response(serializer.data)
+
+    @extend_schema(request=OrderCancelSerializer)
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        description = request.data.get("description")
+
+        try:
+            if request.user.role == User.UserRoles.SELLER:
+                order = OrderWorkflowService.seller_cancel(pk, request.user, description)
+            else:
+                order = OrderWorkflowService.cashier_cancel(pk, request.user, description)
+
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = OrderSerializer(order, context={"request": request})
+        return Response(serializer.data)
+
+
+@extend_schema(tags=["OrderHistory"])
+class OrderHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderHistorySerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+
+        queryset = OrderHistory.objects.select_related("user", "order")
+
+        if user.is_superuser or user.role == User.UserRoles.MANAGER:
+            return queryset
+        if user.role == User.UserRoles.SELLER:
+            return queryset.filter(visible_for=OrderHistory.VisibleFor.SELLER)
+        if user.role == User.UserRoles.CASHIER:
+            return queryset.filter(visible_for=OrderHistory.VisibleFor.CASHIER)
+
+        return queryset.none()
