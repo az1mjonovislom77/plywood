@@ -1,7 +1,7 @@
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin, BaseUserManager
-from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
@@ -22,7 +22,6 @@ class UserManager(BaseUserManager):
     def create_superuser(self, username, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", User.UserRoles.ADMIN)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
