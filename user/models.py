@@ -34,14 +34,15 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     class UserRoles(models.TextChoices):
-        SALER = 's', "Saler"
-        ADMIN = 'a', "Admin"
-        MANAGER = 'm', "Manager"
+        SELLER = 's', "SELLER"
+        CASHIER = 'c', "CASHIER"
+        MANAGER = 'm', "MANAGER"
+        WAREHOUSEMAN = 'w', "WAREHOUSEMAN"
 
     full_name = models.CharField(max_length=100, blank=True)
     username = models.CharField(max_length=100, unique=True, db_index=True)
     phone_number = models.CharField(max_length=20, blank=True)
-    role = models.CharField(max_length=10, choices=UserRoles.choices, default=UserRoles.SALER)
+    role = models.CharField(max_length=10, choices=UserRoles.choices, default=UserRoles.SELLER)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
