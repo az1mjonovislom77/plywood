@@ -164,7 +164,6 @@ class OrderHistory(models.Model):
         CREATE = "create", "Create"
         ACCEPT = "accept", "Accept"
         CANCEL = "cancel", "Cancel"
-        UPDATE = "update", "Update"
 
     class VisibleFor(models.TextChoices):
         SELLER = "seller", "Seller"
