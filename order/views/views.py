@@ -214,11 +214,7 @@ class OrderHistoryViewSet(viewsets.ReadOnlyModelViewSet):
 
         queryset = OrderHistory.objects.select_related("user", "order")
 
-        if user.is_superuser or user.role == User.UserRoles.MANAGER:
+        if user:
             return queryset
-        if user.role == User.UserRoles.SELLER:
-            return queryset.filter(visible_for=OrderHistory.VisibleFor.SELLER)
-        if user.role == User.UserRoles.CASHIER:
-            return queryset.filter(visible_for=OrderHistory.VisibleFor.CASHIER)
 
         return queryset.none()
