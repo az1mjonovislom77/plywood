@@ -3,7 +3,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from order.models import Cutting, Banding, Thickness, OrderHistory
+from order.models import Cutting, Banding, Thickness, OrderHistory, Order
 from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItemSerializer, \
     ThicknessSerializer, BandingGetSerializer, BandingPostSerializer, OrderCreateSerializer, OrderSerializer, \
     OrderHistorySerializer, OrderCancelSerializer
@@ -102,7 +102,8 @@ class OrderViewSet(viewsets.GenericViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        queryset = OrderQueryService.list_for_user(self.request.user)
+        # queryset = OrderQueryService.list_for_user(self.request.user)
+        queryset = Order.objects.all().order_by("-created_at")
 
         date_param = self.request.query_params.get("date")
 
