@@ -1,31 +1,51 @@
 import requests
 from decimal import Decimal
 from datetime import date
+from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from acceptance.models import CurrencyRate
-from drf_spectacular.utils import extend_schema
-from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema
+from acceptance.models import CurrencyRate
 from utils.base.views_base import BaseUserViewSet
 from .models import Acceptance, AcceptanceHistory
-from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer
+from .serializers import AcceptanceSerializer, AcceptanceHistorySerializer, AcceptanceCancelSerializer
+from .service.acceptance_workflow import AcceptanceWorkflowService
 
 
 @extend_schema(tags=["Acceptance"])
 class AcceptanceViewSet(BaseUserViewSet):
-    queryset = Acceptance.objects.select_related("product").all()
+    queryset = Acceptance.objects.select_related("product")
     serializer_class = AcceptanceSerializer
 
     @transaction.atomic
     def perform_create(self, serializer):
         serializer.save()
 
+    @extend_schema(request=None)
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+        acceptance = AcceptanceWorkflowService.accept(acceptance_id=pk, user=request.user)
+
+        serializer = self.get_serializer(acceptance)
+        return Response(serializer.data)
+
+    @extend_schema(request=AcceptanceCancelSerializer)
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        description = request.data.get("description")
+
+        acceptance = AcceptanceWorkflowService.cancel(pk, request.user, description)
+
+        serializer = self.get_serializer(acceptance)
+        return Response(serializer.data)
+
 
 @extend_schema(tags=["AcceptanceHistory"])
 class AcceptanceHistoryViewSet(ModelViewSet):
-    queryset = AcceptanceHistory.objects.select_related("product", "acceptance").all()
+    queryset = AcceptanceHistory.objects.select_related("product", "acceptance")
     serializer_class = AcceptanceHistorySerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get"]
@@ -36,24 +56,27 @@ class AcceptanceHistoryViewSet(ModelViewSet):
 class UpdateCurrencyRateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    CBU_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/"
+
     def get(self, request):
         today = date.today()
 
-        existing = CurrencyRate.objects.filter(date=today).first()
-        if existing:
-            return Response({"date": existing.date, "rate": existing.rate, "status": "already_exists"})
+        rate_obj, created = CurrencyRate.objects.get_or_create(date=today, defaults={"rate": self._fetch_rate()})
+        status = "created" if created else "already_exists"
 
+        return Response({
+            "date": rate_obj.date,
+            "rate": rate_obj.rate,
+            "status": status,
+        })
+
+    def _fetch_rate(self) -> Decimal:
         try:
-            response = requests.get("https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/", timeout=10)
+            response = requests.get(self.CBU_URL, timeout=10)
+            response.raise_for_status()
+
             data = response.json()[0]
-            rate = Decimal(data["Rate"])
-            obj = CurrencyRate.objects.create(date=today, rate=rate)
+            return Decimal(data["Rate"])
 
-            return Response({
-                "date": obj.date,
-                "rate": obj.rate,
-                "status": "created"
-            })
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+        except (requests.RequestException, KeyError, IndexError) as exc:
+            raise RuntimeError(f"Currency API error: {exc}")
