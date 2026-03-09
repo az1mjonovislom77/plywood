@@ -174,7 +174,6 @@ class OrderViewSet(viewsets.GenericViewSet):
     @extend_schema(request=None)
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
-
         if request.user.role != User.UserRoles.CASHIER:
             return Response({"detail": "Only cashier can accept orders"}, status=status.HTTP_403_FORBIDDEN)
         try:
@@ -212,7 +211,6 @@ class OrderHistoryViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-
         queryset = OrderHistory.objects.select_related("user", "order")
 
         if user:
