@@ -17,12 +17,20 @@ from .service.acceptance_workflow import AcceptanceWorkflowService
 
 @extend_schema(tags=["Acceptance"])
 class AcceptanceViewSet(BaseUserViewSet):
-    queryset = Acceptance.objects.select_related("product")
+    queryset = Acceptance.objects.select_related(
+        "product",
+        "supplier",
+        "accepted_by"
+    ).prefetch_related("histories")
     serializer_class = AcceptanceSerializer
 
     @transaction.atomic
     def perform_create(self, serializer):
-        serializer.save()
+        acceptance = AcceptanceWorkflowService.create(
+            data=serializer.validated_data,
+            user=self.request.user
+        )
+        serializer.instance = acceptance
 
     @extend_schema(request=None)
     @action(detail=True, methods=["post"])

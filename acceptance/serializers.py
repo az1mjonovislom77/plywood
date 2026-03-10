@@ -18,19 +18,16 @@ class AcceptanceSerializer(serializers.ModelSerializer):
     def get_history(self, obj):
         request = self.context.get("request")
         if not request:
-            return None
+            return []
 
         user = request.user
 
         if user.role in [User.UserRoles.MANAGER, User.UserRoles.WAREHOUSEMAN]:
-            history = getattr(obj, "history", None)
+            history = obj.histories.all()
         else:
-            history = None
+            return []
 
-        if not history:
-            return None
-
-        return AcceptanceHistorySerializer(history, context=self.context).data
+        return AcceptanceHistorySerializer(history, many=True, context=self.context).data
 
 
 class AcceptanceHistorySerializer(serializers.ModelSerializer):

@@ -56,8 +56,8 @@ class AcceptanceHistory(models.Model):
         CANCEL = "cancel", "Cancel"
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    acceptance = models.OneToOneField('Acceptance', on_delete=models.CASCADE, related_name='history')
-    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name="history")
+    acceptance = models.ForeignKey(Acceptance, on_delete=models.CASCADE, related_name='histories')
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name="acceptance_histories")
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="acceptance_histories")
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2)
