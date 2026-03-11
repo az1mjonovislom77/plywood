@@ -110,9 +110,10 @@ class ExpenseViewSet(BaseUserViewSet):
         return Response(ExpenseListSerializer(expense).data)
 
 
-@extend_schema(tags=["Expenses"])
+@extend_schema(tags=["ExpensesHistory"])
 class ExpenseHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ExpenseHistorySerializer
+    pagination_class = None
 
     def get_queryset(self):
         queryset = ExpensesHistory.objects.select_related("expense", "user").order_by("-created_at")
