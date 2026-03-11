@@ -8,7 +8,6 @@ from supplier.models import Supplier, SupplierTransaction
 
 
 class AcceptanceWorkflowService:
-
     @staticmethod
     @transaction.atomic
     def create(data, user):
