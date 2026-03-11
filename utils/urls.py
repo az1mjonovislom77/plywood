@@ -1,12 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
+from utils.serializers import ExpenseHistorySerializer
 from utils.views import CurrencyViewSet, LowStockNotificationView, DashboardStatsView, DashboardRangeStatsAPIView, \
-    DashboardDailyStatsAPIView, ExpenseViewSet
+    DashboardDailyStatsAPIView, ExpenseViewSet, ExpenseHistoryViewSet
 
 router = DefaultRouter()
 router.register('currency', CurrencyViewSet, basename='currency')
 router.register("expenses", ExpenseViewSet)
-router.register("expense-history", ExpenseViewSet)
+router.register("expense-history", ExpenseHistoryViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
