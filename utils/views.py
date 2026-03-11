@@ -5,13 +5,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.base.views_base import BaseUserViewSet
-from utils.models import Currency, Expenses
-from utils.serializers import CurrencySerializer, ExpenseCreateSerializer, ExpenseListSerializer
+from utils.models import Currency, Expenses, ExpensesHistory
+from utils.serializers import CurrencySerializer, ExpenseCreateSerializer, ExpenseListSerializer, \
+    ExpenseHistorySerializer
 from utils.service.daily_stats import DailyDashboardStatsService
 from utils.service.dasboard_stats import DashboardStatsService
 from utils.service.expenses_service import ExpensesWorkflowService
 from utils.service.notification_service import ProductNotificationService
-from rest_framework import status
+from rest_framework import status, viewsets
 from utils.service.range_stats import DashboardRangeStatsService
 
 
@@ -107,3 +108,17 @@ class ExpenseViewSet(BaseUserViewSet):
         expense = ExpensesWorkflowService.cancel(pk, request.user, description)
 
         return Response(ExpenseListSerializer(expense).data)
+
+
+@extend_schema(tags=["Expenses"])
+class ExpenseHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ExpenseHistorySerializer
+
+    def get_queryset(self):
+        queryset = ExpensesHistory.objects.select_related("expense", "user").order_by("-created_at")
+        expense_id = self.request.query_params.get("expense")
+
+        if expense_id:
+            queryset = queryset.filter(expense_id=expense_id)
+
+        return queryset

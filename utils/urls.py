@@ -6,6 +6,7 @@ from utils.views import CurrencyViewSet, LowStockNotificationView, DashboardStat
 router = DefaultRouter()
 router.register('currency', CurrencyViewSet, basename='currency')
 router.register("expenses", ExpenseViewSet)
+router.register("expense-history", ExpenseViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
