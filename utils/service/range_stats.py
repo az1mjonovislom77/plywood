@@ -23,17 +23,12 @@ class DashboardRangeStatsService:
                 raise ValueError("Invalid date format")
 
         item_filter = Q(order__created_at__date__range=(start_date, end_date))
-        order_filter = Q(created_at__date__range=(start_date, end_date))
 
         product_profit = ExpressionWrapper(
             (F("price") - F("product__arrival_price")) * F("quantity"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
-        debt_expr = ExpressionWrapper(
-            F("total_price") - F("covered_amount"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
 
         banding_expr = ExpressionWrapper(
             F("length") * F("thickness__price"),
