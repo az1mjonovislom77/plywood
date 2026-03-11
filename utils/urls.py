@@ -8,7 +8,7 @@ from utils.views import CurrencyViewSet, LowStockNotificationView, DashboardStat
 router = DefaultRouter()
 router.register('currency', CurrencyViewSet, basename='currency')
 router.register("expenses", ExpenseViewSet)
-router.register("expense-history", ExpenseHistoryViewSet)
+router.register("history-expenses", ExpenseHistoryViewSet, basename='expenses-history')
 
 urlpatterns = [
     path('', include(router.urls)),
