@@ -1,5 +1,4 @@
 from rest_framework.fields import SerializerMethodField
-
 from user.models import User
 from utils.base.serializers_base import BaseReadSerializer
 from utils.models import Currency, Expenses, ExpensesHistory

@@ -1,9 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
-from utils.serializers import ExpenseHistorySerializer
-from utils.views import CurrencyViewSet, LowStockNotificationView, DashboardStatsView, DashboardRangeStatsAPIView, \
-    DashboardDailyStatsAPIView, ExpenseViewSet, ExpenseHistoryViewSet
+from utils.views.dashboard import DashboardStatsView, DashboardRangeStatsAPIView, DashboardDailyStatsAPIView
+from utils.views.expenses import ExpenseViewSet, ExpenseHistoryViewSet
+from utils.views.utils import CurrencyViewSet, LowStockNotificationView
 
 router = DefaultRouter()
 router.register('currency', CurrencyViewSet, basename='currency')
