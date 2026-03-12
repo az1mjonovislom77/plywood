@@ -40,14 +40,11 @@ class DashboardStatsView(APIView):
         return Response(data)
 
 
-@extend_schema(tags=["Dashboard"],
-               parameters=[
-                   OpenApiParameter(name="from", type=OpenApiTypes.DATE,
-                                    location=OpenApiParameter.QUERY, required=False,
-                                    description="Start date (YYYY-MM-DD)"),
-                   OpenApiParameter(name="to", type=OpenApiTypes.DATE,
-                                    location=OpenApiParameter.QUERY, required=False,
-                                    description="End date (YYYY-MM-DD)")])
+@extend_schema(
+    tags=["Dashboard"],
+    parameters=[
+        OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, required=False),
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, required=False)])
 class DashboardRangeStatsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

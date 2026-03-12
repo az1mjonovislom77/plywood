@@ -1,3 +1,4 @@
+from user.models import User
 from utils.base.serializers_base import BaseReadSerializer
 from utils.models import Currency, Expenses, ExpensesHistory
 from rest_framework import serializers
@@ -14,6 +15,14 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
         fields = ["id", "value", "description"]
 
 
+class ExpenseHistorySerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+
+    class Meta:
+        model = ExpensesHistory
+        fields = ["id", "expense", "user", "action", "value", "description", "created_at"]
+
+
 class ExpenseListSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
 
@@ -21,10 +30,16 @@ class ExpenseListSerializer(serializers.ModelSerializer):
         model = Expenses
         fields = ["id", "user", "value", "description", "expense_status", "created_at"]
 
+    def get_history(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return []
 
-class ExpenseHistorySerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
+        user = request.user
 
-    class Meta:
-        model = ExpensesHistory
-        fields = ["id", "expense", "user", "action", "value", "description", "created_at"]
+        if user.role in [User.UserRoles.MANAGER, User.UserRoles.WAREHOUSEMAN]:
+            history = obj.histories.all()
+        else:
+            return []
+
+        return ExpenseHistorySerializer(history, many=True, context=self.context).data
