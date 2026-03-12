@@ -1,3 +1,5 @@
+from rest_framework.fields import SerializerMethodField
+
 from user.models import User
 from utils.base.serializers_base import BaseReadSerializer
 from utils.models import Currency, Expenses, ExpensesHistory
@@ -25,10 +27,11 @@ class ExpenseHistorySerializer(serializers.ModelSerializer):
 
 class ExpenseListSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
+    history = SerializerMethodField()
 
     class Meta:
         model = Expenses
-        fields = ["id", "user", "value", "description", "expense_status", "created_at"]
+        fields = ["id", "user", "value", "description", "expense_status", "history", "created_at"]
 
     def get_history(self, obj):
         request = self.context.get("request")
