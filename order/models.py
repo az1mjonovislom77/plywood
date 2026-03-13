@@ -94,7 +94,7 @@ class Order(models.Model):
     discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
-    covered_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    covered_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     banding = models.ForeignKey("Banding", on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
     cutting = models.ForeignKey("Cutting", on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)

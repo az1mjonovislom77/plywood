@@ -13,10 +13,11 @@ class DailyDashboardStatsService:
         return ExpressionWrapper(F("price") * F("quantity"),
                                  output_field=DecimalField(max_digits=14, decimal_places=2))
 
-    @staticmethod
     def _debt_expression():
-        return ExpressionWrapper(F("total_price") - F("covered_amount"),
-                                 output_field=DecimalField(max_digits=14, decimal_places=2))
+        return ExpressionWrapper(
+            F("total_price") - Coalesce(F("covered_amount"), Value(0)),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
     @staticmethod
     def _banding_expression():

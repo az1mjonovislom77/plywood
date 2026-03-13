@@ -104,8 +104,12 @@ class OrderService:
         basket.items.filter(product_id__in=created_product_ids).delete()
 
         order.calculate_total()
+
+        if payment_method != Order.PaymentMethod.NASIYA:
+            order.covered_amount = order.total_price
+
         order.full_clean()
-        order.save(update_fields=["total_price"])
+        order.save(update_fields=["total_price", "covered_amount"])
 
         remaining = order.total_price - order.covered_amount
 
