@@ -10,31 +10,23 @@ class DailyDashboardStatsService:
 
     @staticmethod
     def _product_gross_expression():
-        return ExpressionWrapper(
-            F("price") * F("quantity"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        return ExpressionWrapper(F("items__price") * F("items__quantity"),
+                                 output_field=DecimalField(max_digits=14, decimal_places=2))
 
     @staticmethod
     def _debt_expression():
-        return ExpressionWrapper(
-            F("total_price") - F("covered_amount"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        return ExpressionWrapper(F("total_price") - F("covered_amount"),
+                                 output_field=DecimalField(max_digits=14, decimal_places=2))
 
     @staticmethod
     def _banding_expression():
-        return ExpressionWrapper(
-            F("length") * F("thickness__price"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        return ExpressionWrapper(F("length") * F("thickness__price"),
+                                 output_field=DecimalField(max_digits=14, decimal_places=2))
 
     @staticmethod
     def _cutting_expression():
-        return ExpressionWrapper(
-            F("price") * F("count"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        return ExpressionWrapper(F("price") * F("count"),
+                                 output_field=DecimalField(max_digits=14, decimal_places=2))
 
     @classmethod
     def get_daily_stats(cls, date_str=None):
@@ -46,53 +38,42 @@ class DailyDashboardStatsService:
         else:
             target_date = timezone.localdate()
 
-        item_filter = Q(order__created_at__date=target_date)
-        order_filter = Q(created_at__date=target_date)
+        order_filter = Q(accepted_at__date=target_date,
+                         order_status=Order.OrderStatus.ACCEPT)
 
         product_gross_expr = cls._product_gross_expression()
         debt_expr = cls._debt_expression()
         banding_expr = cls._banding_expression()
         cutting_expr = cls._cutting_expression()
 
-        product_sales = OrderItem.objects.filter(item_filter).aggregate(
-            total=Coalesce(
-                Sum(product_gross_expr),
-                Value(Decimal("0.00")),
+        order_stats = Order.objects.filter(order_filter).aggregate(
+            product_sales=Coalesce(
+                Sum(product_gross_expr), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            ),
+            total_debt=Coalesce(
+                Sum(debt_expr), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            ),
+            total_discount=Coalesce(
+                Sum("discount"), Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             )
-        )["total"]
+        )
+
+        product_sales = order_stats["product_sales"]
+        total_debt = order_stats["total_debt"]
+        total_discount = order_stats["total_discount"]
 
         banding_income = Banding.objects.filter(created_at__date=target_date).aggregate(
             total=Coalesce(
-                Sum(banding_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )["total"]
+                Sum(banding_expr), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         cutting_income = Cutting.objects.filter(created_at__date=target_date).aggregate(
             total=Coalesce(
-                Sum(cutting_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )["total"]
-
-        total_debt = Order.objects.filter(order_filter).aggregate(
-            total=Coalesce(
-                Sum(debt_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )["total"]
-
-        total_discount = Order.objects.filter(order_filter).aggregate(
-            total=Coalesce(
-                Sum("discount"),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )["total"]
+                Sum(cutting_expr), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         cashbox_total = (
                 product_sales
