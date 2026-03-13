@@ -23,7 +23,7 @@ class ExpenseViewSet(BaseUserViewSet):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         total_expense = queryset.filter(
-            status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT]
+            expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT]
         ).aggregate(total=Sum("amount"))["total"] or 0
 
         return Response({
