@@ -34,7 +34,7 @@ class Expenses(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return str(self.value)
+        return str(self.user)
 
 
 class ExpensesHistory(models.Model):
@@ -51,4 +51,4 @@ class ExpensesHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.description
+        return str(self.expense)
