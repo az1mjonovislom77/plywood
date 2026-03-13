@@ -7,6 +7,7 @@ from utils.serializers import ExpenseCreateSerializer, ExpenseListSerializer, \
     ExpenseHistorySerializer
 from utils.service.expenses_service import ExpensesWorkflowService
 from rest_framework import status, viewsets
+from django.db.models import Sum
 
 
 @extend_schema(tags=["Expenses"])
@@ -17,6 +18,18 @@ class ExpenseViewSet(BaseUserViewSet):
         if self.action == "create":
             return ExpenseCreateSerializer
         return ExpenseListSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        total_expense = queryset.filter(
+            status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT]
+        ).aggregate(total=Sum("amount"))["total"] or 0
+
+        return Response({
+            "stats": {
+                "total_expense": total_expense
+            }, "data": serializer.data})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
