@@ -125,12 +125,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
         user = request.user
 
-        if user.role == User.UserRoles.MANAGER:
+        if user.role == User.UserRoles.MANAGER or User.UserRoles.SELLER or User.UserRoles.CASHIER or WUser.UserRoles.WAREHOUSEMAN:
             queryset = obj.history.all()
-        elif user.role == User.UserRoles.SELLER:
-            queryset = obj.history.filter(visible_for=OrderHistory.VisibleFor.SELLER)
-        elif user.role == User.UserRoles.CASHIER:
-            queryset = obj.history.filter(visible_for=OrderHistory.VisibleFor.CASHIER)
+        # elif user.role == User.UserRoles.SELLER:
+        #     queryset = obj.history.filter(visible_for=OrderHistory.VisibleFor.SELLER)
+        # elif user.role == User.UserRoles.CASHIER:
+        #     queryset = obj.history.filter(visible_for=OrderHistory.VisibleFor.CASHIER)
         else:
             queryset = obj.history.none()
 
