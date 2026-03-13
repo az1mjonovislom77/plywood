@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from customer.models import Customer
 from order.models import Basket, Cutting, BasketItem, Banding, Thickness, Order, OrderItem, OrderHistory
 from product.models import Product
 from product.serializers import ProductSerializer
@@ -109,9 +111,9 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
 
-        fields = ["id", "user", "customer_fullname", "is_anonymous", "discount_type", "discount", "payment_method",
-                  "covered_amount", "banding", "cutting", "total_price", "items", "source", "order_status",
-                  "accepted_by_name", "accepted_at", "history", "created_at"]
+        fields = ["id", "user", "customer", "customer_fullname", "is_anonymous", "discount_type", "discount",
+                  "payment_method", "covered_amount", "banding", "cutting", "total_price", "items", "source",
+                  "order_status", "accepted_by_name", "accepted_at", "history", "created_at"]
 
         read_only_fields = ["source", "order_status"]
 
