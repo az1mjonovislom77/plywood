@@ -9,13 +9,32 @@ from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItem
     OrderHistorySerializer, OrderCancelSerializer
 from order.service.basket import BasketService
 from order.service.order import OrderService
-from order.service.order_query import OrderQueryService
 from utils.base.views_base import BaseUserViewSet
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from order.service.order_workflow import OrderWorkflowService
 from user.models import User
+
+
+class OrderPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "limit"
+
+    def get_paginated_response(self, data):
+        total = self.page.paginator.count
+        limit = self.get_page_size(self.request)
+        total_pages = (total + limit - 1) // limit
+
+        return Response(
+            {
+                "page": self.page.number,
+                "limit": limit,
+                "total": total,
+                "total_pages": total_pages,
+                "data": data,
+            }
+        )
 
 
 @extend_schema(tags=["Basket"])
@@ -93,7 +112,7 @@ class ThicknessViewSet(BaseUserViewSet):
 class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
-    pagination_class = None
+    pagination_class = OrderPagination
     ordering = ["-created_at"]
 
     def get_serializer_class(self):
