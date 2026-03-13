@@ -41,13 +41,15 @@ class DailyDashboardStatsService:
 
         item_filter = Q(
             order__accepted_at__date=target_date,
-            order__order_status=Order.OrderStatus.ACCEPT
-        )
+            order__order_status=Order.OrderStatus.ACCEPT)
 
         order_filter = Q(
             accepted_at__date=target_date,
-            order_status=Order.OrderStatus.ACCEPT
-        )
+            order_status=Order.OrderStatus.ACCEPT)
+
+        expense_filter = Q(
+            created_at__date=target_date,
+            expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT])
 
         product_gross_expr = cls._product_gross_expression()
         debt_expr = cls._debt_expression()
@@ -81,12 +83,18 @@ class DailyDashboardStatsService:
                 Sum(cutting_expr), Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
+        expense_total = Expenses.objects.filter(expense_filter).aggregate(
+            total=Coalesce(
+                Sum("value"), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+
         cashbox_total = (
                 product_sales
                 + banding_income
                 + cutting_income
                 - total_discount
                 - total_debt
+                - expense_total
         )
 
         return {
