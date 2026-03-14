@@ -48,16 +48,22 @@ class DashboardDailyStatsAPIView(APIView):
 
     def get(self, request):
         date_str = request.query_params.get("date")
+        try:
+            data = DailyDashboardStatsService.get_daily_stats(date_str)
+            return Response(data, status=status.HTTP_200_OK)
 
-        if date_str:
-            try:
-                data = DailyDashboardStatsService.get_daily_stats(date_str)
-                return Response(data, status=status.HTTP_200_OK)
-            except ValueError as e:
-                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            try:
-                data = ALlDashboardStatsService.get_all_stats()
-                return Response(data, status=status.HTTP_200_OK)
-            except ValueError as e:
-                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=["Dashboard"])
+class CashboxTotalStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = ALlDashboardStatsService.get_all_stats()
+            return Response(data, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

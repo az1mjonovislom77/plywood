@@ -4,7 +4,6 @@ from order.models import OrderItem, Order, Banding, Cutting
 from django.utils.dateparse import parse_date
 from django.db.models.functions import Coalesce
 from django.db.models import F, Sum, Value, DecimalField, ExpressionWrapper, Q
-from utils.models import Expenses
 
 
 class DailyDashboardStatsService:
@@ -50,10 +49,6 @@ class DailyDashboardStatsService:
             accepted_at__date=target_date,
             order_status=Order.OrderStatus.ACCEPT)
 
-        expense_filter = Q(
-            created_at__date=target_date,
-            expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT])
-
         product_gross_expr = cls._product_gross_expression()
         debt_expr = cls._debt_expression()
         banding_expr = cls._banding_expression()
@@ -67,8 +62,8 @@ class DailyDashboardStatsService:
         order_stats = Order.objects.filter(order_filter).aggregate(
             total_debt=Coalesce(
                 Sum(debt_expr), Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
+                output_field=DecimalField(max_digits=14, decimal_places=2)),
+
             total_discount=Coalesce(
                 Sum("discount"), Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)))
@@ -99,6 +94,5 @@ class DailyDashboardStatsService:
             "cashbox_total": cashbox_total,
             "product_sales": product_sales,
             "banding_income": banding_income,
-            "cutting_income": cutting_income,
-            "daily_debt": total_debt,
+            "cutting_income": cutting_income
         }
