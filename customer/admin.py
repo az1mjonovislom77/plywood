@@ -3,7 +3,7 @@ from django.contrib import admin
 
 
 class CustomerAdmin(admin.ModelAdmin):
-    pass
+    list_display = ["id", "full_name"]
 
 
 class BalanceHistoryAdmin(admin.ModelAdmin):

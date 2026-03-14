@@ -3,6 +3,8 @@ from drf_spectacular.types import OpenApiTypes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from utils.service.all_stats import ALlDashboardStatsService
 from utils.service.daily_stats import DailyDashboardStatsService
 from utils.service.dasboard_stats import DashboardStatsService
 from rest_framework import status
@@ -46,9 +48,16 @@ class DashboardDailyStatsAPIView(APIView):
 
     def get(self, request):
         date_str = request.query_params.get("date")
-        try:
-            data = DailyDashboardStatsService.get_daily_stats(date_str)
-            return Response(data, status=status.HTTP_200_OK)
 
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        if date_str:
+            try:
+                data = DailyDashboardStatsService.get_daily_stats(date_str)
+                return Response(data, status=status.HTTP_200_OK)
+            except ValueError as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            try:
+                data = ALlDashboardStatsService.get_all_stats()
+                return Response(data, status=status.HTTP_200_OK)
+            except ValueError as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

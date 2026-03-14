@@ -1,6 +1,7 @@
 from django.db import transaction
 
 from utils.models import Expenses, ExpensesHistory
+from utils.service.all_stats import ALlDashboardStatsService
 from utils.service.daily_stats import DailyDashboardStatsService
 
 
@@ -38,7 +39,7 @@ class ExpensesWorkflowService:
 
     @staticmethod
     def _apply_cashbox(value):
-        stats = DailyDashboardStatsService.get_daily_stats()
+        stats = ALlDashboardStatsService.get_all_stats()
 
         if stats["cashbox_total"] < value:
             raise ValueError("Cashboxda yetarli mablag yo'q")
