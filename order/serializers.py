@@ -152,5 +152,5 @@ class OrderCancelSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
 
 
-class EmptySerializer(serializers.Serializer):
-    pass
+# class EmptySerializer(serializers.Serializer):
+#     pass

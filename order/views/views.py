@@ -6,10 +6,9 @@ from rest_framework.response import Response
 from order.models import Cutting, Banding, Thickness, OrderHistory, Order
 from order.serializers import CuttingSerializer, BasketSerializer, BasketAddItemSerializer, \
     ThicknessSerializer, BandingGetSerializer, BandingPostSerializer, OrderCreateSerializer, OrderSerializer, \
-    OrderHistorySerializer, OrderCancelSerializer, EmptySerializer
+    OrderHistorySerializer, OrderCancelSerializer
 from order.service.basket import BasketService
 from order.service.order import OrderService
-from order.service.printer import print_receipt
 from utils.base.views_base import BaseUserViewSet
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
@@ -223,18 +222,19 @@ class OrderViewSet(viewsets.GenericViewSet):
         serializer = OrderSerializer(order, context={"request": request})
         return Response(serializer.data)
 
-    @extend_schema(request=EmptySerializer)
-    @action(detail=True, methods=["post"])
-    def print(self, request, pk=None):
-        order = self.get_object()
-
-        try:
-            order.calculate_total()
-            print_receipt(order)
-
-            return Response({"status": "printed"})
-        except Exception as e:
-            return Response({"status": "error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # @extend_schema(request=EmptySerializer)
+    # @action(detail=True, methods=["post"])
+    # def print(self, request, pk=None):
+    #     order = self.get_object()
+    #
+    #     try:
+    #         order.calculate_total()
+    #         print_receipt(order)
+    #
+    #         return Response({"status": "printed"})
+    #     except Exception as e:
+    #         return Response({"status": "error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #
 
 
 @extend_schema(tags=["OrderHistory"])
