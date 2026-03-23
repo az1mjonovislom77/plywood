@@ -153,3 +153,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+USB_PRINTER_VENDOR_ID = 0x0483
+USB_PRINTER_PRODUCT_ID = 0x070B

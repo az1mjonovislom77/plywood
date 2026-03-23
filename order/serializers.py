@@ -1,6 +1,4 @@
 from rest_framework import serializers
-
-from customer.models import Customer
 from order.models import Basket, Cutting, BasketItem, Banding, Thickness, Order, OrderItem, OrderHistory
 from product.models import Product
 from product.serializers import ProductSerializer
@@ -152,3 +150,7 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class OrderCancelSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
+
+
+class EmptySerializer(serializers.Serializer):
+    pass
