@@ -1,5 +1,6 @@
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -136,6 +137,7 @@ class OrderViewSet(viewsets.GenericViewSet):
 
         return queryset.filter(created_at__date=parsed_date)
 
+    @extend_schema(parameters=[OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY)])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True, context={"request": request})

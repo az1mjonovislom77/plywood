@@ -3,7 +3,6 @@ from drf_spectacular.types import OpenApiTypes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from utils.service.all_stats import ALlDashboardStatsService
 from utils.service.daily_stats import DailyDashboardStatsService
 from utils.service.dasboard_stats import DashboardStatsService
