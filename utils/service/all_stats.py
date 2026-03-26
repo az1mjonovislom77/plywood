@@ -86,5 +86,6 @@ class ALlDashboardStatsService:
         )
 
         return {
-            "cashbox_total": cashbox_total
+            "cashbox_total": cashbox_total,
+            "total_debt": total_debt
         }

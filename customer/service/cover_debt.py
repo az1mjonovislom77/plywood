@@ -1,7 +1,6 @@
 from django.db import transaction
 from django.db.models import F, Sum
 from django.core.exceptions import ValidationError
-
 from customer.models import Customer, BalanceHistory
 from order.models import Order
 from utils.service.all_stats import ALlDashboardStatsService
@@ -21,9 +20,6 @@ class DebtService:
             raise ValidationError("Amount exceeds debt")
 
         Customer.objects.filter(pk=customer_id).update(debt=F("debt") - amount)
-        stats = ALlDashboardStatsService.get_all_stats()
-        stats["cashbox_total"] + amount
-        stats["total_debt"] - amount
         BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.PAYMENT, amount=amount)
 
         customer.refresh_from_db()
