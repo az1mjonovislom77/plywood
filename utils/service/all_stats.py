@@ -1,4 +1,6 @@
 from decimal import Decimal
+
+from customer.models import BalanceHistory
 from order.models import OrderItem, Order, Banding, Cutting
 from django.db.models.functions import Coalesce
 from django.db.models import F, Sum, Value, DecimalField, ExpressionWrapper, Q
@@ -76,12 +78,18 @@ class ALlDashboardStatsService:
                 Sum("value"), Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
+        payments = BalanceHistory.objects.filter(
+            type=BalanceHistory.Type.PAYMENT
+        ).aggregate(total=Coalesce(
+            Sum("amount"), Value(Decimal("0.00")),
+            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+
         cashbox_total = (
                 product_sales
                 + banding_income
                 + cutting_income
+                + payments
                 - total_discount
-                - total_debt
                 - expense_total
         )
 
