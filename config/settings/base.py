@@ -51,13 +51,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3004",
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://sklad-fanera.vercel.app/",
+    "https://sklad-fanera.vercel.app",
     "https://api.tfd-group.uz",
     "https://tfd-group.uz"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://sklad-fanera.vercel.app/",
+    "https://sklad-fanera.vercel.app",
     "https://api.tfd-group.uz",
     "https://tfd-group.uz",
     "http://localhost:5173",
