@@ -1,9 +1,10 @@
 from decimal import Decimal
 from django.utils import timezone
-from product.models import Product
-from order.models import OrderItem, Order, Banding, Cutting
+from django.db.models import F, Sum, Value, DecimalField, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
-from django.db.models import F, Sum, Count, Value, DecimalField, ExpressionWrapper, Q
+from order.models import OrderItem, Order, Banding, Cutting
+from customer.models import BalanceHistory
+from utils.models import Expenses
 
 
 class DashboardStatsService:
@@ -11,111 +12,54 @@ class DashboardStatsService:
     @classmethod
     def get_stats(cls):
         today = timezone.localdate()
-
-        product_profit = ExpressionWrapper(
-            (F("price") - F("product__arrival_price")) * F("quantity"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
-
-        debt_expr = ExpressionWrapper(
-            F("total_price") - F("covered_amount"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+        product_sales_expr = ExpressionWrapper(
+            F("price") * F("quantity"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
         banding_expr = ExpressionWrapper(
-            F("length") * F("thickness__price"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+            F("length") * F("thickness__price"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
         cutting_expr = ExpressionWrapper(
-            F("price") * F("count"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+            F("price") * F("count"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
-        product_stats = OrderItem.objects.aggregate(
+        product_sales = OrderItem.objects.aggregate(
+            total=Coalesce(
+                Sum(product_sales_expr), Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-            total_product_profit=Coalesce(
-                Sum(product_profit),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
+        banding_sales = Banding.objects.aggregate(
+            total=Coalesce(Sum(banding_expr), Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-            today_product_profit=Coalesce(
-                Sum(product_profit, filter=Q(order__created_at__date=today)),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )
+        cutting_sales = Cutting.objects.aggregate(
+            total=Coalesce(Sum(cutting_expr), Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-        banding_stats = Banding.objects.aggregate(
+        today_cash = Order.objects.aggregate(
+            total=Coalesce(Sum("covered_amount", filter=Q(created_at__date=today)), Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-            total_banding=Coalesce(
-                Sum(banding_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
+        today_paid_debt = BalanceHistory.objects.aggregate(
+            total=Coalesce(Sum("amount", filter=Q(
+                type=BalanceHistory.Type.PAYMENT, created_at__date=today)), Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-            today_banding=Coalesce(
-                Sum(banding_expr, filter=Q(created_at__date=today)),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-        )
+        today_added_debt = BalanceHistory.objects.aggregate(
+            total=Coalesce(Sum("amount", filter=Q(
+                type=BalanceHistory.Type.DEBT_ADD, created_at__date=today)), Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-        cutting_stats = Cutting.objects.aggregate(
-
-            total_cutting=Coalesce(
-                Sum(cutting_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-
-            today_cutting=Coalesce(
-                Sum(cutting_expr, filter=Q(created_at__date=today)),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-        )
-
-        order_stats = Order.objects.aggregate(
-
-            total_sales=Count("id"),
-
-            total_discount=Coalesce(
-                Sum("discount"),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-
-            total_debt=Coalesce(
-                Sum(debt_expr),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-
-            today_debt=Coalesce(
-                Sum(debt_expr, filter=Q(created_at__date=today)),
-                Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            ),
-        )
-
-        total_income = (
-                product_stats["total_product_profit"]
-                + banding_stats["total_banding"]
-                + cutting_stats["total_cutting"]
-        )
-
-        today_income = (
-                product_stats["today_product_profit"]
-                + banding_stats["today_banding"]
-                + cutting_stats["today_cutting"]
-        )
+        today_expense = Expenses.objects.aggregate(
+            total=Coalesce(
+                Sum("value", filter=Q(
+                    created_at__date=today, expense_status=Expenses.ExpensesStatus.ACCEPT)),
+                Value(Decimal("0.00")), output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         return {
-            "today_income": today_income,
-            "total_income": total_income,
-            "total_sales": order_stats["total_sales"],
-            "total_discount": order_stats["total_discount"],
-            "total_products": Product.objects.count(),
+            "today_cash": today_cash,
+            "today_paid_debt": today_paid_debt,
+            "today_added_debt": today_added_debt,
+            "today_expense": today_expense,
+            "total_product_sales": product_sales,
+            "total_banding_sales": banding_sales,
+            "total_cutting_sales": cutting_sales,
         }

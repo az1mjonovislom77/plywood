@@ -1,5 +1,4 @@
 from decimal import Decimal
-
 from customer.models import BalanceHistory
 from order.models import OrderItem, Order, Banding, Cutting
 from django.db.models.functions import Coalesce
@@ -17,8 +16,9 @@ class ALlDashboardStatsService:
     @staticmethod
     def _debt_expression():
         return ExpressionWrapper(
-            F("total_price") - Coalesce(F("covered_amount"), Value(0)),
-            output_field=DecimalField(max_digits=14, decimal_places=2))
+            F("total_price") - Coalesce(F("covered_amount"), Value(Decimal("0.00"))),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
 
     @staticmethod
     def _banding_expression():
