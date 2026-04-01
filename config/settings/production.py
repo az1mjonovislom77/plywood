@@ -1,11 +1,14 @@
 from .base import *
-from decouple import Csv
 
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
-
-CORS_ALLOW_ALL_ORIGINS = False
+ALLOWED_HOSTS = [
+    "sklad-fanera.vercel.app/",
+    "tfd-group.uz",
+    "api.tfd-group.uz",
+    "localhost",
+    "127.0.0.1",
+]
 
 DATABASES = {
     'default': {

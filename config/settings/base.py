@@ -49,13 +49,20 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3002",
     "http://localhost:3003",
     "http://localhost:3004",
-    "https://45.55.129.34",
-    "https://185.191.141.213",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://sklad-fanera.vercel.app/",
+    "https://api.tfd-group.uz",
+    "https://tfd-group.uz"
 ]
 
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
-
-INTERNAL_IPS = ["127.0.0.1"]
+CSRF_TRUSTED_ORIGINS = [
+    "https://sklad-fanera.vercel.app/",
+    "https://api.tfd-group.uz",
+    "https://tfd-group.uz",
+    "http://localhost:5173",
+    "http://localhost:5174"
+]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
