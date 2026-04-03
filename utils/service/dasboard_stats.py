@@ -35,9 +35,11 @@ class DashboardStatsService:
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         total_cash_sales = Order.objects.aggregate(
-            total=Coalesce(Sum("total_price", filter=Q(payment_method=Order.PaymentMethod.CASH)),
-                           Value(Decimal("0.00")),
-                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+            total=Coalesce(
+                Sum("total_price",
+                    filter=Q(payment_method__in=[Order.PaymentMethod.CASH, Order.PaymentMethod.NASIYA])),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         total_card_sales = Order.objects.aggregate(
             total=Coalesce(Sum("total_price", filter=Q(payment_method=Order.PaymentMethod.CARD)),
