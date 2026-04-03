@@ -61,10 +61,9 @@ class DashboardStatsService:
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         today_expense = Expenses.objects.aggregate(
-            total=Coalesce(
-                Sum("value", filter=Q(
-                    created_at__date=today, expense_status=Expenses.ExpensesStatus.ACCEPT)),
-                Value(Decimal("0.00")), output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+            total=Coalesce(Sum("value", filter=Q(
+                created_at__date=today, expense_status=Expenses.ExpensesStatus.ACCEPT)), Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         return {
             "today_cash": today_cash,
