@@ -34,6 +34,16 @@ class DashboardStatsService:
             total=Coalesce(Sum(cutting_expr), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
+        total_cash_sales = Order.objects.aggregate(
+            total=Coalesce(Sum("total_price", filter=Q(payment_method=Order.PaymentMethod.CASH)),
+                           Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+
+        total_card_sales = Order.objects.aggregate(
+            total=Coalesce(Sum("total_price", filter=Q(payment_method=Order.PaymentMethod.CARD)),
+                           Value(Decimal("0.00")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+
         today_cash = Order.objects.aggregate(
             total=Coalesce(Sum("covered_amount", filter=Q(created_at__date=today)), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
@@ -62,4 +72,6 @@ class DashboardStatsService:
             "total_product_sales": product_sales,
             "total_banding_sales": banding_sales,
             "total_cutting_sales": cutting_sales,
+            "total_cash_sales": total_cash_sales,
+            "total_card_sales": total_card_sales,
         }

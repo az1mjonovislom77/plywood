@@ -71,7 +71,6 @@ class Order(models.Model):
         CASH = "cash", "Cash"
         CARD = "card", "Card"
         NASIYA = "nasiya", "Nasiya"
-        MIXED = "mixed", "Mixed"
 
     class OrderSource(models.TextChoices):
         SELLER = "seller", "Seller"
