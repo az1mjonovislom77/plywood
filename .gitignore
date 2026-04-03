@@ -19,6 +19,9 @@ static_collected/ # If you collect static files here
 settings_local.py # Or any other file containing local/sensitive settings
 
 # Log files
+
+db.sqlite3
+
 *.log
 
 # IDE/OS specific files
