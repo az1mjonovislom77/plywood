@@ -38,7 +38,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["category", "quality"]
-    search_fields = ["name"]
+    search_fields = ["name__icontains"]
     ordering = ["-id"]
 
     def perform_destroy(self, instance):
