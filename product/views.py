@@ -1,6 +1,7 @@
 import math
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -29,7 +30,10 @@ class ProductPagination(PageNumberPagination):
         })
 
 
-@extend_schema(tags=["Product"])
+@extend_schema(tags=["Product"],
+               parameters=[OpenApiParameter(
+                   name="search",
+                   description="Product name bo‘yicha qidiruv", required=False, type=OpenApiTypes.STR)])
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related("category").filter(is_active=True)
     serializer_class = ProductSerializer
