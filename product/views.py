@@ -58,9 +58,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             vector = SearchVector("name", weight="A")
             query = SearchQuery(search)
 
-            queryset = queryset.annotate(
-                rank=SearchRank(vector, query)
-            ).filter(Q(rank__gte=0.1) | Q(name__icontains=search)).order_by("-rank")
+            queryset = (queryset.annotate(
+                rank=SearchRank(vector, query))
+                        .filter(Q(rank__gte=0.1) | Q(name__icontains=search)).order_by("-rank"))
 
         return queryset
 
