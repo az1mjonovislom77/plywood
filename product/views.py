@@ -1,10 +1,11 @@
 import math
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from drf_spectacular.utils import extend_schema
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from product.models import Product, Quality
-from rest_framework import filters, viewsets
+from rest_framework import viewsets
 from product.serializers import ProductSerializer, QualitySerializer
 from utils.base.views_base import BaseUserViewSet
 from django_filters.rest_framework import DjangoFilterBackend
@@ -36,14 +37,25 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = ProductPagination
 
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     filterset_fields = ["category", "quality"]
-    search_fields = ["name__icontains"]
     ordering = ["-id"]
 
     def perform_destroy(self, instance):
         instance.is_active = False
         instance.save(update_fields=["is_active"])
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.query_params.get("search")
+
+        if search:
+            vector = SearchVector("name", weight="A")
+            query = SearchQuery(search)
+
+            queryset = queryset.annotate(rank=SearchRank(vector, query)).filter(rank__gte=0.1).order_by("-rank")
+
+        return queryset
 
 
 @extend_schema(tags=["Quality"])
