@@ -50,10 +50,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         search = self.request.query_params.get("search")
 
         if search:
-            vector = SearchVector("name", weight="A")
-            query = SearchQuery(search)
-
-            queryset = queryset.annotate(rank=SearchRank(vector, query)).filter(rank__gte=0.1).order_by("-rank")
+            queryset = queryset.filter(name__icontains=search)
 
         return queryset
 
