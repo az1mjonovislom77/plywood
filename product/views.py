@@ -1,5 +1,5 @@
 import math
-from django.db.models.functions import Lower
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.pagination import PageNumberPagination
@@ -54,7 +54,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         search = self.request.query_params.get("search")
 
         if search:
-            queryset = queryset.annotate(name_lower=Lower("name")).filter(name_lower__contains=search.lower())
+            vector = SearchVector("name", weight="A")
+            query = SearchQuery(search)
+
+            queryset = queryset.annotate(rank=SearchRank(vector, query)).filter(rank__gte=0.1).order_by("-rank")
 
         return queryset
 
