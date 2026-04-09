@@ -28,7 +28,7 @@ class Acceptance(models.Model):
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     price_type = models.CharField(max_length=10, choices=PriceType.choices, default=PriceType.SUM)
-    count = models.PositiveIntegerField(default=0)
+    count = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     acceptance_status = models.CharField(max_length=10, choices=AcceptanceStatus.choices,
                                          default=AcceptanceStatus.WAITING)
     accepted_by = models.ForeignKey("user.User", null=True, blank=True, on_delete=models.SET_NULL,

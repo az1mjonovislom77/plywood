@@ -49,7 +49,7 @@ class Banding(models.Model):
 
 
 class Cutting(models.Model):
-    count = models.PositiveIntegerField(default=0)
+    count = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -148,7 +148,7 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey("product.Product", on_delete=models.PROTECT, related_name="order_items")
-    quantity = models.PositiveIntegerField()
+    quantity = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
