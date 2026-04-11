@@ -10,13 +10,27 @@ from rest_framework import status
 from utils.service.range_stats import DashboardRangeStatsService
 
 
-@extend_schema(tags=["Dashboard"])
+@extend_schema(
+    tags=["Dashboard"],
+    parameters=[
+        OpenApiParameter(
+            name="date",
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+            required=False,
+        )
+    ],
+)
 class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        data = DashboardStatsService.get_stats()
-        return Response(data)
+        date_str = request.query_params.get("date")
+        try:
+            data = DashboardStatsService.get_stats(date_str=date_str)
+            return Response(data, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(

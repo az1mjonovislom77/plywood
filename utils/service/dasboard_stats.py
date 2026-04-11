@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.db.models import F, Sum, Value, DecimalField, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
 from order.models import OrderItem, Order, Banding, Cutting
@@ -10,8 +11,14 @@ from utils.models import Expenses
 class DashboardStatsService:
 
     @classmethod
-    def get_stats(cls):
-        today = timezone.localdate()
+    def get_stats(cls, date_str=None):
+        if date_str:
+            target_date = parse_date(date_str)
+            if not target_date:
+                raise ValueError("Invalid date format")
+        else:
+            target_date = timezone.localdate()
+
         product_sales_expr = ExpressionWrapper(
             F("price") * F("quantity"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
@@ -47,25 +54,26 @@ class DashboardStatsService:
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         today_cash = Order.objects.aggregate(
-            total=Coalesce(Sum("covered_amount", filter=Q(created_at__date=today)), Value(Decimal("0.00")),
+            total=Coalesce(Sum("covered_amount", filter=Q(created_at__date=target_date)), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         today_paid_debt = BalanceHistory.objects.aggregate(
             total=Coalesce(Sum("amount", filter=Q(
-                type=BalanceHistory.Type.PAYMENT, created_at__date=today)), Value(Decimal("0.00")),
+                type=BalanceHistory.Type.PAYMENT, created_at__date=target_date)), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         today_added_debt = BalanceHistory.objects.aggregate(
             total=Coalesce(Sum("amount", filter=Q(
-                type=BalanceHistory.Type.DEBT_ADD, created_at__date=today)), Value(Decimal("0.00")),
+                type=BalanceHistory.Type.DEBT_ADD, created_at__date=target_date)), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         today_expense = Expenses.objects.aggregate(
             total=Coalesce(Sum("value", filter=Q(
-                created_at__date=today, expense_status=Expenses.ExpensesStatus.ACCEPT)), Value(Decimal("0.00")),
+                created_at__date=target_date, expense_status=Expenses.ExpensesStatus.ACCEPT)), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         return {
+            "date": target_date,
             "today_cash": today_cash,
             "today_paid_debt": today_paid_debt,
             "today_added_debt": today_added_debt,
