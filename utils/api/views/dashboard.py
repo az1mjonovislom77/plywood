@@ -10,17 +10,8 @@ from rest_framework import status
 from utils.service.range_stats import DashboardRangeStatsService
 
 
-@extend_schema(
-    tags=["Dashboard"],
-    parameters=[
-        OpenApiParameter(
-            name="date",
-            type=OpenApiTypes.DATE,
-            location=OpenApiParameter.QUERY,
-            required=False,
-        )
-    ],
-)
+@extend_schema(tags=["Dashboard"], parameters=[
+    OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, required=False)])
 class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
