@@ -1,18 +1,21 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Prefetch, Sum
 from utils.base.views_base import BaseUserViewSet
 from utils.models import Expenses, ExpensesHistory
 from utils.api.serializers import ExpenseCreateSerializer, ExpenseListSerializer, \
     ExpenseHistorySerializer
 from utils.service.expenses_service import ExpensesWorkflowService
 from rest_framework import status, viewsets
-from django.db.models import Sum
 
 
 @extend_schema(tags=["Expenses"])
 class ExpenseViewSet(BaseUserViewSet):
-    queryset = Expenses.objects.all().select_related("user")
+    queryset = (
+        Expenses.objects.select_related("user")
+        .prefetch_related(Prefetch("histories", queryset=ExpensesHistory.objects.select_related("user")))
+    )
 
     def get_serializer_class(self):
         if self.action == "create":

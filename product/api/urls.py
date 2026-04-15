@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from product.api.views import ProductViewSet, QualityViewSet
+from product.api.views.product_views import ProductViewSet
+from product.api.views.quality_views import QualityViewSet
 
 router = DefaultRouter()
 router.register('products', ProductViewSet, basename='product')

@@ -1,6 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from acceptance.api.views import AcceptanceViewSet, AcceptanceHistoryViewSet, UpdateCurrencyRateView
+from acceptance.api.views.acceptance_history_views import AcceptanceHistoryViewSet
+from acceptance.api.views.acceptance_views import AcceptanceViewSet
+from acceptance.api.views.currency_views import UpdateCurrencyRateView
 
 router = DefaultRouter()
 

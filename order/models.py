@@ -34,29 +34,75 @@ class Thickness(models.Model):
 
 
 class Banding(models.Model):
+    class DiscountType(models.TextChoices):
+        PERCENTAGE = "p", "Percentage"
+        CASH = "c", "Cash"
+
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Cash"
+        CARD = "card", "Card"
+        NASIYA = "nasiya", "Nasiya"
+
     thickness = models.ForeignKey("Thickness", on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name="bandings")
     length = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_at = models.DateTimeField(default=timezone.now)
+    customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="bandings", null=True,
+                                 blank=True)
+    discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
+    covered_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     def calculate_price(self):
         if self.thickness:
             return self.length * self.thickness.price
         return Decimal("0")
 
+    def clean(self):
+        if self.covered_amount < 0:
+            raise ValidationError("Covered amount cannot be negative")
+
+        total = self.calculate_price().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if self.covered_amount > total:
+            raise ValidationError("Covered amount cannot exceed total price")
+
     def __str__(self):
         return f"{self.length}"
 
 
 class Cutting(models.Model):
+    class DiscountType(models.TextChoices):
+        PERCENTAGE = "p", "Percentage"
+        CASH = "c", "Cash"
+
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Cash"
+        CARD = "card", "Card"
+        NASIYA = "nasiya", "Nasiya"
+
     count = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now)
+    customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="cuttings", null=True,
+                                 blank=True)
+    discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
+    covered_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     def calculate_price(self):
         if self.count:
             return self.price * self.count
         return Decimal("0")
+
+    def clean(self):
+        if self.covered_amount < 0:
+            raise ValidationError("Covered amount cannot be negative")
+
+        total = self.calculate_price().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if self.covered_amount > total:
+            raise ValidationError("Covered amount cannot exceed total price")
 
     def __str__(self):
         return str(self.count)

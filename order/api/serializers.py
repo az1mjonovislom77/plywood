@@ -6,6 +6,18 @@ from user.models import User
 from utils.base.serializers_base import BaseReadSerializer
 
 
+def get_service_total(obj):
+    total = obj.calculate_price()
+
+    if obj.discount > 0:
+        if obj.discount_type == obj.DiscountType.PERCENTAGE:
+            total -= total * (obj.discount / 100)
+        else:
+            total -= obj.discount
+
+    return max(total, 0)
+
+
 class BasketItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
 
@@ -34,13 +46,20 @@ class BasketAddItemSerializer(serializers.Serializer):
 
 class CuttingSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
+    customer_fullname = serializers.SerializerMethodField()
 
     class Meta:
         model = Cutting
-        fields = ["id", "count", "price", "total_price", "created_at"]
+        fields = [
+            "id", "count", "price", "customer", "customer_fullname", "discount_type", "discount",
+            "payment_method", "covered_amount", "total_price", "created_at"
+        ]
 
     def get_total_price(self, obj):
-        return obj.calculate_price()
+        return get_service_total(obj)
+
+    def get_customer_fullname(self, obj):
+        return obj.customer.full_name if obj.customer else None
 
 
 class ThicknessSerializer(BaseReadSerializer):
@@ -51,20 +70,39 @@ class ThicknessSerializer(BaseReadSerializer):
 class BandingGetSerializer(serializers.ModelSerializer):
     thickness = ThicknessSerializer(read_only=True)
     total_price = serializers.SerializerMethodField()
+    customer_fullname = serializers.SerializerMethodField()
 
     class Meta:
         model = Banding
 
-        fields = ["id", "thickness", "length", "total_price", "created_at"]
+        fields = [
+            "id", "thickness", "length", "customer", "customer_fullname", "discount_type", "discount",
+            "payment_method", "covered_amount", "total_price", "created_at"
+        ]
 
     def get_total_price(self, obj):
-        return obj.calculate_price()
+        return get_service_total(obj)
+
+    def get_customer_fullname(self, obj):
+        return obj.customer.full_name if obj.customer else None
 
 
 class BandingPostSerializer(serializers.ModelSerializer):
+    customer_id = serializers.IntegerField(required=False)
+
     class Meta:
         model = Banding
-        fields = ["id", "thickness", "length"]
+        fields = ["id", "thickness", "length", "customer_id", "discount_type", "discount", "payment_method",
+                  "covered_amount"]
+
+
+class CuttingCreateSerializer(serializers.ModelSerializer):
+    customer_id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = Cutting
+        fields = ["id", "count", "price", "customer_id", "discount_type", "discount", "payment_method",
+                  "covered_amount"]
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -125,12 +163,13 @@ class OrderSerializer(serializers.ModelSerializer):
 
         user = request.user
 
-        if user.role == User.UserRoles.MANAGER or User.UserRoles.SELLER or User.UserRoles.CASHIER or User.UserRoles.WAREHOUSEMAN:
+        if user.role in [
+            User.UserRoles.MANAGER,
+            User.UserRoles.SELLER,
+            User.UserRoles.CASHIER,
+            User.UserRoles.WAREHOUSEMAN,
+        ]:
             queryset = obj.history.all()
-        # elif user.role == User.UserRoles.SELLER:
-        #     queryset = obj.history.filter(visible_for=OrderHistory.VisibleFor.SELLER)
-        # elif user.role == User.UserRoles.CASHIER:
-        #     queryset = obj.history.filter(visible_for=OrderHistory.VisibleFor.CASHIER)
         else:
             queryset = obj.history.none()
 
@@ -144,8 +183,6 @@ class OrderCreateSerializer(serializers.Serializer):
     discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
     discount_type = serializers.ChoiceField(choices=Order.DiscountType.choices, default=Order.DiscountType.CASH)
     covered_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
-    banding = BandingPostSerializer(required=False)
-    cutting = CuttingSerializer(required=False)
 
 
 class OrderCancelSerializer(serializers.Serializer):

@@ -1,6 +1,5 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
-
 from supplier.models import Supplier, SupplierTransaction
 from utils.service.all_stats import ALlDashboardStatsService
 
@@ -17,11 +16,11 @@ class SupplierService:
         if amount > supplier.debt:
             raise ValidationError("Payment exceeds current debt")
 
-        supplier.debt -= amount
-
         stats = ALlDashboardStatsService.get_all_stats()
-        stats["cashbox_total"] + amount
-        stats["total_debt"] - amount
+        if amount > stats["cashbox_total"]:
+            raise ValidationError("Payment exceeds current cashbox balance")
+
+        supplier.debt -= amount
 
         supplier.save(update_fields=["debt"])
 

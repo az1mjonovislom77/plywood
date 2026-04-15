@@ -1,29 +1,90 @@
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.db.models import F
-from customer.models import Customer
-from customer.models import BalanceHistory
-from order.models import Order, OrderItem, Cutting, Banding, Basket
+from customer.models import BalanceHistory, Customer
+from order.models import Banding, Basket, Cutting, Order, OrderHistory, OrderItem
 from order.service.basket import BasketService
 from product.models import Product
-from order.models import OrderHistory
 from user.models import User
 
 
 class OrderService:
+    @staticmethod
+    def _get_customer(customer_id):
+        if not customer_id:
+            return None
+
+        try:
+            return Customer.objects.get(id=customer_id)
+        except Customer.DoesNotExist as exc:
+            raise ValueError("Customer not found") from exc
+
+    @staticmethod
+    def _calculate_service_total(instance):
+        total = instance.calculate_price()
+
+        if instance.discount > 0:
+            if instance.discount_type == instance.DiscountType.PERCENTAGE:
+                total -= total * (instance.discount / Decimal("100"))
+            else:
+                total -= instance.discount
+
+        return max(total, Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    @staticmethod
+    def _apply_customer_balance(instance):
+        total = OrderService._calculate_service_total(instance)
+
+        if instance.payment_method != instance.PaymentMethod.NASIYA:
+            instance.covered_amount = total
+
+        instance.full_clean()
+        instance.save()
+
+        remaining = total - instance.covered_amount
+
+        if not instance.customer:
+            return instance
+
+        customer = Customer.objects.select_for_update().get(id=instance.customer_id)
+
+        if instance.covered_amount > 0:
+            BalanceHistory.objects.create(
+                customer=customer,
+                type=BalanceHistory.Type.ORDER_PAYMENT,
+                amount=instance.covered_amount,
+            )
+
+        if instance.payment_method == instance.PaymentMethod.NASIYA and remaining > 0:
+            Customer.objects.filter(id=customer.id).update(debt=F("debt") + remaining)
+            BalanceHistory.objects.create(
+                customer=customer,
+                type=BalanceHistory.Type.DEBT_ADD,
+                amount=remaining,
+            )
+
+        return instance
 
     @staticmethod
     def get_by_id(order_id):
-        return (Order.objects
-                .filter(id=order_id)
-                .select_related("banding", "cutting")
-                .prefetch_related("items__product")
-                .first())
+        return (
+            Order.objects.filter(id=order_id)
+            .select_related("banding", "cutting")
+            .prefetch_related("items__product")
+            .first()
+        )
 
     @staticmethod
     @transaction.atomic
-    def checkout(user, payment_method, items, customer_id=None, covered_amount=0, discount=0, discount_type="c",
-                 banding_data=None, cutting_data=None):
-
+    def checkout(
+            user,
+            payment_method,
+            items,
+            customer_id=None,
+            covered_amount=0,
+            discount=0,
+            discount_type="c",
+    ):
         basket = BasketService.get_basket(user)
         if not basket:
             raise ValueError("Basket not found")
@@ -42,18 +103,8 @@ class OrderService:
             if product_id not in basket_product_ids:
                 raise ValueError("Product not in basket")
 
-        banding = Banding.objects.create(**banding_data) if banding_data else None
-        cutting = Cutting.objects.create(**cutting_data) if cutting_data else None
-
-        customer = None
-        if customer_id:
-            try:
-                customer = Customer.objects.get(id=customer_id)
-            except Customer.DoesNotExist:
-                raise ValueError("Customer not found")
-        source = (Order.OrderSource.CASHIER
-                  if user.role == user.UserRoles.CASHIER
-                  else Order.OrderSource.SELLER)
+        customer = OrderService._get_customer(customer_id)
+        source = Order.OrderSource.CASHIER if user.role == user.UserRoles.CASHIER else Order.OrderSource.SELLER
 
         order = Order.objects.create(
             user=user,
@@ -64,8 +115,6 @@ class OrderService:
             discount=discount,
             discount_type=discount_type,
             covered_amount=covered_amount,
-            banding=banding,
-            cutting=cutting
         )
 
         OrderHistory.objects.create(
@@ -76,7 +125,7 @@ class OrderService:
                 OrderHistory.VisibleFor.CASHIER
                 if user.role == User.UserRoles.CASHIER
                 else OrderHistory.VisibleFor.SELLER
-            )
+            ),
         )
         order_items = []
         created_product_ids = []
@@ -114,20 +163,61 @@ class OrderService:
         remaining = order.total_price - order.covered_amount
 
         if order.customer:
-
             customer = Customer.objects.select_for_update().get(id=order.customer.id)
 
             if order.covered_amount > 0:
-                BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.PAYMENT,
-                                              amount=order.covered_amount)
+                BalanceHistory.objects.create(
+                    customer=customer,
+                    type=BalanceHistory.Type.ORDER_PAYMENT,
+                    amount=order.covered_amount,
+                )
 
             if order.payment_method == Order.PaymentMethod.NASIYA and remaining > 0:
                 Customer.objects.filter(id=customer.id).update(debt=F("debt") + remaining)
-                BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.DEBT_ADD, amount=remaining)
+                BalanceHistory.objects.create(
+                    customer=customer,
+                    type=BalanceHistory.Type.DEBT_ADD,
+                    amount=remaining,
+                )
 
         if not basket.items.exists():
             basket.is_active = False
             basket.save(update_fields=["is_active"])
 
-        return (Order.objects.select_related("customer", "banding", "cutting")
-                .prefetch_related("items__product").get(id=order.id))
+        return (
+            Order.objects.select_related("customer", "banding", "cutting")
+            .prefetch_related("items__product")
+            .get(id=order.id)
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def create_cutting(data):
+        customer = OrderService._get_customer(data.get("customer_id"))
+        cutting = Cutting.objects.create(
+            count=data["count"],
+            price=data["price"],
+            customer=customer,
+            discount=data.get("discount", 0),
+            discount_type=data.get("discount_type", Cutting.DiscountType.CASH),
+            payment_method=data.get("payment_method", Cutting.PaymentMethod.CASH),
+            covered_amount=data.get("covered_amount", 0),
+        )
+        OrderService._apply_customer_balance(cutting)
+        return Cutting.objects.select_related("customer").get(id=cutting.id)
+
+    @staticmethod
+    @transaction.atomic
+    def create_banding(data):
+        customer = OrderService._get_customer(data.get("customer_id"))
+        banding = Banding.objects.create(
+            thickness=data.get("thickness"),
+            length=data["length"],
+            customer=customer,
+            discount=data.get("discount", 0),
+            discount_type=data.get("discount_type", Banding.DiscountType.CASH),
+            payment_method=data.get("payment_method", Banding.PaymentMethod.CASH),
+            covered_amount=data.get("covered_amount", 0),
+        )
+        OrderService._apply_customer_balance(banding)
+        return Banding.objects.select_related("customer", "thickness").get(id=banding.id)

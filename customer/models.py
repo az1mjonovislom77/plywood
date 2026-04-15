@@ -33,7 +33,8 @@ class Customer(models.Model):
 class BalanceHistory(models.Model):
     class Type(models.TextChoices):
         DEBT_ADD = "DEBT_ADD", "Debt Added"
-        PAYMENT = "PAYMENT", "Payment"
+        PAYMENT = "PAYMENT", "Debt Payment"
+        ORDER_PAYMENT = "ORDER_PAYMENT", "Order Payment"
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="history")
     type = models.CharField(max_length=20, choices=Type.choices)

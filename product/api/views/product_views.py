@@ -1,21 +1,20 @@
 import math
-from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Q
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from product.models import Product, Quality
-from rest_framework import viewsets
-from product.api.serializers import ProductSerializer, QualitySerializer
-from utils.base.views_base import BaseUserViewSet
-from django_filters.rest_framework import DjangoFilterBackend
+from product.api.serializers import ProductSerializer
+from product.models import Product
 
 
 class ProductPagination(PageNumberPagination):
     page_size = 30
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
 
     def get_paginated_response(self, data):
         total = self.page.paginator.count
@@ -31,17 +30,16 @@ class ProductPagination(PageNumberPagination):
         })
 
 
-@extend_schema(tags=["Product"],
-               parameters=[OpenApiParameter(
-                   name="search",
-                   description="Product name bo‘yicha qidiruv", required=False, type=OpenApiTypes.STR)])
+@extend_schema(
+    tags=["Product"],
+    parameters=[OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR)],
+)
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related("category").filter(is_active=True)
     serializer_class = ProductSerializer
     http_method_names = ["get", "post", "put", "delete"]
     permission_classes = [IsAuthenticated]
     pagination_class = ProductPagination
-
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["category", "quality"]
     ordering = ["-id"]
@@ -57,20 +55,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         if search:
             vector = SearchVector("name", weight="A")
             query = SearchQuery(search)
-
-            queryset = (queryset.annotate(
-                rank=SearchRank(vector, query))
-                        .filter(Q(rank__gte=0.1) | Q(name__icontains=search)).order_by("-rank"))
+            queryset = (
+                queryset.annotate(rank=SearchRank(vector, query))
+                .filter(Q(rank__gte=0.1) | Q(name__icontains=search))
+                .order_by("-rank")
+            )
 
         return queryset
-
-
-@extend_schema(tags=["Quality"])
-class QualityViewSet(BaseUserViewSet):
-    queryset = Quality.objects.all()
-    serializer_class = QualitySerializer
-    http_method_names = ["get"]
-    permission_classes = [IsAuthenticated]
-    pagination_class = None
-
-    ordering = ["-id"]

@@ -2,8 +2,6 @@ from django.db import transaction
 from django.db.models import F, Sum
 from django.core.exceptions import ValidationError
 from customer.models import Customer, BalanceHistory
-from order.models import Order
-from utils.service.all_stats import ALlDashboardStatsService
 
 
 class DebtService:
@@ -19,9 +17,10 @@ class DebtService:
         if amount > customer.debt:
             raise ValidationError("Amount exceeds debt")
 
-        Customer.objects.filter(pk=customer_id).update(debt=F("debt") - amount)
-
-        Order.objects.filter(customer_id=customer_id).update(covered_amount=F("covered_amount") + amount)
+        Customer.objects.filter(pk=customer_id).update(
+            debt=F("debt") - amount,
+            covered_debt=F("covered_debt") + amount,
+        )
 
         BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.PAYMENT, amount=amount)
         customer.refresh_from_db()
@@ -29,12 +28,15 @@ class DebtService:
 
     @staticmethod
     def get_customer_history(customer_id: int):
+        from order.models import Order
+
         customer = Customer.objects.get(pk=customer_id)
 
         history_qs = BalanceHistory.objects.filter(customer_id=customer_id).order_by("-created_at")
         total_orders = (Order.objects.filter(customer_id=customer_id).aggregate(total=Sum("total_price"))["total"] or 0)
         total_paid = (BalanceHistory.objects
-                      .filter(customer_id=customer_id, type=BalanceHistory.Type.PAYMENT)
+                      .filter(customer_id=customer_id,
+                              type__in=[BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT])
                       .aggregate(total=Sum("amount"))["total"] or 0)
 
         return {

@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from user.models import User
 from acceptance.models import Acceptance, AcceptanceHistory
 
