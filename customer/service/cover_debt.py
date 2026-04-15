@@ -14,8 +14,6 @@ class DebtService:
             raise ValidationError("Amount must be positive")
 
         customer = Customer.objects.select_for_update().get(pk=customer_id)
-        if amount > customer.debt:
-            raise ValidationError("Amount exceeds debt")
 
         Customer.objects.filter(pk=customer_id).update(
             debt=F("debt") - amount,

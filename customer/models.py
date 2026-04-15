@@ -1,7 +1,5 @@
 from django.db import models
 from django.db.models import F
-from django.core.exceptions import ValidationError
-from decimal import Decimal
 
 
 class Customer(models.Model):
@@ -12,10 +10,6 @@ class Customer(models.Model):
     covered_debt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     about = models.CharField(max_length=200, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-
-    def clean(self):
-        if self.debt < Decimal("0"):
-            raise ValidationError("Debt cannot be negative")
 
     def increase_debt(self, amount):
         if amount <= 0:
