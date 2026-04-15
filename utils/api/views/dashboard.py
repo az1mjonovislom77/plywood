@@ -24,7 +24,7 @@ class DashboardStatsView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(
+@extend_schema( 
     tags=["Dashboard"],
     parameters=[
         OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, required=False),

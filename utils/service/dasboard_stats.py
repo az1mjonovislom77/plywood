@@ -28,27 +28,27 @@ class DashboardStatsService:
         cutting_expr = ExpressionWrapper(
             F("price") * F("count"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
-        product_sales = OrderItem.objects.aggregate(
+        product_sales = OrderItem.objects.filter(order__created_at__date=target_date).aggregate(
             total=Coalesce(
                 Sum(product_sales_expr), Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-        banding_sales = Banding.objects.aggregate(
+        banding_sales = Banding.objects.filter(created_at__date=target_date).aggregate(
             total=Coalesce(Sum(banding_expr), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-        cutting_sales = Cutting.objects.aggregate(
+        cutting_sales = Cutting.objects.filter(created_at__date=target_date).aggregate(
             total=Coalesce(Sum(cutting_expr), Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-        total_cash_sales = Order.objects.aggregate(
+        total_cash_sales = Order.objects.filter(created_at__date=target_date).aggregate(
             total=Coalesce(
                 Sum("total_price",
                     filter=Q(payment_method__in=[Order.PaymentMethod.CASH, Order.PaymentMethod.NASIYA])),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
-        total_card_sales = Order.objects.aggregate(
+        total_card_sales = Order.objects.filter(created_at__date=target_date).aggregate(
             total=Coalesce(Sum("total_price", filter=Q(payment_method=Order.PaymentMethod.CARD)),
                            Value(Decimal("0.00")),
                            output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
