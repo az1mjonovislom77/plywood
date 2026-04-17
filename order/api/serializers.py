@@ -18,6 +18,11 @@ def get_service_total(obj):
     return max(total, 0)
 
 
+def validate_percentage_discount(discount_type, discount):
+    if discount_type == "p" and discount > 100:
+        raise serializers.ValidationError({"discount": "Foiz chegirma 100 dan katta bo'lib ketti"})
+
+
 class BasketItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
 
@@ -95,6 +100,12 @@ class BandingPostSerializer(serializers.ModelSerializer):
         fields = ["id", "thickness", "length", "customer_id", "discount_type", "discount", "payment_method",
                   "covered_amount"]
 
+    def validate(self, attrs):
+        validate_percentage_discount(
+            attrs.get("discount_type", Banding.DiscountType.CASH),
+            attrs.get("discount", 0))
+        return attrs
+
 
 class CuttingCreateSerializer(serializers.ModelSerializer):
     customer_id = serializers.IntegerField(required=False)
@@ -103,6 +114,12 @@ class CuttingCreateSerializer(serializers.ModelSerializer):
         model = Cutting
         fields = ["id", "count", "price", "customer_id", "discount_type", "discount", "payment_method",
                   "covered_amount"]
+
+    def validate(self, attrs):
+        validate_percentage_discount(
+            attrs.get("discount_type", Cutting.DiscountType.CASH),
+            attrs.get("discount", 0))
+        return attrs
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -183,6 +200,13 @@ class OrderCreateSerializer(serializers.Serializer):
     discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
     discount_type = serializers.ChoiceField(choices=Order.DiscountType.choices, default=Order.DiscountType.CASH)
     covered_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+
+    def validate(self, attrs):
+        validate_percentage_discount(
+            attrs.get("discount_type", Order.DiscountType.CASH),
+            attrs.get("discount", 0),
+        )
+        return attrs
 
 
 class OrderCancelSerializer(serializers.Serializer):
