@@ -40,12 +40,7 @@ class AcceptanceExportService:
             total_investment += investment
 
         ws.append([])
-        ws.append([
-            "JAMI",
-            float(total_quantity),
-            "",
-            float(total_investment)
-        ])
+        ws.append(["JAMI", float(total_quantity), "", float(total_investment)])
 
         for cell in ws[ws.max_row]:
             cell.font = Font(bold=True)
