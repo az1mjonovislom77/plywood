@@ -29,11 +29,14 @@ class AcceptanceSelector:
         return (
             Acceptance.objects
             .filter(acceptance_status=Acceptance.AcceptanceStatus.ACCEPT, supplier__isnull=False)
-            .annotate(date=TruncDate(date_field))
+            .annotate(date=TruncDate(F(date_field)))
             .values("date", "supplier_id", "supplier__name")
             .annotate(
                 total_quantity=Sum("count"),
                 total_investment=Sum(
                     ExpressionWrapper(
                         F("arrival_price") * F("count"),
-                        output_field=DecimalField(max_digits=18, decimal_places=2)))).order_by("-date", "supplier_id"))
+                        output_field=DecimalField(max_digits=18, decimal_places=2)
+                    )
+                )
+            ).order_by("-date", "supplier_id"))
