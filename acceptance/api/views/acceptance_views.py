@@ -74,6 +74,7 @@ class AcceptanceViewSet(PartialPutMixin, viewsets.ModelViewSet):
     ])
     @action(detail=False, methods=["get"], url_path=r"supplier/(?P<supplier_id>\d+)")
     def supplier_acceptances(self, request, supplier_id=None):
+        self.pagination_class = None
         date_param = request.query_params.get("date")
 
         if date_param:
