@@ -1,5 +1,5 @@
 from decimal import Decimal
-from django.db.models import Count, Sum
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from supplier.models import Supplier, SupplierTransaction
@@ -17,6 +17,25 @@ class SupplierSelector:
             "total_customers": stats["total_customers"],
             "total_debt": stats["total_debt"],
         }
+
+    @staticmethod
+    def suppliers_with_daily_acceptance_stats(date):
+        investment_expr = ExpressionWrapper(
+            F("acceptances__arrival_price") * F("acceptances__count"),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        )
+        date_filter = Q(acceptances__created_at__date=date)
+
+        return Supplier.objects.annotate(
+            daily_acceptance_count=Coalesce(
+                Sum("acceptances__count", filter=date_filter), Decimal("0"),
+                output_field=DecimalField(max_digits=14, decimal_places=3),
+            ),
+            daily_investment=Coalesce(
+                Sum(investment_expr, filter=date_filter), Decimal("0.00"),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
 
     @staticmethod
     def transactions_with_stats(supplier_id):
