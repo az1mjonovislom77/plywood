@@ -79,7 +79,13 @@ class AcceptanceViewSet(BaseUserViewSet):
         return Response(serializer.data)
 
 
-@extend_schema(tags=["Acceptance"])
+@extend_schema(
+    tags=["Acceptance"],
+    parameters=[
+        OpenApiParameter(name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+    ],
+)
 class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = AnalyticsPagination
