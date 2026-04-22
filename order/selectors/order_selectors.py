@@ -13,19 +13,24 @@ class OrderSelector:
             .prefetch_related(Prefetch("history", queryset=OrderHistory.objects.select_related("user")))
         )
 
+    # @staticmethod
+    # def list_for_user(user):
+    #     queryset = OrderSelector.base_queryset()
+    #
+    #     if user.role == User.UserRoles.SELLER:
+    #         return queryset.filter(user=user, source=Order.OrderSource.SELLER).order_by("-id")
+    #
+    #     if user.role == User.UserRoles.CASHIER:
+    #         return (
+    #             queryset.filter(
+    #                 Q(source=Order.OrderSource.SELLER, order_status=Order.OrderStatus.WAITING)
+    #                 | Q(source=Order.OrderSource.CASHIER, user=user)
+    #             ).order_by("-id")
+    #         )
+    #
+    #     return queryset.order_by("-id")
+
     @staticmethod
     def list_for_user(user):
         queryset = OrderSelector.base_queryset()
-
-        if user.role == User.UserRoles.SELLER:
-            return queryset.filter(user=user, source=Order.OrderSource.SELLER).order_by("-id")
-
-        if user.role == User.UserRoles.CASHIER:
-            return (
-                queryset.filter(
-                    Q(source=Order.OrderSource.SELLER, order_status=Order.OrderStatus.WAITING)
-                    | Q(source=Order.OrderSource.CASHIER, user=user)
-                ).order_by("-id")
-            )
-
         return queryset.order_by("-id")
