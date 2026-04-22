@@ -19,7 +19,7 @@ class AcceptanceAnalyticsService:
 
             grouped[date].append({
                 "supplier_id": item["supplier_id"],
-                "supplier_name": item["supplier__name"],
+                "supplier_name": item["supplier__full_name"],
                 "total_quantity": item["total_quantity"] or 0,
                 "total_investment": item["total_investment"] or 0,
             })
