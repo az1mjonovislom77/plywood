@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from user.models import User
 from acceptance.models import Acceptance, AcceptanceHistory
+from utils.base.serializers_base import TrimmedDecimalField
 
 
 class AcceptanceSerializer(serializers.ModelSerializer):
@@ -8,6 +9,7 @@ class AcceptanceSerializer(serializers.ModelSerializer):
     accepted_by_name = serializers.CharField(source="accepted_by.full_name", read_only=True)
     accepted_at = serializers.DateTimeField(read_only=True)
     history = serializers.SerializerMethodField()
+    count = TrimmedDecimalField(max_digits=10, decimal_places=3)
 
     class Meta:
         model = Acceptance

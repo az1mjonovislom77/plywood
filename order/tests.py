@@ -108,5 +108,7 @@ class OrderSerializerTest(TestCase):
         request = self.factory.get("/orders/")
         request.user = self.seller
         data = OrderSerializer(order, context={"request": request}).data
+        self.assertEqual(data["items"][0]["quantity"], "1")
+        self.assertEqual(data["items"][0]["cutting"]["count"], "2")
         self.assertEqual(data["items"][0]["cutting"]["total_price"], Decimal("30000.00000"))
         self.assertEqual(data["items"][0]["banding"]["total_price"], Decimal("30000.0000"))

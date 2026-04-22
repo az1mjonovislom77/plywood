@@ -1,8 +1,11 @@
 from rest_framework import serializers
 from product.models import Product, Quality
+from utils.base.serializers_base import TrimmedDecimalField
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    count = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
+
     class Meta:
         model = Product
         fields = "__all__"

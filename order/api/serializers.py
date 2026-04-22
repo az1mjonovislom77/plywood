@@ -3,7 +3,7 @@ from order.models import Basket, Cutting, BasketItem, Banding, Thickness, Order,
 from product.models import Product
 from product.api.serializers import ProductSerializer
 from user.models import User
-from utils.base.serializers_base import BaseReadSerializer
+from utils.base.serializers_base import BaseReadSerializer, TrimmedDecimalField
 
 
 def get_service_total(obj):
@@ -52,6 +52,7 @@ class BasketAddItemSerializer(serializers.Serializer):
 class CuttingSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
     customer_fullname = serializers.SerializerMethodField()
+    count = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
 
     class Meta:
         model = Cutting
@@ -126,6 +127,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     banding = BandingGetSerializer(read_only=True)
     cutting = CuttingSerializer(read_only=True)
+    quantity = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
 
     class Meta:
         model = OrderItem

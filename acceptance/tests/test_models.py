@@ -8,6 +8,7 @@ from supplier.models import Supplier
 from django.db import IntegrityError
 from django.db.models import ProtectedError
 from django.core.exceptions import ValidationError
+from acceptance.api.serializers import AcceptanceSerializer
 from acceptance.models import CurrencyRate, Acceptance
 
 
@@ -52,6 +53,13 @@ class AcceptanceModelTest(TestCase):
         self.assertEqual(acceptance.count, 5)
         self.assertEqual(acceptance.arrival_date, timezone.localdate())
         self.assertIsNotNone(acceptance.created_at)
+
+    def test_acceptance_serializer_count_trims_trailing_zeroes(self):
+        acceptance = Acceptance.objects.create(product=self.product, count=Decimal("25.000"))
+
+        data = AcceptanceSerializer(acceptance).data
+
+        self.assertEqual(data["count"], "25")
 
     def test_product_protect_on_delete(self):
         Acceptance.objects.create(product=self.product)
