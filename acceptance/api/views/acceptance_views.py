@@ -5,10 +5,15 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from acceptance.api.serializers import AcceptanceCancelSerializer, AcceptanceSerializer, SupplierAcceptanceSerializer
+from acceptance.api.serializers import AcceptanceCancelSerializer, AcceptanceSerializer, SupplierAcceptanceSerializer, \
+    AcceptanceGroupedSerializer
+from rest_framework.viewsets import ViewSet
 from acceptance.selectors.acceptance_selectors import AcceptanceSelector
+from acceptance.service.acceptance_analytics import AcceptanceAnalyticsService
 from acceptance.service.acceptance_workflow import AcceptanceWorkflowService
+from product.api.views.product_views import ProductPagination
 from utils.base.views_base import BaseUserViewSet
 
 
@@ -59,4 +64,18 @@ class AcceptanceViewSet(BaseUserViewSet):
 
         queryset = AcceptanceSelector.supplier_acceptances_queryset(supplier_id=supplier_id, date=selected_date)
         serializer = SupplierAcceptanceSerializer(queryset, many=True, context={"request": request})
+        return Response(serializer.data)
+
+
+@extend_schema(tags=["Acceptance"])
+class AcceptanceAnalyticsViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+    pagination_class = ProductPagination
+
+    def list(self, request):
+        data = AcceptanceAnalyticsService.get_grouped_supplier_stats(date_field="arrival_date")
+
+        serializer = AcceptanceGroupedSerializer(data, many=True)
+        serializer.is_valid(raise_exception=True)
+
         return Response(serializer.data)

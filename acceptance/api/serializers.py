@@ -49,3 +49,15 @@ class SupplierAcceptanceSerializer(AcceptanceSerializer):
 
     def get_history(self, obj):
         return AcceptanceHistorySerializer(obj.histories.all(), many=True, context=self.context).data
+
+
+class SupplierStatsSerializer(serializers.Serializer):
+    supplier_id = serializers.IntegerField()
+    supplier_name = serializers.CharField()
+    total_quantity = serializers.FloatField()
+    total_investment = serializers.FloatField()
+
+
+class AcceptanceGroupedSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    suppliers = SupplierStatsSerializer(many=True)

@@ -1,4 +1,6 @@
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Sum, ExpressionWrapper, F, DecimalField
+from django.db.models.functions import TruncDate
+
 from acceptance.models import Acceptance, AcceptanceHistory
 
 
@@ -21,3 +23,17 @@ class AcceptanceSelector:
             .prefetch_related(Prefetch("histories", queryset=history_queryset))
             .order_by("-created_at")
         )
+
+    @staticmethod
+    def grouped_supplier_stats_queryset(date_field="created_at"):
+        return (
+            Acceptance.objects
+            .filter(acceptance_status=Acceptance.AcceptanceStatus.ACCEPT, supplier__isnull=False)
+            .annotate(date=TruncDate(date_field))
+            .values("date", "supplier_id", "supplier__name")
+            .annotate(
+                total_quantity=Sum("count"),
+                total_investment=Sum(
+                    ExpressionWrapper(
+                        F("arrival_price") * F("count"),
+                        output_field=DecimalField(max_digits=18, decimal_places=2)))).order_by("-date", "supplier_id"))
