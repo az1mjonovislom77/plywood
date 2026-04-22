@@ -18,7 +18,7 @@ from utils.base.views_base import BaseUserViewSet
 
 
 class AnalyticsPagination(PageNumberPagination):
-    page_size = 15
+    page_size = 20
 
     def get_paginated_response(self, data):
         return Response({
