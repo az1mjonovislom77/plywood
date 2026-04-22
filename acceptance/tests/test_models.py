@@ -3,13 +3,17 @@ from datetime import date
 from decimal import Decimal
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.test import APIRequestFactory, force_authenticate
 from product.models import Product
 from supplier.models import Supplier
+from user.models import User
 from django.db import IntegrityError
 from django.db.models import ProtectedError
 from django.core.exceptions import ValidationError
 from acceptance.api.serializers import AcceptanceSerializer
+from acceptance.api.views.acceptance_views import AcceptanceViewSet
 from acceptance.models import CurrencyRate, Acceptance
+from acceptance.service.acceptance_workflow import AcceptanceWorkflowService
 
 
 class CurrencyRateModelTest(TestCase):
@@ -94,3 +98,49 @@ class AcceptanceModelTest(TestCase):
 
         self.assertEqual(acceptances[0], second)
         self.assertEqual(acceptances[1], first)
+
+
+class SupplierAcceptanceAPIViewTest(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.user = User.objects.create_user(username="manager", password="123", role=User.UserRoles.MANAGER)
+        self.product = Product.objects.create(name="Test Product")
+        self.supplier = Supplier.objects.create(full_name="Test Supplier")
+        self.other_supplier = Supplier.objects.create(full_name="Other Supplier")
+
+    def test_supplier_acceptances_returns_date_filtered_acceptances_with_history(self):
+        acceptance = AcceptanceWorkflowService.create(
+            data={
+                "product": self.product,
+                "supplier": self.supplier,
+                "arrival_price": Decimal("1000.00"),
+                "sale_price": Decimal("1500.00"),
+                "count": Decimal("25.000"),
+            },
+            user=self.user,
+        )
+        Acceptance.objects.create(product=self.product, supplier=self.other_supplier)
+
+        request = self.factory.get(
+            f"/acceptance/acceptances/supplier/{self.supplier.id}/",
+            {"date": timezone.localdate().isoformat()},
+        )
+        force_authenticate(request, user=self.user)
+        view = AcceptanceViewSet.as_view({"get": "supplier_acceptances"})
+
+        response = view(request, supplier_id=self.supplier.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], acceptance.id)
+        self.assertEqual(response.data[0]["count"], "25")
+        self.assertEqual(len(response.data[0]["history"]), 1)
+
+    def test_supplier_acceptances_rejects_invalid_date(self):
+        request = self.factory.get(f"/acceptance/acceptances/supplier/{self.supplier.id}/", {"date": "bad-date"})
+        force_authenticate(request, user=self.user)
+        view = AcceptanceViewSet.as_view({"get": "supplier_acceptances"})
+
+        response = view(request, supplier_id=self.supplier.id)
+
+        self.assertEqual(response.status_code, 400)

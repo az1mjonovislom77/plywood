@@ -42,3 +42,10 @@ class AcceptanceHistorySerializer(serializers.ModelSerializer):
 
 class AcceptanceCancelSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
+
+
+class SupplierAcceptanceSerializer(AcceptanceSerializer):
+    history = serializers.SerializerMethodField()
+
+    def get_history(self, obj):
+        return AcceptanceHistorySerializer(obj.histories.all(), many=True, context=self.context).data
