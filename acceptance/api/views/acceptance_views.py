@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
@@ -9,10 +10,13 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.viewsets import ViewSet
+
 from acceptance.api.serializers import AcceptanceCancelSerializer, AcceptanceSerializer, SupplierAcceptanceSerializer, \
     AcceptanceGroupedSerializer
 from acceptance.selectors.acceptance_selectors import AcceptanceSelector
 from acceptance.service.acceptance_analytics import AcceptanceAnalyticsService
+from acceptance.service.acceptance_export import AcceptanceExportService
 from acceptance.service.acceptance_workflow import AcceptanceWorkflowService
 from utils.base.views_base import BaseUserViewSet
 
@@ -99,3 +103,37 @@ class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
         serializer = AcceptanceGroupedSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
+
+
+class AcceptanceExportViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["AcceptanceExport"],
+                   parameters=[
+                       OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
+                                        description="Format: YYYY-MM-DD")])
+    @action(detail=False, methods=["get"], url_path=r"supplier/(?P<supplier_id>\d+)")
+    def supplier_excel(self, request, supplier_id=None):
+        date_param = request.query_params.get("date")
+
+        if date_param:
+            selected_date = parse_date(date_param)
+            if not selected_date:
+                return Response({"detail": "Invalid date format. Use YYYY-MM-DD"}, status=400)
+        else:
+            selected_date = timezone.localdate()
+
+        queryset = AcceptanceSelector.supplier_acceptances_queryset(supplier_id=supplier_id, date=selected_date)
+
+        supplier_name = ""
+        if queryset:
+            supplier_name = queryset[0].supplier.full_name
+
+        wb = AcceptanceExportService.build_supplier_excel(queryset=queryset, supplier_name=supplier_name,
+                                                          date=selected_date)
+
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="acceptance_{supplier_id}.xlsx"'
+
+        wb.save(response)
+        return response
