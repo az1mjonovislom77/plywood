@@ -97,6 +97,5 @@ class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
         page = paginator.paginate_queryset(data, request)
 
         serializer = AcceptanceGroupedSerializer(page, many=True)
-        serializer.is_valid(raise_exception=True)
 
         return paginator.get_paginated_response(serializer.data)
