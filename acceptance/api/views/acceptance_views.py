@@ -14,7 +14,7 @@ from acceptance.api.serializers import AcceptanceCancelSerializer, AcceptanceSer
 from acceptance.selectors.acceptance_selectors import AcceptanceSelector
 from acceptance.service.acceptance_analytics import AcceptanceAnalyticsService
 from acceptance.service.acceptance_workflow import AcceptanceWorkflowService
-from utils.base.views_base import BaseUserViewSet, PartialPutMixin
+from utils.base.views_base import BaseUserViewSet
 
 
 class AnalyticsPagination(PageNumberPagination):
@@ -29,19 +29,10 @@ class AnalyticsPagination(PageNumberPagination):
         })
 
 
-@extend_schema(
-    tags=["Acceptance"],
-    parameters=[
-        OpenApiParameter(name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
-        OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
-    ],
-)
-class AcceptanceViewSet(PartialPutMixin, viewsets.ModelViewSet):
+@extend_schema(tags=["Acceptance"])
+class AcceptanceViewSet(BaseUserViewSet):
     queryset = AcceptanceSelector.acceptance_queryset()
     serializer_class = AcceptanceSerializer
-    pagination_class = AnalyticsPagination
-    http_method_names = ["get", "post", "put", "delete"]
-    permission_classes = [IsAuthenticated]
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -69,6 +60,9 @@ class AcceptanceViewSet(PartialPutMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(acceptance)
         return Response(serializer.data)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+    ])
     @action(detail=False, methods=["get"], url_path=r"supplier/(?P<supplier_id>\d+)")
     def supplier_acceptances(self, request, supplier_id=None):
         date_param = request.query_params.get("date")
