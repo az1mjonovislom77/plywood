@@ -69,12 +69,8 @@ class AcceptanceViewSet(PartialPutMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(acceptance)
         return Response(serializer.data)
 
-    @extend_schema(parameters=[
-        OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
-    ])
     @action(detail=False, methods=["get"], url_path=r"supplier/(?P<supplier_id>\d+)")
     def supplier_acceptances(self, request, supplier_id=None):
-        self.pagination_class = None
         date_param = request.query_params.get("date")
 
         if date_param:
