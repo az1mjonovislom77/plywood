@@ -4,17 +4,29 @@ from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.utils import extend_schema
+from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from acceptance.api.serializers import AcceptanceCancelSerializer, AcceptanceSerializer, SupplierAcceptanceSerializer, \
     AcceptanceGroupedSerializer
-from rest_framework.viewsets import ViewSet
 from acceptance.selectors.acceptance_selectors import AcceptanceSelector
 from acceptance.service.acceptance_analytics import AcceptanceAnalyticsService
 from acceptance.service.acceptance_workflow import AcceptanceWorkflowService
-from product.api.views.product_views import ProductPagination
 from utils.base.views_base import BaseUserViewSet
+
+
+class AnalyticsPagination(PageNumberPagination):
+    page_size = 10
+
+    def get_paginated_response(self, data):
+        return Response({
+            "count": self.page.paginator.count,
+            "next": self.get_next_link(),
+            "previous": self.get_previous_link(),
+            "results": data
+        })
 
 
 @extend_schema(tags=["Acceptance"])
@@ -68,14 +80,17 @@ class AcceptanceViewSet(BaseUserViewSet):
 
 
 @extend_schema(tags=["Acceptance"])
-class AcceptanceAnalyticsViewSet(ViewSet):
+class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
-    pagination_class = ProductPagination
+    pagination_class = AnalyticsPagination
 
     def list(self, request):
         data = AcceptanceAnalyticsService.get_grouped_supplier_stats(date_field="arrival_date")
 
-        serializer = AcceptanceGroupedSerializer(data, many=True)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(data, request)
+
+        serializer = AcceptanceGroupedSerializer(page, many=True)
         serializer.is_valid(raise_exception=True)
 
-        return Response(serializer.data)
+        return paginator.get_paginated_response(serializer.data)
