@@ -124,31 +124,48 @@ class CuttingCreateSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
+    banding = BandingGetSerializer(read_only=True)
+    cutting = CuttingSerializer(read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ["id", "product", "price", "quantity"]
+        fields = [
+            "id", "product", "banding", "cutting", "price", "quantity", "original_sell_price", "new_sell_price",
+            "sell_price_difference",
+        ]
 
 
 class OrderItemCreateSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField()
+    new_sell_price = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    cutting = CuttingCreateSerializer(required=False)
+    banding = BandingPostSerializer(required=False)
 
     class Meta:
         model = OrderItem
-        fields = ["id", "product_id", "quantity"]
+        fields = ["id", "product_id", "quantity", "new_sell_price", "cutting", "banding"]
 
     def validate_product_id(self, value):
         if not Product.objects.filter(id=value).exists():
             raise serializers.ValidationError("Product not found")
         return value
 
+    def validate_new_sell_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("New sell price must be greater than 0")
+        return value
+
 
 class OrderHistorySerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.full_name", read_only=True)
+    items = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderHistory
-        fields = ["id", "user", "user_name", "action", "visible_for", "description", "created_at"]
+        fields = ["id", "user", "user_name", "action", "visible_for", "description", "items", "created_at"]
+
+    def get_items(self, obj):
+        return OrderItemSerializer(obj.order.items.all(), many=True, context=self.context).data
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -211,6 +228,3 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class OrderCancelSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
-
-# class EmptySerializer(serializers.Serializer):
-#     pass

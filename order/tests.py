@@ -1,7 +1,11 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from order.api.serializers import OrderSerializer
-from order.models import Order, OrderHistory
+from order.models import Basket, BasketItem, Order, OrderHistory, OrderItem, Thickness
+from order.service.order import OrderService
+from product.models import Product
 from user.models import User
 
 
@@ -33,3 +37,76 @@ class OrderSerializerTest(TestCase):
         data = OrderSerializer(self.order, context={"request": request}).data
 
         self.assertEqual(data["history"], [])
+
+    def test_history_includes_new_sell_price_difference(self):
+        product = Product.objects.create(name="Plywood", sale_price=Decimal("400000.00"))
+        OrderItem.objects.create(
+            order=self.order,
+            product=product,
+            quantity=Decimal("1"),
+            price=Decimal("450000.00"),
+            original_sell_price=Decimal("400000.00"),
+            new_sell_price=Decimal("450000.00"),
+            sell_price_difference=Decimal("50000.00"),
+        )
+        request = self.factory.get("/orders/")
+        request.user = self.seller
+
+        data = OrderSerializer(self.order, context={"request": request}).data
+
+        item = data["history"][0]["items"][0]
+        self.assertEqual(item["price"], "450000.00")
+        self.assertEqual(item["original_sell_price"], "400000.00")
+        self.assertEqual(item["new_sell_price"], "450000.00")
+        self.assertEqual(item["sell_price_difference"], "50000.00")
+
+    def test_checkout_uses_new_sell_price_when_provided(self):
+        product = Product.objects.create(name="Plywood", sale_price=Decimal("400000.00"), count=Decimal("2.000"))
+        basket = Basket.objects.create(user=self.seller)
+        BasketItem.objects.create(basket=basket, product=product)
+
+        order = OrderService.checkout(
+            user=self.seller,
+            payment_method=Order.PaymentMethod.CASH,
+            items=[{
+                "product_id": product.id,
+                "quantity": Decimal("1.000"),
+                "new_sell_price": Decimal("450000.00"),
+            }],
+        )
+
+        item = order.items.get()
+        self.assertEqual(item.price, Decimal("450000.00"))
+        self.assertEqual(item.original_sell_price, Decimal("400000.00"))
+        self.assertEqual(item.new_sell_price, Decimal("450000.00"))
+        self.assertEqual(item.sell_price_difference, Decimal("50000.00"))
+        self.assertEqual(order.total_price, Decimal("450000.00"))
+
+    def test_checkout_creates_cutting_and_banding_for_each_product(self):
+        product = Product.objects.create(name="Plywood", sale_price=Decimal("400000.00"), count=Decimal("2.000"))
+        thickness = Thickness.objects.create(text="1 mm", price=Decimal("10000.00"))
+        basket = Basket.objects.create(user=self.seller)
+        BasketItem.objects.create(basket=basket, product=product)
+
+        order = OrderService.checkout(
+            user=self.seller,
+            payment_method=Order.PaymentMethod.CASH,
+            items=[{
+                "product_id": product.id,
+                "quantity": Decimal("1.000"),
+                "cutting": {"count": Decimal("2.000"), "price": Decimal("15000.00")},
+                "banding": {"thickness": thickness, "length": Decimal("3.000")},
+            }],
+        )
+
+        item = order.items.get()
+        self.assertIsNotNone(item.cutting)
+        self.assertIsNotNone(item.banding)
+        self.assertEqual(order.total_price, Decimal("460000.00"))
+        self.assertEqual(order.covered_amount, Decimal("460000.00"))
+
+        request = self.factory.get("/orders/")
+        request.user = self.seller
+        data = OrderSerializer(order, context={"request": request}).data
+        self.assertEqual(data["items"][0]["cutting"]["total_price"], Decimal("30000.00000"))
+        self.assertEqual(data["items"][0]["banding"]["total_price"], Decimal("30000.0000"))

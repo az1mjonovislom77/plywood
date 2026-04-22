@@ -148,13 +148,30 @@ class Order(models.Model):
     def __str__(self):
         return f"Order #{self.id}"
 
+    def _calculate_service_total(self, service):
+        total = service.calculate_price()
+
+        if service.discount > 0:
+            if service.discount_type == service.DiscountType.PERCENTAGE:
+                total -= total * (service.discount / Decimal("100"))
+            else:
+                total -= service.discount
+
+        return max(total, Decimal("0"))
+
     def calculate_total(self):
         total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
 
+        for item in self.items.select_related("banding", "cutting"):
+            if item.banding:
+                total += self._calculate_service_total(item.banding)
+            if item.cutting:
+                total += self._calculate_service_total(item.cutting)
+
         if self.banding:
-            total += self.banding.calculate_price()
+            total += self._calculate_service_total(self.banding)
         if self.cutting:
-            total += self.cutting.calculate_price()
+            total += self._calculate_service_total(self.cutting)
         if self.discount > 0:
             if self.discount_type == self.DiscountType.PERCENTAGE:
                 total -= total * (self.discount / Decimal("100"))
@@ -175,10 +192,16 @@ class Order(models.Model):
 
         total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
 
+        for item in self.items.select_related("banding", "cutting"):
+            if item.banding:
+                total += self._calculate_service_total(item.banding)
+            if item.cutting:
+                total += self._calculate_service_total(item.cutting)
+
         if self.banding:
-            total += self.banding.calculate_price()
+            total += self._calculate_service_total(self.banding)
         if self.cutting:
-            total += self.cutting.calculate_price()
+            total += self._calculate_service_total(self.cutting)
         if self.discount > 0:
             if self.discount_type == self.DiscountType.PERCENTAGE:
                 total -= total * (self.discount / Decimal("100"))
@@ -194,8 +217,13 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey("product.Product", on_delete=models.PROTECT, related_name="order_items")
+    banding = models.ForeignKey("Banding", on_delete=models.SET_NULL, related_name="order_items", null=True, blank=True)
+    cutting = models.ForeignKey("Cutting", on_delete=models.SET_NULL, related_name="order_items", null=True, blank=True)
     quantity = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=12, decimal_places=2)
+    original_sell_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    new_sell_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    sell_price_difference = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     class Meta:
         unique_together = ("order", "product")
