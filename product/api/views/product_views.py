@@ -30,6 +30,41 @@ class ProductPagination(PageNumberPagination):
         })
 
 
+def latin_to_cyrillic(text):
+    mapping = {
+        "sh": "ш", "ch": "ч", "ya": "я", "yo": "ё", "yu": "ю",
+        "o‘": "ў", "g‘": "ғ",
+
+        "a": "а", "b": "б", "d": "д", "e": "е", "f": "ф",
+        "g": "г", "h": "х", "i": "и", "j": "ж", "k": "к",
+        "l": "л", "m": "м", "n": "н", "o": "о", "p": "п",
+        "q": "қ", "r": "р", "s": "с", "t": "т", "u": "у",
+        "v": "в", "x": "х", "y": "й", "z": "з",
+    }
+
+    text = text.lower()
+
+    for k in ["sh", "ch", "ya", "yo", "yu", "o‘", "g‘"]:
+        text = text.replace(k, mapping[k])
+
+    return "".join(mapping.get(c, c) for c in text)
+
+
+def cyrillic_to_latin(text):
+    mapping = {
+        "ш": "sh", "ч": "ch", "я": "ya", "ё": "yo", "ю": "yu",
+        "ў": "o‘", "ғ": "g‘",
+
+        "а": "a", "б": "b", "д": "d", "е": "e", "ф": "f",
+        "г": "g", "х": "h", "и": "i", "ж": "j", "к": "k",
+        "л": "l", "м": "m", "н": "n", "о": "o", "п": "p",
+        "қ": "q", "р": "r", "с": "s", "т": "t", "у": "u",
+        "в": "v", "й": "y", "з": "z",
+    }
+
+    return "".join(mapping.get(c, c) for c in text.lower())
+
+
 @extend_schema(
     tags=["Product"],
     parameters=[OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR)],
@@ -53,11 +88,20 @@ class ProductViewSet(viewsets.ModelViewSet):
         search = self.request.query_params.get("search")
 
         if search:
+            search_latin = cyrillic_to_latin(search)
+            search_cyrillic = latin_to_cyrillic(search)
+
             vector = SearchVector("name", weight="A")
             query = SearchQuery(search)
+
             queryset = (
                 queryset.annotate(rank=SearchRank(vector, query))
-                .filter(Q(rank__gte=0.1) | Q(name__icontains=search))
+                .filter(
+                    Q(rank__gte=0.1)
+                    | Q(name__icontains=search)
+                    | Q(name__icontains=search_latin)
+                    | Q(name__icontains=search_cyrillic)
+                )
                 .order_by("-rank")
             )
 
