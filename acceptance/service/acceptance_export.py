@@ -39,15 +39,28 @@ class AcceptanceExportService:
             total_quantity += obj.count
             total_investment += investment
 
-        ws.append([])
-        ws.append(["JAMI", float(total_quantity), "", float(total_investment)])
+        for row in ws.iter_rows(min_row=4, min_col=2, max_col=4):
+            for cell in row:
+                cell.number_format = '#,##0'
 
-        for cell in ws[ws.max_row]:
+        ws.append([])
+        ws.append([
+            "JAMI",
+            float(total_quantity),
+            "",
+            float(total_investment)
+        ])
+
+        last_row = ws.max_row
+
+        for cell in ws[last_row]:
             cell.font = Font(bold=True)
+            if cell.column in [2, 4]:
+                cell.number_format = '#,##0'
 
         ws.column_dimensions["A"].width = 40
-        ws.column_dimensions["B"].width = 12
-        ws.column_dimensions["C"].width = 18
-        ws.column_dimensions["D"].width = 20
+        ws.column_dimensions["B"].width = 15
+        ws.column_dimensions["C"].width = 20
+        ws.column_dimensions["D"].width = 22
 
         return wb
