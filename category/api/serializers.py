@@ -1,7 +1,10 @@
+from rest_framework import serializers
 from category.models import Category
-from utils.base.serializers_base import BaseReadSerializer
 
 
-class CategorySerializer(BaseReadSerializer):
-    class Meta(BaseReadSerializer.Meta):
+class CategorySerializer(serializers.ModelSerializer):
+    product_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
         model = Category
+        fields = ['id', 'name', 'product_count']
