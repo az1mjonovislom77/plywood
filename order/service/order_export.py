@@ -9,7 +9,6 @@ def generate_order_ledger_excel(order):
 
     bold = Font(bold=True, size=11)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
     border = Border(
         left=Side(style="thin"),
@@ -28,6 +27,17 @@ def generate_order_ledger_excel(order):
     ws["A2"] = str(order.created_at)
     ws["A4"] = order.customer.full_name if order.customer else ""
 
+    balance = float(order.customer.debt) if order.customer else 0
+
+    ws.merge_cells("I4:J4")
+    ws["I4"] = "Остаток"
+    ws["I4"].font = bold
+    ws["I4"].alignment = center
+    ws["J4"] = balance
+    ws["J4"].number_format = number_format
+    ws["J4"].font = bold
+    ws["J4"].alignment = center
+
     ws.merge_cells("A6:A7")
     ws.merge_cells("B6:B7")
     ws.merge_cells("C6:C7")
@@ -42,9 +52,11 @@ def generate_order_ledger_excel(order):
     ws["C6"] = "Регистратор"
     ws["D6"] = "Вид оплаты"
     ws["E6"] = "Товар"
+
     ws["F6"] = "Приход"
     ws["H6"] = "Расход"
     ws["J6"] = "Остаток"
+
     ws["F7"] = "Кол"
     ws["G7"] = "Сумма"
     ws["H7"] = "Кол"
@@ -59,7 +71,6 @@ def generate_order_ledger_excel(order):
 
     row = 8
     i = 1
-    balance = 0
 
     for item in order.items.select_related("product", "banding", "cutting"):
         qty = float(item.quantity)
@@ -70,6 +81,7 @@ def generate_order_ledger_excel(order):
         ws.cell(row=row, column=3, value=f"Продажа товара {order.id}")
         ws.cell(row=row, column=4, value=order.get_payment_method_display())
         ws.cell(row=row, column=5, value=item.product.name)
+
         ws.cell(row=row, column=8, value=qty)
         money(ws.cell(row=row, column=9), amount)
 
@@ -120,6 +132,19 @@ def generate_order_ledger_excel(order):
 
     ws.cell(row=row, column=4, value="Жами:").font = bold
     money(ws.cell(row=row, column=9), float(order.total_price))
+
+    row += 2
+
+    paid = float(order.covered_amount)
+    final_balance = balance + paid
+
+    ws.cell(row=row, column=8, value="To‘langan").font = bold
+    money(ws.cell(row=row, column=9), paid)
+
+    row += 1
+
+    ws.cell(row=row, column=8, value="Qoldiq").font = bold
+    money(ws.cell(row=row, column=9), final_balance)
 
     ws.column_dimensions["A"].width = 5
     ws.column_dimensions["B"].width = 15
