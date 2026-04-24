@@ -42,7 +42,6 @@ def generate_order_excel(order):
 
         size = getattr(item.product, "size", "")
         thickness = getattr(item.product, "thickness", "")
-
         full_name = f"{name} {size} {thickness}".strip()
 
         price = float(item.price)
@@ -73,10 +72,10 @@ def generate_order_excel(order):
         if item.cutting:
             c = item.cutting
             count = float(c.count)
-            price = float(c.price)
-            jami_c = count * price
+            price_c = float(c.price)
+            jami_c = count * price_c
 
-            ws.cell(row=row, column=1, value=f"Kesish: {count} x {price}")
+            ws.cell(row=row, column=1, value=f"Kesish: {count} x {price_c}")
             ws.cell(row=row, column=4, value=jami_c)
 
             total += jami_c
@@ -97,10 +96,10 @@ def generate_order_excel(order):
     if order.cutting:
         c = order.cutting
         count = float(c.count)
-        price = float(c.price)
-        jami_c = count * price
+        price_c = float(c.price)
+        jami_c = count * price_c
 
-        ws.cell(row=row, column=1, value=f"Kesish: {count} x {price}")
+        ws.cell(row=row, column=1, value=f"Kesish: {count} x {price_c}")
         ws.cell(row=row, column=4, value=jami_c)
 
         total += jami_c
@@ -108,13 +107,19 @@ def generate_order_excel(order):
 
     row += 1
 
+    total_price = float(order.total_price)
+    paid = float(order.covered_amount)
+    remaining = max(total_price - paid, 0)
+
     ws.cell(row=row, column=3, value="Jami summa").font = bold
-    ws.cell(row=row, column=4, value=float(order.total_price)).font = bold
+    ws.cell(row=row, column=4, value=total_price).font = bold
 
     row += 1
     ws.cell(row=row, column=3, value="To'langan")
-    ws.cell(row=row, column=4, value=float(order.covered_amount))
-
+    ws.cell(row=row, column=4, value=paid)
+    row += 1
+    ws.cell(row=row, column=3, value="Qoldiq")
+    ws.cell(row=row, column=4, value=remaining)
     row += 1
     ws.cell(row=row, column=3, value="To'lov turi")
     ws.cell(row=row, column=4, value=order.payment_method)
