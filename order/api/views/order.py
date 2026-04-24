@@ -14,7 +14,7 @@ from rest_framework.viewsets import ViewSet
 from order.api.serializers import OrderCancelSerializer, OrderCreateSerializer, OrderSerializer
 from order.models import Order
 from order.service.order import OrderService
-from order.service.order_export import generate_ledger_style
+from order.service.order_export import generate_order_ledger_excel
 from order.service.order_query import OrderQueryService
 from order.service.order_workflow import OrderWorkflowService
 from user.models import User
@@ -164,7 +164,7 @@ class OrderExcelViewSet(ViewSet):
 
     def retrieve(self, request, pk=None):
         order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items__product"), pk=pk)
-        file = generate_ledger_style(order)
+        file = generate_order_ledger_excel(order)
 
         response = HttpResponse(
             file,
