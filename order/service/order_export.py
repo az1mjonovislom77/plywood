@@ -1,7 +1,6 @@
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from io import BytesIO
-from django.db.models import Sum
 
 
 def generate_order_ledger_excel(order):
@@ -21,25 +20,16 @@ def generate_order_ledger_excel(order):
     number_format = "#,##0"
 
     def money(cell, val):
-        val = float(val)
-        cell.value = val
+        cell.value = float(val)
         cell.number_format = number_format
 
     ws["A4"] = order.customer.full_name if order.customer else ""
 
-    previous_orders_sum = (
-        order.customer.orders
-        .filter(created_at__lt=order.created_at)
-        .aggregate(total=Sum("total_price"))["total"] or 0
-    )
+    previous_orders = order.customer.orders.filter(created_at__lt=order.created_at)
+    previous_total = sum(o.total_price for o in previous_orders)
+    previous_paid = sum(o.covered_amount for o in previous_orders)
 
-    previous_payments = (
-        order.customer.history
-        .filter(created_at__lt=order.created_at, type="PAYMENT")
-        .aggregate(total=Sum("amount"))["total"] or 0
-    )
-
-    balance = float(previous_orders_sum) - float(previous_payments)
+    balance = float(previous_total - previous_paid)
 
     ws.merge_cells("I4:J4")
     ws["I4"] = "Остаток"
@@ -109,11 +99,8 @@ def generate_order_ledger_excel(order):
 
     row += 2
 
-    start_debt = float(previous_orders_sum) - float(previous_payments)
-    order_total = float(order.total_price)
     paid = float(order.covered_amount)
-
-    final_debt = start_debt + order_total - paid
+    final_debt = (previous_total - previous_paid) + float(order.total_price) - paid
 
     ws.cell(row=row, column=8, value="To‘langan").font = bold
     money(ws.cell(row=row, column=9), paid)
