@@ -1,6 +1,5 @@
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
-from io import BytesIO
 
 
 def generate_order_ledger_excel(order):
@@ -8,7 +7,6 @@ def generate_order_ledger_excel(order):
     ws = wb.active
 
     bold = Font(bold=True, size=11)
-    normal = Font(size=11)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     left = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
@@ -27,9 +25,8 @@ def generate_order_ledger_excel(order):
 
     row = 1
 
-    ws["A1"] = f"{order.created_at}"
-    ws["A2"] = f"{order.created_at}"
-    ws["A4"] = order.customer.full_name if order.customer else "Anonim"
+    customer = order.customer
+    ws["A4"] = customer.full_name if customer else "Anonim"
     ws["A4"].font = bold
 
     row = 6
@@ -64,25 +61,47 @@ def generate_order_ledger_excel(order):
             cell.border = border
 
     row = 8
-    balance = 0
     index = 1
+
+    balance = float(customer.debt) if customer else 0
+
+    ws.cell(row=row, column=1, value=index)
+    ws.cell(row=row, column=5, value="Boshlang‘ich balans")
+    set_money(ws.cell(row=row, column=10), balance)
+
+    for c in range(1, 11):
+        ws.cell(row=row, column=c).border = border
+
+    row += 1
+    index += 1
+
+    if order.covered_amount > 0:
+        amount = float(order.covered_amount)
+
+        ws.cell(row=row, column=1, value=index)
+        ws.cell(row=row, column=2, value=str(order.created_at.date()))
+        ws.cell(row=row, column=5, value="To‘lov")
+        set_money(ws.cell(row=row, column=7), amount)
+        balance += amount
+        set_money(ws.cell(row=row, column=10), balance)
+
+        for c in range(1, 11):
+            ws.cell(row=row, column=c).border = border
+
+        row += 1
+        index += 1
 
     for item in order.items.select_related("product"):
         name = item.product.name
-        size = getattr(item.product, "size", "")
-        thickness = getattr(item.product, "thickness", "")
-        full_name = f"{name} {size} {thickness}".strip()
-
         qty = float(item.quantity)
         amount = float(item.price) * qty
         ws.cell(row=row, column=1, value=index)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
         ws.cell(row=row, column=3, value=f"Order #{order.id}")
         ws.cell(row=row, column=4, value=order.get_payment_method_display())
-        ws.cell(row=row, column=5, value=full_name)
+        ws.cell(row=row, column=5, value=name)
         ws.cell(row=row, column=8, value=qty)
         set_money(ws.cell(row=row, column=9), amount)
-
         balance -= amount
         set_money(ws.cell(row=row, column=10), balance)
 
@@ -92,59 +111,7 @@ def generate_order_ledger_excel(order):
         row += 1
         index += 1
 
-        if item.banding:
-            b = item.banding
-            length = float(b.length)
-            price_per_m = float(b.thickness.price) if b.thickness else 0
-            jami = length * price_per_m
-            ws.cell(row=row, column=1, value=index)
-            ws.cell(row=row, column=5, value=f"Kromka {length}m x {price_per_m}")
-            ws.cell(row=row, column=8, value=length)
-            set_money(ws.cell(row=row, column=9), jami)
-            balance -= jami
-            set_money(ws.cell(row=row, column=10), balance)
-
-            for c in range(1, 11):
-                ws.cell(row=row, column=c).border = border
-
-            row += 1
-            index += 1
-
-        if item.cutting:
-            c = item.cutting
-            count = float(c.count)
-            price = float(c.price)
-            jami = count * price
-            ws.cell(row=row, column=1, value=index)
-            ws.cell(row=row, column=5, value=f"Kesish {count} x {price}")
-            ws.cell(row=row, column=8, value=count)
-            set_money(ws.cell(row=row, column=9), jami)
-            balance -= jami
-            set_money(ws.cell(row=row, column=10), balance)
-
-            for c in range(1, 11):
-                ws.cell(row=row, column=c).border = border
-
-            row += 1
-            index += 1
-
-    row += 1
     ws.cell(row=row, column=5, value="Жами:").font = bold
     set_money(ws.cell(row=row, column=9), float(order.total_price))
 
-    ws.column_dimensions["A"].width = 5
-    ws.column_dimensions["B"].width = 15
-    ws.column_dimensions["C"].width = 30
-    ws.column_dimensions["D"].width = 15
-    ws.column_dimensions["E"].width = 40
-    ws.column_dimensions["F"].width = 10
-    ws.column_dimensions["G"].width = 15
-    ws.column_dimensions["H"].width = 10
-    ws.column_dimensions["I"].width = 15
-    ws.column_dimensions["J"].width = 18
-
-    buffer = BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-
-    return buffer
+    return wb
