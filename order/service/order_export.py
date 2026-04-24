@@ -95,22 +95,24 @@ def generate_order_ledger_excel(order):
 
     row += 2
 
+    start_debt = float(order.customer.debt) if order.customer else 0
+    order_total = float(order.total_price)
     paid = float(order.covered_amount)
-    final_balance = balance + paid
+
+    final_debt = start_debt + order_total - paid
 
     ws.cell(row=row, column=8, value="To‘langan").font = bold
     money(ws.cell(row=row, column=9), paid)
 
     row += 1
 
-    if final_balance < 0:
+    if final_debt > 0:
         ws.cell(row=row, column=8, value="Qarz").font = bold
     else:
         ws.cell(row=row, column=8, value="Ortiqcha").font = bold
 
-    money(ws.cell(row=row, column=9), final_balance)
+    money(ws.cell(row=row, column=9), abs(final_debt))
 
-    # 🔥 COLUMN WIDTH AUTO FIX (######## ketadi)
     for col in ws.columns:
         max_length = 0
         col_letter = col[0].column_letter
