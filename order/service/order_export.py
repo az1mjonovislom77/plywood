@@ -28,7 +28,6 @@ def generate_order_ledger_excel(order):
 
     if order.customer:
         previous_orders = order.customer.orders.filter(created_at__lt=order.created_at)
-
         previous_total = sum((o.total_price for o in previous_orders), Decimal("0"))
         previous_paid = sum((o.covered_amount for o in previous_orders), Decimal("0"))
     else:
@@ -63,6 +62,7 @@ def generate_order_ledger_excel(order):
     ws["F6"] = "Приход"
     ws["H6"] = "Расход"
     ws["J6"] = "Остаток"
+
     ws["F7"] = "Кол"
     ws["G7"] = "Сумма"
     ws["H7"] = "Кол"
@@ -78,9 +78,17 @@ def generate_order_ledger_excel(order):
     row = 8
     i = 1
 
-    for item in order.items.select_related("product"):
+    for item in order.items.select_related("product", "banding", "cutting"):
         qty = item.quantity
-        amount = item.price * item.quantity
+        amount = item.price * qty
+
+        if item.banding:
+            b = item.banding
+            amount += b.length * (b.thickness.price if b.thickness else Decimal("0"))
+
+        if item.cutting:
+            c = item.cutting
+            amount += c.count * c.price
 
         ws.cell(row=row, column=1, value=i)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
@@ -99,6 +107,30 @@ def generate_order_ledger_excel(order):
 
         row += 1
         i += 1
+
+    if order.banding:
+        b = order.banding
+        total = b.length * (b.thickness.price if b.thickness else Decimal("0"))
+
+        ws.cell(row=row, column=5, value="Kromka")
+        money(ws.cell(row=row, column=9), total)
+
+        balance -= total
+        money(ws.cell(row=row, column=10), balance)
+
+        row += 1
+
+    if order.cutting:
+        c = order.cutting
+        total = c.count * c.price
+
+        ws.cell(row=row, column=5, value="Kesish")
+        money(ws.cell(row=row, column=9), total)
+
+        balance -= total
+        money(ws.cell(row=row, column=10), balance)
+
+        row += 1
 
     ws.cell(row=row, column=4, value="Жами:").font = bold
     money(ws.cell(row=row, column=9), order.total_price)
