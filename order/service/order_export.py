@@ -128,7 +128,7 @@ def generate_order_excel(order):
     total_row("Qoldiq", remaining)
 
     ws.cell(row=row, column=3, value="To'lov turi").font = header_font
-    ws.cell(row=row, column=4, value=order.payment_method).font = normal_font
+    ws.cell(row=row, column=4, value=order.get_payment_method_display()).font = normal_font
     ws.column_dimensions["A"].width = 40
     ws.column_dimensions["B"].width = 15
     ws.column_dimensions["C"].width = 15
