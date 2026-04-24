@@ -164,12 +164,13 @@ class OrderExcelViewSet(ViewSet):
 
     def retrieve(self, request, pk=None):
         order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items__product"), pk=pk)
+
         file = generate_order_ledger_excel(order)
 
-        response = HttpResponse(
-            file,
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return HttpResponse(
+            file.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f'attachment; filename="order_{order.id}.xlsx"'
+            },
         )
-        response["Content-Disposition"] = f'attachment; filename=order_{order.id}.xlsx'
-
-        return response

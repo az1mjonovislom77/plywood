@@ -1,5 +1,6 @@
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
+from io import BytesIO
 
 
 def generate_order_ledger_excel(order):
@@ -8,7 +9,6 @@ def generate_order_ledger_excel(order):
 
     bold = Font(bold=True, size=11)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
     border = Border(
         left=Side(style="thin"),
@@ -20,16 +20,12 @@ def generate_order_ledger_excel(order):
     number_format = "#,##0"
 
     def set_money(cell, value):
-        cell.value = value
+        cell.value = float(value)
         cell.number_format = number_format
-
-    row = 1
 
     customer = order.customer
     ws["A4"] = customer.full_name if customer else "Anonim"
     ws["A4"].font = bold
-
-    row = 6
 
     ws.merge_cells("A6:A7")
     ws.merge_cells("B6:B7")
@@ -48,6 +44,7 @@ def generate_order_ledger_excel(order):
     ws["F6"] = "Приход"
     ws["H6"] = "Расход"
     ws["J6"] = "Остаток"
+
     ws["F7"] = "Кол"
     ws["G7"] = "Сумма"
     ws["H7"] = "Кол"
@@ -75,13 +72,14 @@ def generate_order_ledger_excel(order):
     row += 1
     index += 1
 
-    if order.covered_amount > 0:
+    if order.covered_amount:
         amount = float(order.covered_amount)
 
         ws.cell(row=row, column=1, value=index)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
         ws.cell(row=row, column=5, value="To‘lov")
         set_money(ws.cell(row=row, column=7), amount)
+
         balance += amount
         set_money(ws.cell(row=row, column=10), balance)
 
@@ -92,16 +90,18 @@ def generate_order_ledger_excel(order):
         index += 1
 
     for item in order.items.select_related("product"):
-        name = item.product.name
         qty = float(item.quantity)
         amount = float(item.price) * qty
+
         ws.cell(row=row, column=1, value=index)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
         ws.cell(row=row, column=3, value=f"Order #{order.id}")
         ws.cell(row=row, column=4, value=order.get_payment_method_display())
-        ws.cell(row=row, column=5, value=name)
+        ws.cell(row=row, column=5, value=item.product.name)
+
         ws.cell(row=row, column=8, value=qty)
         set_money(ws.cell(row=row, column=9), amount)
+
         balance -= amount
         set_money(ws.cell(row=row, column=10), balance)
 
@@ -114,4 +114,19 @@ def generate_order_ledger_excel(order):
     ws.cell(row=row, column=5, value="Жами:").font = bold
     set_money(ws.cell(row=row, column=9), float(order.total_price))
 
-    return wb
+    ws.column_dimensions["A"].width = 5
+    ws.column_dimensions["B"].width = 15
+    ws.column_dimensions["C"].width = 30
+    ws.column_dimensions["D"].width = 15
+    ws.column_dimensions["E"].width = 40
+    ws.column_dimensions["F"].width = 10
+    ws.column_dimensions["G"].width = 15
+    ws.column_dimensions["H"].width = 10
+    ws.column_dimensions["I"].width = 15
+    ws.column_dimensions["J"].width = 18
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    return buffer
