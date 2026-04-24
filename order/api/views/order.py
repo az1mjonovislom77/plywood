@@ -1,3 +1,5 @@
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
@@ -8,8 +10,12 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.viewsets import ViewSet
+
 from order.api.serializers import OrderCancelSerializer, OrderCreateSerializer, OrderSerializer
+from order.models import Order
 from order.service.order import OrderService
+from order.service.order_export import generate_order_excel
 from order.service.order_query import OrderQueryService
 from order.service.order_workflow import OrderWorkflowService
 from user.models import User
@@ -151,3 +157,20 @@ class OrderViewSet(viewsets.GenericViewSet):
 
         serializer = OrderSerializer(order, context={"request": request})
         return Response(serializer.data)
+
+
+@extend_schema(tags=["OrderExport"])
+class OrderExcelViewSet(ViewSet):
+
+    def retrieve(self, request, pk=None):
+        order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items__product"), pk=pk)
+
+        file = generate_order_excel(order)
+
+        response = HttpResponse(
+            file,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = f'attachment; filename=order_{order.id}.xlsx'
+
+        return response
