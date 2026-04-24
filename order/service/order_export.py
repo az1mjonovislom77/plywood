@@ -9,6 +9,7 @@ def generate_order_excel(order):
 
     bold = Font(bold=True)
     center = Alignment(horizontal="center")
+
     border = Border(
         left=Side(style="thin"),
         right=Side(style="thin"),
@@ -16,12 +17,16 @@ def generate_order_excel(order):
         bottom=Side(style="thin"),
     )
 
-    row = 1
+    number_format = '#,##0'
 
+    def set_money(cell, value):
+        cell.value = value
+        cell.number_format = number_format
+
+    row = 1
     ws[f"A{row}"] = f"Buyurtma #{order.id}"
     ws[f"A{row}"].font = Font(size=14, bold=True)
     row += 2
-
     ws[f"A{row}"] = "Mijoz:"
     ws[f"B{row}"] = order.customer.full_name if order.customer else "Anonim"
     row += 2
@@ -35,8 +40,6 @@ def generate_order_excel(order):
 
     row += 1
 
-    total = 0
-
     for item in order.items.select_related("product"):
         name = item.product.name
 
@@ -47,13 +50,18 @@ def generate_order_excel(order):
         price = float(item.price)
         qty = float(item.quantity)
         jami = price * qty
-        total += jami
 
-        data = [full_name, price, qty, jami]
+        ws.cell(row=row, column=1, value=full_name).border = border
 
-        for col, val in enumerate(data, start=1):
-            cell = ws.cell(row=row, column=col, value=val)
-            cell.border = border
+        cell = ws.cell(row=row, column=2)
+        set_money(cell, price)
+        cell.border = border
+
+        ws.cell(row=row, column=3, value=qty).border = border
+
+        cell = ws.cell(row=row, column=4)
+        set_money(cell, jami)
+        cell.border = border
 
         row += 1
 
@@ -64,9 +72,8 @@ def generate_order_excel(order):
             jami_b = length * price_per_m
 
             ws.cell(row=row, column=1, value=f"Kromka: {length}m x {price_per_m}")
-            ws.cell(row=row, column=4, value=jami_b)
+            set_money(ws.cell(row=row, column=4), jami_b)
 
-            total += jami_b
             row += 1
 
         if item.cutting:
@@ -76,9 +83,8 @@ def generate_order_excel(order):
             jami_c = count * price_c
 
             ws.cell(row=row, column=1, value=f"Kesish: {count} x {price_c}")
-            ws.cell(row=row, column=4, value=jami_c)
+            set_money(ws.cell(row=row, column=4), jami_c)
 
-            total += jami_c
             row += 1
 
     if order.banding:
@@ -88,9 +94,8 @@ def generate_order_excel(order):
         jami_b = length * price_per_m
 
         ws.cell(row=row, column=1, value=f"Kromka: {length}m x {price_per_m}")
-        ws.cell(row=row, column=4, value=jami_b)
+        set_money(ws.cell(row=row, column=4), jami_b)
 
-        total += jami_b
         row += 1
 
     if order.cutting:
@@ -100,9 +105,8 @@ def generate_order_excel(order):
         jami_c = count * price_c
 
         ws.cell(row=row, column=1, value=f"Kesish: {count} x {price_c}")
-        ws.cell(row=row, column=4, value=jami_c)
+        set_money(ws.cell(row=row, column=4), jami_c)
 
-        total += jami_c
         row += 1
 
     row += 1
@@ -112,14 +116,16 @@ def generate_order_excel(order):
     remaining = max(total_price - paid, 0)
 
     ws.cell(row=row, column=3, value="Jami summa").font = bold
-    ws.cell(row=row, column=4, value=total_price).font = bold
+    cell = ws.cell(row=row, column=4)
+    set_money(cell, total_price)
+    cell.font = bold
 
     row += 1
     ws.cell(row=row, column=3, value="To'langan")
-    ws.cell(row=row, column=4, value=paid)
+    set_money(ws.cell(row=row, column=4), paid)
     row += 1
     ws.cell(row=row, column=3, value="Qoldiq")
-    ws.cell(row=row, column=4, value=remaining)
+    set_money(ws.cell(row=row, column=4), remaining)
     row += 1
     ws.cell(row=row, column=3, value="To'lov turi")
     ws.cell(row=row, column=4, value=order.payment_method)
