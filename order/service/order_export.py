@@ -1,6 +1,7 @@
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from io import BytesIO
+from decimal import Decimal
 
 
 def generate_order_ledger_excel(order):
@@ -25,11 +26,16 @@ def generate_order_ledger_excel(order):
 
     ws["A4"] = order.customer.full_name if order.customer else ""
 
-    previous_orders = order.customer.orders.filter(created_at__lt=order.created_at)
-    previous_total = sum(o.total_price for o in previous_orders)
-    previous_paid = sum(o.covered_amount for o in previous_orders)
+    if order.customer:
+        previous_orders = order.customer.orders.filter(created_at__lt=order.created_at)
 
-    balance = float(previous_total - previous_paid)
+        previous_total = sum((o.total_price for o in previous_orders), Decimal("0"))
+        previous_paid = sum((o.covered_amount for o in previous_orders), Decimal("0"))
+    else:
+        previous_total = Decimal("0")
+        previous_paid = Decimal("0")
+
+    balance = previous_total - previous_paid
 
     ws.merge_cells("I4:J4")
     ws["I4"] = "Остаток"
@@ -73,8 +79,8 @@ def generate_order_ledger_excel(order):
     i = 1
 
     for item in order.items.select_related("product"):
-        qty = float(item.quantity)
-        amount = float(item.price) * qty
+        qty = item.quantity
+        amount = item.price * item.quantity
 
         ws.cell(row=row, column=1, value=i)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
@@ -82,7 +88,7 @@ def generate_order_ledger_excel(order):
         ws.cell(row=row, column=4, value=order.get_payment_method_display())
         ws.cell(row=row, column=5, value=item.product.name)
 
-        ws.cell(row=row, column=8, value=qty)
+        ws.cell(row=row, column=8, value=float(qty))
         money(ws.cell(row=row, column=9), amount)
 
         balance -= amount
@@ -95,12 +101,12 @@ def generate_order_ledger_excel(order):
         i += 1
 
     ws.cell(row=row, column=4, value="Жами:").font = bold
-    money(ws.cell(row=row, column=9), float(order.total_price))
+    money(ws.cell(row=row, column=9), order.total_price)
 
     row += 2
 
-    paid = float(order.covered_amount)
-    final_debt = (previous_total - previous_paid) + float(order.total_price) - paid
+    paid = order.covered_amount
+    final_debt = (previous_total - previous_paid) + order.total_price - paid
 
     ws.cell(row=row, column=8, value="To‘langan").font = bold
     money(ws.cell(row=row, column=9), paid)
