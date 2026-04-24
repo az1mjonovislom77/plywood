@@ -11,7 +11,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
-
 from order.api.serializers import OrderCancelSerializer, OrderCreateSerializer, OrderSerializer
 from order.models import Order
 from order.service.order import OrderService
@@ -161,7 +160,7 @@ class OrderViewSet(viewsets.GenericViewSet):
 
 @extend_schema(tags=["OrderExport"])
 class OrderExcelViewSet(ViewSet):
-    permission_classes = IsAuthenticated
+    permission_classes = [IsAuthenticated]
 
     def retrieve(self, request, pk=None):
         order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items__product"), pk=pk)
