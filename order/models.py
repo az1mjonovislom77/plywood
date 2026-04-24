@@ -35,12 +35,12 @@ class Thickness(models.Model):
 
 class Banding(models.Model):
     class DiscountType(models.TextChoices):
-        PERCENTAGE = "p", "Percentage"
-        CASH = "c", "Cash"
+        PERCENTAGE = "p", "Foiz"
+        CASH = "c", "Naqd"
 
     class PaymentMethod(models.TextChoices):
-        CASH = "cash", "Cash"
-        CARD = "card", "Card"
+        CASH = "cash", "Naqd"
+        CARD = "card", "Kart"
         NASIYA = "nasiya", "Nasiya"
 
     thickness = models.ForeignKey("Thickness", on_delete=models.SET_NULL, null=True, blank=True,
@@ -73,12 +73,12 @@ class Banding(models.Model):
 
 class Cutting(models.Model):
     class DiscountType(models.TextChoices):
-        PERCENTAGE = "p", "Percentage"
-        CASH = "c", "Cash"
+        PERCENTAGE = "p", "Foiz"
+        CASH = "c", "Naqd"
 
     class PaymentMethod(models.TextChoices):
-        CASH = "cash", "Cash"
-        CARD = "card", "Card"
+        CASH = "cash", "Naqd"
+        CARD = "card", "Karta"
         NASIYA = "nasiya", "Nasiya"
 
     count = models.DecimalField(max_digits=10, decimal_places=3, default=0)
@@ -110,12 +110,12 @@ class Cutting(models.Model):
 
 class Order(models.Model):
     class DiscountType(models.TextChoices):
-        PERCENTAGE = "p", "Percentage"
-        CASH = "c", "Cash"
+        PERCENTAGE = "p", "Foiz"
+        CASH = "c", "Naqd"
 
     class PaymentMethod(models.TextChoices):
-        CASH = "cash", "Cash"
-        CARD = "card", "Card"
+        CASH = "cash", "Naqd"
+        CARD = "card", "Karta"
         NASIYA = "nasiya", "Nasiya"
 
     class OrderSource(models.TextChoices):

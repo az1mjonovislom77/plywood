@@ -164,7 +164,6 @@ class OrderExcelViewSet(ViewSet):
 
     def retrieve(self, request, pk=None):
         order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items__product"), pk=pk)
-
         file = generate_order_excel(order)
 
         response = HttpResponse(
