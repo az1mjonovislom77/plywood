@@ -161,6 +161,7 @@ class OrderViewSet(viewsets.GenericViewSet):
 
 @extend_schema(tags=["OrderExport"])
 class OrderExcelViewSet(ViewSet):
+    permission_classes = IsAuthenticated
 
     def retrieve(self, request, pk=None):
         order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items__product"), pk=pk)
