@@ -20,12 +20,11 @@ def generate_order_ledger_excel(order):
     number_format = "#,##0"
 
     def money(cell, val):
-        val = float(val) * 10
+        val = float(val)
         cell.value = val
         cell.number_format = number_format
 
     ws["A4"] = order.customer.full_name if order.customer else ""
-
     balance = float(order.customer.debt) if order.customer else 0
 
     ws.merge_cells("I4:J4")
@@ -35,6 +34,7 @@ def generate_order_ledger_excel(order):
 
     ws.merge_cells("I5:J5")
     money(ws["I5"], balance)
+    ws["I5"].alignment = center
 
     ws.merge_cells("A6:A7")
     ws.merge_cells("B6:B7")
@@ -68,7 +68,7 @@ def generate_order_ledger_excel(order):
     row = 8
     i = 1
 
-    for item in order.items.select_related("product", "banding", "cutting"):
+    for item in order.items.select_related("product"):
         qty = float(item.quantity)
         amount = float(item.price) * qty
 
@@ -77,6 +77,7 @@ def generate_order_ledger_excel(order):
         ws.cell(row=row, column=3, value=f"Order {order.id}")
         ws.cell(row=row, column=4, value=order.get_payment_method_display())
         ws.cell(row=row, column=5, value=item.product.name)
+
         ws.cell(row=row, column=8, value=qty)
         money(ws.cell(row=row, column=9), amount)
 
@@ -97,17 +98,31 @@ def generate_order_ledger_excel(order):
     paid = float(order.covered_amount)
     final_balance = balance + paid
 
-    money(ws.cell(row=row, column=9), paid)
     ws.cell(row=row, column=8, value="To‘langan").font = bold
+    money(ws.cell(row=row, column=9), paid)
 
     row += 1
-
-    money(ws.cell(row=row, column=9), final_balance)
 
     if final_balance < 0:
         ws.cell(row=row, column=8, value="Qarz").font = bold
     else:
-        ws.cell(row=row, column=8, value="Ortiqcha to‘langan").font = bold
+        ws.cell(row=row, column=8, value="Ortiqcha").font = bold
+
+    money(ws.cell(row=row, column=9), final_balance)
+
+    # 🔥 COLUMN WIDTH AUTO FIX (######## ketadi)
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+
+        for cell in col:
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except:
+                pass
+
+        ws.column_dimensions[col_letter].width = max_length + 3
 
     buffer = BytesIO()
     wb.save(buffer)
