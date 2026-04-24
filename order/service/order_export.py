@@ -23,8 +23,7 @@ def generate_order_ledger_excel(order):
         cell.value = float(value)
         cell.number_format = number_format
 
-    customer = order.customer
-    ws["A4"] = customer.full_name if customer else "Anonim"
+    ws["A4"] = order.customer.full_name if order.customer else "Anonim"
     ws["A4"].font = bold
 
     ws.merge_cells("A6:A7")
@@ -59,37 +58,9 @@ def generate_order_ledger_excel(order):
 
     row = 8
     index = 1
+    balance = 0
 
-    balance = float(customer.debt) if customer else 0
-
-    ws.cell(row=row, column=1, value=index)
-    ws.cell(row=row, column=5, value="Boshlang‘ich balans")
-    set_money(ws.cell(row=row, column=10), balance)
-
-    for c in range(1, 11):
-        ws.cell(row=row, column=c).border = border
-
-    row += 1
-    index += 1
-
-    if order.covered_amount:
-        amount = float(order.covered_amount)
-
-        ws.cell(row=row, column=1, value=index)
-        ws.cell(row=row, column=2, value=str(order.created_at.date()))
-        ws.cell(row=row, column=5, value="To‘lov")
-        set_money(ws.cell(row=row, column=7), amount)
-
-        balance += amount
-        set_money(ws.cell(row=row, column=10), balance)
-
-        for c in range(1, 11):
-            ws.cell(row=row, column=c).border = border
-
-        row += 1
-        index += 1
-
-    for item in order.items.select_related("product"):
+    for item in order.items.select_related("product", "banding", "cutting"):
         qty = float(item.quantity)
         amount = float(item.price) * qty
 
@@ -110,6 +81,46 @@ def generate_order_ledger_excel(order):
 
         row += 1
         index += 1
+
+        if item.banding:
+            b = item.banding
+            length = float(b.length)
+            price = float(b.thickness.price) if b.thickness else 0
+            total = length * price
+
+            ws.cell(row=row, column=1, value=index)
+            ws.cell(row=row, column=5, value=f"Kromka {length}m x {price}")
+            ws.cell(row=row, column=8, value=length)
+            set_money(ws.cell(row=row, column=9), total)
+
+            balance -= total
+            set_money(ws.cell(row=row, column=10), balance)
+
+            for c in range(1, 11):
+                ws.cell(row=row, column=c).border = border
+
+            row += 1
+            index += 1
+
+        if item.cutting:
+            c = item.cutting
+            count = float(c.count)
+            price = float(c.price)
+            total = count * price
+
+            ws.cell(row=row, column=1, value=index)
+            ws.cell(row=row, column=5, value=f"Kesish {count} x {price}")
+            ws.cell(row=row, column=8, value=count)
+            set_money(ws.cell(row=row, column=9), total)
+
+            balance -= total
+            set_money(ws.cell(row=row, column=10), balance)
+
+            for c in range(1, 11):
+                ws.cell(row=row, column=c).border = border
+
+            row += 1
+            index += 1
 
     ws.cell(row=row, column=5, value="Жами:").font = bold
     set_money(ws.cell(row=row, column=9), float(order.total_price))
