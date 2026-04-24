@@ -27,9 +27,9 @@ def generate_order_ledger_excel(order):
     ws["A4"] = order.customer.full_name if order.customer else ""
 
     if order.customer:
-        previous_orders = order.customer.orders.filter(created_at__lt=order.created_at)
-        previous_total = sum((o.total_price for o in previous_orders), Decimal("0"))
-        previous_paid = sum((o.covered_amount for o in previous_orders), Decimal("0"))
+        prev = order.customer.orders.filter(created_at__lt=order.created_at)
+        previous_total = sum((o.total_price for o in prev), Decimal("0"))
+        previous_paid = sum((o.covered_amount for o in prev), Decimal("0"))
     else:
         previous_total = Decimal("0")
         previous_paid = Decimal("0")
@@ -82,14 +82,6 @@ def generate_order_ledger_excel(order):
         qty = item.quantity
         amount = item.price * qty
 
-        if item.banding:
-            b = item.banding
-            amount += b.length * (b.thickness.price if b.thickness else Decimal("0"))
-
-        if item.cutting:
-            c = item.cutting
-            amount += c.count * c.price
-
         ws.cell(row=row, column=1, value=i)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
         ws.cell(row=row, column=3, value=f"Order {order.id}")
@@ -108,29 +100,49 @@ def generate_order_ledger_excel(order):
         row += 1
         i += 1
 
-    if order.banding:
-        b = order.banding
-        total = b.length * (b.thickness.price if b.thickness else Decimal("0"))
+        if item.banding:
+            b = item.banding
+            total = b.length * (b.thickness.price if b.thickness else Decimal("0"))
 
-        ws.cell(row=row, column=5, value="Kromka")
-        money(ws.cell(row=row, column=9), total)
+            ws.cell(row=row, column=1, value=i)
+            ws.cell(row=row, column=2, value=str(order.created_at.date()))
+            ws.cell(row=row, column=3, value=f"Order {order.id}")
+            ws.cell(row=row, column=4, value=order.get_payment_method_display())
+            ws.cell(row=row, column=5, value=f"Kromka {b.length}m")
 
-        balance -= total
-        money(ws.cell(row=row, column=10), balance)
+            ws.cell(row=row, column=8, value=float(b.length))
+            money(ws.cell(row=row, column=9), total)
 
-        row += 1
+            balance -= total
+            money(ws.cell(row=row, column=10), balance)
 
-    if order.cutting:
-        c = order.cutting
-        total = c.count * c.price
+            for c in range(1, 11):
+                ws.cell(row=row, column=c).border = border
 
-        ws.cell(row=row, column=5, value="Kesish")
-        money(ws.cell(row=row, column=9), total)
+            row += 1
+            i += 1
 
-        balance -= total
-        money(ws.cell(row=row, column=10), balance)
+        if item.cutting:
+            c = item.cutting
+            total = c.count * c.price
 
-        row += 1
+            ws.cell(row=row, column=1, value=i)
+            ws.cell(row=row, column=2, value=str(order.created_at.date()))
+            ws.cell(row=row, column=3, value=f"Order {order.id}")
+            ws.cell(row=row, column=4, value=order.get_payment_method_display())
+            ws.cell(row=row, column=5, value="Kesish")
+
+            ws.cell(row=row, column=8, value=float(c.count))
+            money(ws.cell(row=row, column=9), total)
+
+            balance -= total
+            money(ws.cell(row=row, column=10), balance)
+
+            for c in range(1, 11):
+                ws.cell(row=row, column=c).border = border
+
+            row += 1
+            i += 1
 
     ws.cell(row=row, column=4, value="Жами:").font = bold
     money(ws.cell(row=row, column=9), order.total_price)
@@ -145,24 +157,18 @@ def generate_order_ledger_excel(order):
 
     row += 1
 
-    if final_debt > 0:
-        ws.cell(row=row, column=8, value="Qarz").font = bold
-    else:
-        ws.cell(row=row, column=8, value="Ortiqcha").font = bold
-
+    ws.cell(row=row, column=8, value="Qarz" if final_debt > 0 else "Ortiqcha").font = bold
     money(ws.cell(row=row, column=9), abs(final_debt))
 
     for col in ws.columns:
         max_length = 0
         col_letter = col[0].column_letter
-
         for cell in col:
             try:
                 if cell.value:
                     max_length = max(max_length, len(str(cell.value)))
             except:
                 pass
-
         ws.column_dimensions[col_letter].width = max_length + 3
 
     buffer = BytesIO()
