@@ -58,8 +58,20 @@ def generate_order_ledger_excel(order):
 
     row = 8
     index = 1
-    balance = 0
 
+    balance = float(order.customer.debt) if order.customer else 0
+
+    ws.cell(row=row, column=1, value=index)
+    ws.cell(row=row, column=5, value="Boshlang‘ich qarz")
+    set_money(ws.cell(row=row, column=10), balance)
+
+    for c in range(1, 11):
+        ws.cell(row=row, column=c).border = border
+
+    row += 1
+    index += 1
+
+    # 🔥 order itemlar (chiqim)
     for item in order.items.select_related("product", "banding", "cutting"):
         qty = float(item.quantity)
         amount = float(item.price) * qty
@@ -122,19 +134,15 @@ def generate_order_ledger_excel(order):
             row += 1
             index += 1
 
-    ws.cell(row=row, column=5, value="Жами:").font = bold
-    set_money(ws.cell(row=row, column=9), float(order.total_price))
+    row += 1
 
-    ws.column_dimensions["A"].width = 5
-    ws.column_dimensions["B"].width = 15
-    ws.column_dimensions["C"].width = 30
-    ws.column_dimensions["D"].width = 15
-    ws.column_dimensions["E"].width = 40
-    ws.column_dimensions["F"].width = 10
-    ws.column_dimensions["G"].width = 15
-    ws.column_dimensions["H"].width = 10
-    ws.column_dimensions["I"].width = 15
-    ws.column_dimensions["J"].width = 18
+    paid = float(order.covered_amount)
+    remaining = max(balance + paid, 0)
+    ws.cell(row=row, column=5, value="To‘langan").font = bold
+    set_money(ws.cell(row=row, column=9), paid)
+    row += 1
+    ws.cell(row=row, column=5, value="Qoldiq").font = bold
+    set_money(ws.cell(row=row, column=9), remaining)
 
     buffer = BytesIO()
     wb.save(buffer)
