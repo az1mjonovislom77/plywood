@@ -30,13 +30,17 @@ def generate_order_ledger_excel(order):
     balance = float(order.customer.debt) if order.customer else 0
 
     ws.merge_cells("I4:J4")
-    ws["I4"] = "Остаток"
-    ws["I4"].font = bold
-    ws["I4"].alignment = center
-    ws["J4"] = balance
-    ws["J4"].number_format = number_format
-    ws["J4"].font = bold
-    ws["J4"].alignment = center
+    cell = ws["I4"]
+    cell.value = "Остаток"
+    cell.font = bold
+    cell.alignment = center
+
+    ws.merge_cells("I5:J5")
+    val_cell = ws["I5"]
+    val_cell.value = balance
+    val_cell.number_format = number_format
+    val_cell.font = bold
+    val_cell.alignment = center
 
     ws.merge_cells("A6:A7")
     ws.merge_cells("B6:B7")
@@ -52,11 +56,9 @@ def generate_order_ledger_excel(order):
     ws["C6"] = "Регистратор"
     ws["D6"] = "Вид оплаты"
     ws["E6"] = "Товар"
-
     ws["F6"] = "Приход"
     ws["H6"] = "Расход"
     ws["J6"] = "Остаток"
-
     ws["F7"] = "Кол"
     ws["G7"] = "Сумма"
     ws["H7"] = "Кол"
