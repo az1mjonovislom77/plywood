@@ -37,6 +37,7 @@ class AnalyticsPagination(PageNumberPagination):
 class AcceptanceViewSet(BaseUserViewSet):
     queryset = AcceptanceSelector.acceptance_queryset()
     serializer_class = AcceptanceSerializer
+    pagination_class = AnalyticsPagination
 
     @transaction.atomic
     def perform_create(self, serializer):
