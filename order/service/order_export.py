@@ -147,19 +147,6 @@ def generate_order_ledger_excel(order):
     ws.cell(row=row, column=4, value="Жами:").font = bold
     money(ws.cell(row=row, column=9), order.total_price)
 
-    row += 2
-
-    paid = order.covered_amount
-    final_debt = (previous_total - previous_paid) + order.total_price - paid
-
-    ws.cell(row=row, column=8, value="To‘langan").font = bold
-    money(ws.cell(row=row, column=9), paid)
-
-    row += 1
-
-    ws.cell(row=row, column=8, value="Qarz" if final_debt > 0 else "Ortiqcha").font = bold
-    money(ws.cell(row=row, column=9), abs(final_debt))
-
     for col in ws.columns:
         max_length = 0
         col_letter = col[0].column_letter
