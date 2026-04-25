@@ -1,11 +1,13 @@
 from decimal import Decimal
 from io import BytesIO
+
 from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
+
 from customer.models import BalanceHistory, Customer
 from order.models import Order
 
@@ -40,7 +42,9 @@ class CustomerStatementService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+        start_dt = timezone.make_aware(
+            timezone.datetime.combine(start_date, timezone.datetime.min.time())
+        )
         end_dt = timezone.make_aware(
             timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
         )
@@ -48,21 +52,15 @@ class CustomerStatementService:
 
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
-        debt_added = (
-            BalanceHistory.objects
-            .filter(customer_id=customer_id, type=BalanceHistory.Type.DEBT_ADD, created_at__lt=start_dt)
-            .aggregate(total=Coalesce(Sum("amount"), Value(Decimal("0")), output_field=DecimalField()))["total"]
-        )
-        debt_paid = (
-            BalanceHistory.objects
-            .filter(
-                customer_id=customer_id,
-                type__in=[BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT],
-                created_at__lt=start_dt,
+        previous_orders = (
+            Order.objects
+            .filter(customer_id=customer_id, created_at__lt=start_dt)
+            .aggregate(
+                total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()),
+                paid=Coalesce(Sum("covered_amount"), Value(Decimal("0")), output_field=DecimalField()),
             )
-            .aggregate(total=Coalesce(Sum("amount"), Value(Decimal("0")), output_field=DecimalField()))["total"]
         )
-        return debt_paid - debt_added
+        return previous_orders["paid"] - previous_orders["total"]
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
@@ -74,9 +72,10 @@ class CustomerStatementService:
             Order.objects
             .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt)
             .select_related("banding__thickness", "cutting")
-            .prefetch_related("items__product")
+            .prefetch_related("items__product", "items__banding__thickness", "items__cutting")
             .order_by("created_at", "id")
         )
+
         manual_payments = (
             BalanceHistory.objects
             .filter(
@@ -95,7 +94,8 @@ class CustomerStatementService:
             registrator = f"Продажа товара {order.id:09d} от {order.created_at:%d.%m.%Y %H:%M:%S}"
 
             for item in order.items.all():
-                amount = item.price * item.quantity
+                product_amount = item.price * item.quantity
+
                 rows.append(
                     {
                         "date": order.created_at.date(),
@@ -106,9 +106,40 @@ class CustomerStatementService:
                         "income_qty": None,
                         "income_amount": None,
                         "expense_qty": item.quantity,
-                        "expense_amount": amount,
+                        "expense_amount": product_amount,
                     }
                 )
+
+                if item.cutting:
+                    rows.append(
+                        {
+                            "date": order.created_at.date(),
+                            "registrator": registrator,
+                            "payment_type": None,
+                            "purpose": None,
+                            "product": "Хизмат (Распил)",
+                            "income_qty": None,
+                            "income_amount": None,
+                            "expense_qty": item.cutting.count,
+                            "expense_amount": cls._service_total(item.cutting),
+                        }
+                    )
+
+                if item.banding:
+                    thickness = item.banding.thickness.text if item.banding.thickness else ""
+                    rows.append(
+                        {
+                            "date": order.created_at.date(),
+                            "registrator": registrator,
+                            "payment_type": None,
+                            "purpose": None,
+                            "product": f"Хизмат (Кромка) {thickness}".strip(),
+                            "income_qty": None,
+                            "income_amount": None,
+                            "expense_qty": item.banding.length,
+                            "expense_amount": cls._service_total(item.banding),
+                        }
+                    )
 
             if order.cutting:
                 rows.append(
@@ -133,7 +164,7 @@ class CustomerStatementService:
                         "registrator": registrator,
                         "payment_type": None,
                         "purpose": None,
-                        "product": f"Хизмат (Профил кесиш) {thickness}".strip(),
+                        "product": f"Хизмат (Кромка) {thickness}".strip(),
                         "income_qty": None,
                         "income_amount": None,
                         "expense_qty": order.banding.length,
@@ -191,6 +222,7 @@ class CustomerStatementService:
                 if row["income_amount"]:
                     running_balance += row["income_amount"]
                     total_income_amount += row["income_amount"]
+
                 if row["expense_amount"]:
                     running_balance -= row["expense_amount"]
                     total_expense_amount += row["expense_amount"]
@@ -338,6 +370,7 @@ class CustomerStatementService:
 
         row_idx = 6
         data_start_row = row_idx
+
         for row in data["rows"]:
             ws.cell(row=row_idx, column=2, value=row["no"])
             ws.cell(row=row_idx, column=3, value=row["date"].strftime("%d.%m.%Y"))
@@ -355,6 +388,7 @@ class CustomerStatementService:
         ws.cell(row=row_idx, column=2, value="Жами:")
         ws.cell(row=row_idx, column=9, value=cls._fmt_number(data["totals"]["income_amount"]))
         ws.cell(row=row_idx, column=11, value=cls._fmt_number(data["totals"]["expense_amount"]))
+
         cls._apply_table_style(ws, data_start_row=data_start_row, data_end_row=row_idx)
 
         output = BytesIO()
