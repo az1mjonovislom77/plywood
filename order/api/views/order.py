@@ -45,6 +45,7 @@ class OrderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
     pagination_class = OrderPagination
+    ordering = ["-created_at"]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -64,34 +65,29 @@ class OrderViewSet(viewsets.GenericViewSet):
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
 
-        parsed_from = parse_date(date_from) if date_from else None
-        parsed_to = parse_date(date_to) if date_to else None
+        if date_from:
+            parsed_from = parse_date(date_from)
+            if not parsed_from:
+                raise ValidationError({"from": "Invalid date format. Use YYYY-MM-DD"})
+        else:
+            parsed_from = timezone.localdate()
 
-        if date_from and not parsed_from:
-            raise ValidationError({"from": "Invalid date format. Use YYYY-MM-DD"})
+        if date_to:
+            parsed_to = parse_date(date_to)
+            if not parsed_to:
+                raise ValidationError({"to": "Invalid date format. Use YYYY-MM-DD"})
+        else:
+            parsed_to = parsed_from
 
-        if date_to and not parsed_to:
-            raise ValidationError({"to": "Invalid date format. Use YYYY-MM-DD"})
+        start = timezone.make_aware(timezone.datetime.combine(parsed_from, timezone.datetime.min.time()))
+        end = timezone.make_aware(timezone.datetime.combine(parsed_to, timezone.datetime.max.time()))
 
-        if parsed_from and parsed_to and parsed_from > parsed_to:
-            raise ValidationError({"detail": "`from` must be less than or equal to `to`"})
+        return queryset.filter(created_at__gte=start, created_at__lte=end)
 
-        if parsed_from:
-            start = timezone.make_aware(timezone.datetime.combine(parsed_from, timezone.datetime.min.time()))
-            queryset = queryset.filter(created_at__gte=start)
-
-        if parsed_to:
-            end = timezone.make_aware(timezone.datetime.combine(parsed_to, timezone.datetime.max.time()))
-            queryset = queryset.filter(created_at__lte=end)
-
-        return queryset
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
-            OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
-            OpenApiParameter(name="customer_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
-        ]
+    @extend_schema(parameters=[
+        OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="customer_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY)]
     )
     def list(self, request):
         queryset = self._get_list_queryset(request)
@@ -105,7 +101,11 @@ class OrderViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        order = get_object_or_404(self.get_queryset(), pk=pk)
+        order = self.get_queryset().filter(id=pk).first()
+
+        if not order:
+            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
         serializer = self.get_serializer(order, context={"request": request})
         return Response(serializer.data)
 
