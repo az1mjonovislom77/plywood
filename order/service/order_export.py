@@ -91,7 +91,7 @@ def generate_order_ledger_excel(order):
         ws.cell(row=row, column=8, value=float(qty))
         money(ws.cell(row=row, column=9), amount)
 
-        balance -= amount
+        balance += amount
         money(ws.cell(row=row, column=10), balance)
 
         for c in range(1, 11):
@@ -113,7 +113,7 @@ def generate_order_ledger_excel(order):
             ws.cell(row=row, column=8, value=float(b.length))
             money(ws.cell(row=row, column=9), total)
 
-            balance -= total
+            balance += total
             money(ws.cell(row=row, column=10), balance)
 
             for c in range(1, 11):
@@ -135,7 +135,7 @@ def generate_order_ledger_excel(order):
             ws.cell(row=row, column=8, value=float(c.count))
             money(ws.cell(row=row, column=9), total)
 
-            balance -= total
+            balance += total
             money(ws.cell(row=row, column=10), balance)
 
             for c in range(1, 11):
