@@ -145,6 +145,14 @@ class Order(models.Model):
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["customer", "created_at"]),
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["order_status"]),
+        ]
+
     def __str__(self):
         return f"Order #{self.id}"
 
@@ -160,9 +168,10 @@ class Order(models.Model):
         return max(total, Decimal("0"))
 
     def calculate_total(self):
-        total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
+        items = list(self.items.select_related("banding", "cutting"))
+        total = sum((item.price * item.quantity for item in items), Decimal("0"))
 
-        for item in self.items.select_related("banding", "cutting"):
+        for item in items:
             if item.banding:
                 total += self._calculate_service_total(item.banding)
             if item.cutting:
@@ -178,10 +187,7 @@ class Order(models.Model):
             else:
                 total -= self.discount
 
-        total = max(total, Decimal("0"))
-        total = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-        self.total_price = total
+        self.total_price = max(total, Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     def clean(self):
         if self.covered_amount < 0:
@@ -190,9 +196,10 @@ class Order(models.Model):
         if not self.pk:
             return
 
-        total = sum((item.price * item.quantity for item in self.items.all()), Decimal("0"))
+        items = list(self.items.select_related("banding", "cutting"))
+        total = sum((item.price * item.quantity for item in items), Decimal("0"))
 
-        for item in self.items.select_related("banding", "cutting"):
+        for item in items:
             if item.banding:
                 total += self._calculate_service_total(item.banding)
             if item.cutting:
@@ -229,7 +236,7 @@ class OrderItem(models.Model):
         unique_together = ("order", "product")
 
     def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
+        return f"OrderItem #{self.id}"
 
 
 class OrderHistory(models.Model):
@@ -251,3 +258,6 @@ class OrderHistory(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["order", "-created_at"]),
+        ]
