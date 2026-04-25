@@ -51,7 +51,7 @@ class BasketAddItemSerializer(serializers.Serializer):
 
 class CuttingSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
-    customer_fullname = serializers.SerializerMethodField()
+    customer_fullname = serializers.CharField(source="customer.full_name", read_only=True)
     count = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
 
     class Meta:
@@ -64,9 +64,6 @@ class CuttingSerializer(serializers.ModelSerializer):
     def get_total_price(self, obj):
         return get_service_total(obj)
 
-    def get_customer_fullname(self, obj):
-        return obj.customer.full_name if obj.customer else None
-
 
 class ThicknessSerializer(BaseReadSerializer):
     class Meta(BaseReadSerializer.Meta):
@@ -76,11 +73,10 @@ class ThicknessSerializer(BaseReadSerializer):
 class BandingGetSerializer(serializers.ModelSerializer):
     thickness = ThicknessSerializer(read_only=True)
     total_price = serializers.SerializerMethodField()
-    customer_fullname = serializers.SerializerMethodField()
+    customer_fullname = serializers.CharField(source="customer.full_name", read_only=True)
 
     class Meta:
         model = Banding
-
         fields = [
             "id", "thickness", "length", "customer", "customer_fullname", "discount_type", "discount",
             "payment_method", "covered_amount", "total_price", "created_at"
@@ -88,9 +84,6 @@ class BandingGetSerializer(serializers.ModelSerializer):
 
     def get_total_price(self, obj):
         return get_service_total(obj)
-
-    def get_customer_fullname(self, obj):
-        return obj.customer.full_name if obj.customer else None
 
 
 class BandingPostSerializer(serializers.ModelSerializer):
@@ -160,14 +153,10 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
 
 class OrderHistorySerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.full_name", read_only=True)
-    items = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderHistory
-        fields = ["id", "user", "user_name", "action", "visible_for", "description", "items", "created_at"]
-
-    def get_items(self, obj):
-        return OrderItemSerializer(obj.order.items.all(), many=True, context=self.context).data
+        fields = ["id", "user", "user_name", "action", "visible_for", "description", "created_at"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -175,7 +164,7 @@ class OrderSerializer(serializers.ModelSerializer):
     banding = BandingGetSerializer(read_only=True)
     cutting = CuttingSerializer(read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
-    customer_fullname = serializers.SerializerMethodField()
+    customer_fullname = serializers.CharField(source="customer.full_name", read_only=True)
     history = serializers.SerializerMethodField()
     accepted_by_name = serializers.CharField(source="accepted_by.full_name", read_only=True)
     accepted_at = serializers.DateTimeField(read_only=True)
@@ -189,27 +178,21 @@ class OrderSerializer(serializers.ModelSerializer):
 
         read_only_fields = ["source", "order_status"]
 
-    def get_customer_fullname(self, obj):
-        return obj.customer.full_name if obj.customer else None
-
     def get_history(self, obj):
         request = self.context.get("request")
         if not request:
             return []
 
         user = request.user
-
-        if user.role in [
+        if user.role not in [
             User.UserRoles.MANAGER,
             User.UserRoles.SELLER,
             User.UserRoles.CASHIER,
             User.UserRoles.WAREHOUSEMAN,
         ]:
-            queryset = obj.history.all()
-        else:
-            queryset = obj.history.none()
+            return []
 
-        return OrderHistorySerializer(queryset, many=True, context=self.context).data
+        return OrderHistorySerializer(obj.history.all(), many=True, context=self.context).data
 
 
 class OrderCreateSerializer(serializers.Serializer):

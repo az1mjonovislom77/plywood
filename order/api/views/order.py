@@ -55,24 +55,43 @@ class OrderViewSet(viewsets.GenericViewSet):
     def get_queryset(self):
         return OrderQueryService.list_for_user(self.request.user).order_by("-created_at")
 
-    def _get_list_queryset(self):
+    def _get_list_queryset(self, request):
         queryset = self.get_queryset()
-        date_param = self.request.query_params.get("date")
 
-        if date_param:
-            parsed_date = parse_date(date_param)
-            if not parsed_date:
-                raise ValidationError({"date": "Invalid date format. Use YYYY-MM-DD"})
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+        customer_id = request.query_params.get("customer_id")
+
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+
+        if date_from:
+            parsed_from = parse_date(date_from)
+            if not parsed_from:
+                raise ValidationError({"from": "Invalid date format. Use YYYY-MM-DD"})
         else:
-            parsed_date = timezone.localdate()
+            parsed_from = timezone.localdate()
 
-        start = timezone.make_aware(timezone.datetime.combine(parsed_date, timezone.datetime.min.time()))
-        end = start + timezone.timedelta(days=1)
-        return queryset.filter(created_at__gte=start, created_at__lt=end)
+        if date_to:
+            parsed_to = parse_date(date_to)
+            if not parsed_to:
+                raise ValidationError({"to": "Invalid date format. Use YYYY-MM-DD"})
+        else:
+            parsed_to = parsed_from
 
-    @extend_schema(parameters=[OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY)])
+        start = timezone.make_aware(timezone.datetime.combine(parsed_from, timezone.datetime.min.time()))
+        end = timezone.make_aware(timezone.datetime.combine(parsed_to, timezone.datetime.max.time()))
+
+        return queryset.filter(created_at__gte=start, created_at__lte=end)
+
+    @extend_schema(parameters=[
+        OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="customer_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY)]
+    )
     def list(self, request):
-        queryset = self._get_list_queryset()
+        queryset = self._get_list_queryset(request)
+
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True, context={"request": request})
@@ -113,7 +132,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         if not order:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = OrderSerializer(order, data=request.data, partial=True)
+        serializer = OrderSerializer(order, data=request.data, partial=True, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
 

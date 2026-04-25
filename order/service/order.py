@@ -65,8 +65,9 @@ class OrderService:
     def get_by_id(order_id):
         return (
             Order.objects.filter(id=order_id)
-            .select_related("banding", "cutting")
-            .prefetch_related("items__product", "items__banding__thickness", "items__cutting")
+            .select_related("customer", "banding", "banding__thickness", "cutting", "accepted_by", "user")
+            .prefetch_related("items__product", "items__banding", "items__banding__thickness", "items__cutting",
+                              "history__user")
             .first()
         )
 

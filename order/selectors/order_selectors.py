@@ -8,9 +8,9 @@ class OrderSelector:
     @staticmethod
     def base_queryset():
         return (
-            Order.objects.select_related("customer", "banding", "cutting", "accepted_by", "user")
-            .prefetch_related("items__product")
-            .prefetch_related(Prefetch("history", queryset=OrderHistory.objects.select_related("user")))
+            Order.objects.select_related("customer", "banding", "banding__thickness", "cutting", "accepted_by", "user")
+            .prefetch_related("items__product", "items__banding", "items__banding__thickness", "items__cutting",
+                              Prefetch("history", queryset=OrderHistory.objects.select_related("user")))
         )
 
     # @staticmethod
