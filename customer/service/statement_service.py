@@ -1,13 +1,11 @@
 from decimal import Decimal
 from io import BytesIO
-
 from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
-
 from customer.models import BalanceHistory, Customer
 from order.models import Order
 
