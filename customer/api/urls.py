@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from customer.api.views.stats_views import CustomerStatsView, DashboardDebtStatsView
-from customer.api.views.customer import CustomerViewSet
+from customer.api.views.customer import CustomerViewSet, CustomerStatementExcelViewSet
 from customer.api.views.debt import CoverDebtAPIView, CustomerHistoryAPIView, CustomerStatementExcelAPIView
 
 router = DefaultRouter()
 router.register('customer', CustomerViewSet, basename='customer')
+router.register('export', CustomerStatementExcelViewSet, basename='export')
 
 urlpatterns = [
     path('', include(router.urls)),

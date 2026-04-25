@@ -2,12 +2,12 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from supplier.api.views.payment_views import SupplierPaymentView
 from supplier.api.views.stats_views import SupplierDebtStatsView
-from supplier.api.views.supplier_views import SupplierViewSet, SupplierStatementExcelViewSet
+from supplier.api.views.supplier_views import SupplierViewSet
 from supplier.api.views.transaction_views import SupplierTransactionView
 
 router = DefaultRouter()
 router.register('supplier', SupplierViewSet, basename='supplier')
-router.register('export', SupplierStatementExcelViewSet, basename='export')
+
 
 urlpatterns = [
     path('', include(router.urls)),

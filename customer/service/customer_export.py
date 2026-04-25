@@ -6,11 +6,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
-from supplier.models import Supplier, SupplierTransaction
-from acceptance.models import Acceptance
+from customer.models import Customer, BalanceHistory
+from order.models import Order
 
 
-class SupplierStatementService:
+class CustomerStatementService:
     @classmethod
     def _parse_bounds(cls, date_from, date_to):
         today = timezone.localdate()
@@ -31,55 +31,34 @@ class SupplierStatementService:
         return start_date, end_date, start_dt, end_dt
 
     @classmethod
-    def _opening_balance(cls, supplier_id, start_dt):
-        purchases = (
-            Acceptance.objects
-            .filter(
-                supplier_id=supplier_id,
-                acceptance_status=Acceptance.AcceptanceStatus.ACCEPT,
-                created_at__lt=start_dt,
+    def _opening_balance(cls, customer_id, start_dt):
+        orders = (
+            Order.objects
+            .filter(customer_id=customer_id, created_at__lt=start_dt)
+            .aggregate(
+                total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()),
+                paid=Coalesce(Sum("covered_amount"), Value(Decimal("0")), output_field=DecimalField()),
             )
-            .aggregate(
-                total=Coalesce(Sum("arrival_price"),
-                               Value(Decimal("0")),
-                               output_field=DecimalField(),
-                               )
-            )["total"]
         )
-
-        payments = (
-            SupplierTransaction.objects
-            .filter(supplier_id=supplier_id, transaction_type=SupplierTransaction.TransactionType.PAYMENT,
-                    created_at__lt=start_dt)
-            .aggregate(
-                total=Coalesce(Sum("amount"), Value(Decimal("0")), output_field=DecimalField()))["total"]
-        )
-
-        return payments - purchases
+        return orders["paid"] - orders["total"]
 
     @classmethod
-    def build_statement(cls, supplier_id, date_from=None, date_to=None):
-        supplier = Supplier.objects.get(pk=supplier_id)
+    def build_statement(cls, customer_id, date_from=None, date_to=None):
+        customer = Customer.objects.get(pk=customer_id)
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
-        running_balance = cls._opening_balance(supplier_id, start_dt)
+        running_balance = cls._opening_balance(customer_id, start_dt)
 
-        acceptances = (
-            Acceptance.objects
-            .filter(
-                supplier_id=supplier_id,
-                acceptance_status=Acceptance.AcceptanceStatus.ACCEPT,
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-            )
-            .select_related("product")
+        orders = (
+            Order.objects
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt)
             .order_by("created_at", "id")
         )
 
         payments = (
-            SupplierTransaction.objects
+            BalanceHistory.objects
             .filter(
-                supplier_id=supplier_id,
-                transaction_type=SupplierTransaction.TransactionType.PAYMENT,
+                customer_id=customer_id,
+                type=BalanceHistory.Type.PAYMENT,
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
             )
@@ -88,24 +67,22 @@ class SupplierStatementService:
 
         events = []
 
-        for acceptance in acceptances:
-            total = acceptance.arrival_price * acceptance.count
-
+        for order in orders:
             events.append(
                 (
-                    acceptance.created_at,
+                    order.created_at,
                     0,
                     [
                         {
-                            "date": acceptance.created_at.date(),
-                            "registrator": f"Приход товара {acceptance.id:09d} от {acceptance.created_at:%d.%m.%Y %H:%M:%S}",
-                            "payment_type": None,
+                            "date": order.created_at.date(),
+                            "registrator": f"Продажа товара {order.id:09d} от {order.created_at:%d.%m.%Y %H:%M:%S}",
+                            "payment_type": order.get_payment_method_display(),
                             "purpose": None,
-                            "product": acceptance.product.name,
+                            "product": f"Order {order.id}",
                             "income_qty": None,
                             "income_amount": None,
-                            "expense_qty": acceptance.count,
-                            "expense_amount": total,
+                            "expense_qty": 1,
+                            "expense_amount": order.total_price,
                         }
                     ],
                 )
@@ -119,9 +96,9 @@ class SupplierStatementService:
                     [
                         {
                             "date": payment.created_at.date(),
-                            "registrator": f"Оплата поставщику {payment.id:09d} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
+                            "registrator": f"Оплата клиента {payment.id:09d} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
                             "payment_type": "Наличная",
-                            "purpose": payment.description,
+                            "purpose": None,
                             "product": None,
                             "income_qty": None,
                             "income_amount": payment.amount,
@@ -146,7 +123,7 @@ class SupplierStatementService:
                     total_income_amount += row["income_amount"]
 
                 if row["expense_amount"]:
-                    running_balance -= row["expense_amount"]
+                    running_balance += row["expense_amount"]
                     total_expense_amount += row["expense_amount"]
 
                 row["no"] = no
@@ -156,12 +133,12 @@ class SupplierStatementService:
 
         return {
             "supplier": {
-                "id": supplier.id,
-                "full_name": supplier.full_name,
+                "id": customer.id,
+                "full_name": customer.full_name,
             },
             "from": start_date,
             "to": end_date,
-            "opening_balance": cls._opening_balance(supplier_id, start_dt),
+            "opening_balance": cls._opening_balance(customer_id, start_dt),
             "rows": rows,
             "totals": {
                 "income_amount": total_income_amount,
@@ -190,18 +167,9 @@ class SupplierStatementService:
         negative_font = Font(name="Arial", size=8, color="00C00000")
 
         widths = {
-            "A": 13,
-            "B": 5.28515625,
-            "C": 13,
-            "D": 35.42578125,
-            "E": 15.7109375,
-            "F": 14.7109375,
-            "G": 26,
-            "H": 13,
-            "I": 13,
-            "J": 13,
-            "K": 13,
-            "L": 13,
+            "A": 13, "B": 5.28515625, "C": 13, "D": 35.42578125,
+            "E": 15.7109375, "F": 14.7109375, "G": 26,
+            "H": 13, "I": 13, "J": 13, "K": 13, "L": 13,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
@@ -265,8 +233,8 @@ class SupplierStatementService:
         ws.cell(row=total_row, column=11).number_format = "#,##0"
 
     @classmethod
-    def build_statement_excel(cls, supplier_id, date_from=None, date_to=None):
-        data = cls.build_statement(supplier_id=supplier_id, date_from=date_from, date_to=date_to)
+    def build_statement_excel(cls, customer_id, date_from=None, date_to=None):
+        data = cls.build_statement(customer_id=customer_id, date_from=date_from, date_to=date_to)
 
         wb = Workbook()
         ws = wb.active
@@ -321,7 +289,7 @@ class SupplierStatementService:
         return output
 
 
-class SupplierSalesStatementService:
+class SalesStatementService:
     @classmethod
     def _parse_bounds(cls, date_from, date_to):
         today = timezone.localdate()
@@ -342,50 +310,44 @@ class SupplierSalesStatementService:
         return start_date, end_date, start_dt, end_dt
 
     @classmethod
-    def build_statement(cls, supplier_id=None, date_from=None, date_to=None):
+    def build_statement(cls, customer_id=None, date_from=None, date_to=None):
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
 
         qs = (
-            Acceptance.objects
-            .filter(
-                acceptance_status=Acceptance.AcceptanceStatus.ACCEPT,
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-            )
-            .select_related("supplier", "product")
+            Order.objects
+            .filter(created_at__gte=start_dt, created_at__lt=end_dt)
+            .select_related("customer")
             .order_by("created_at", "id")
         )
 
-        if supplier_id:
-            qs = qs.filter(supplier_id=supplier_id)
+        if customer_id:
+            qs = qs.filter(customer_id=customer_id)
 
         rows = []
         total_amount = Decimal("0")
         no = 1
 
         for item in qs:
-            amount = item.arrival_price * item.count
-            total_amount += amount
-
+            total_amount += item.total_price
             rows.append(
                 {
                     "no": no,
                     "date": item.created_at.date(),
                     "order_no": item.id,
                     "doc_type": "Продажа товара",
-                    "supplier": item.supplier.full_name if item.supplier else "Аноним",
-                    "amount": amount,
+                    "supplier": item.customer.full_name if item.customer else "Аноним",
+                    "amount": item.total_price,
                 }
             )
             no += 1
 
-        supplier_name = "Все поставщики"
-        if supplier_id:
-            supplier = Supplier.objects.get(pk=supplier_id)
-            supplier_name = supplier.full_name
+        customer_name = "Все клиенты"
+        if customer_id:
+            customer = Customer.objects.get(pk=customer_id)
+            customer_name = customer.full_name
 
         return {
-            "supplier_name": supplier_name,
+            "supplier_name": customer_name,
             "from": start_date,
             "to": end_date,
             "rows": rows,
@@ -410,15 +372,7 @@ class SupplierSalesStatementService:
         base_font = Font(name="Arial", size=8)
         bold_font = Font(name="Arial", size=8, bold=True)
 
-        widths = {
-            "A": 13,
-            "B": 6,
-            "C": 14,
-            "D": 18,
-            "E": 22,
-            "F": 28,
-            "G": 18,
-        }
+        widths = {"A": 13, "B": 6, "C": 14, "D": 18, "E": 22, "F": 28, "G": 18}
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
 
@@ -468,8 +422,8 @@ class SupplierSalesStatementService:
         ws.cell(row=total_row, column=7).number_format = "#,##0"
 
     @classmethod
-    def build_statement_excel(cls, supplier_id=None, date_from=None, date_to=None):
-        data = cls.build_statement(supplier_id=supplier_id, date_from=date_from, date_to=date_to)
+    def build_statement_excel(cls, customer_id=None, date_from=None, date_to=None):
+        data = cls.build_statement(customer_id=customer_id, date_from=date_from, date_to=date_to)
 
         wb = Workbook()
         ws = wb.active
@@ -483,7 +437,7 @@ class SupplierSalesStatementService:
         ws["C4"] = "Дата"
         ws["D4"] = "Номер"
         ws["E4"] = "Тип документа"
-        ws["F4"] = "Поставщик"
+        ws["F4"] = "Клиент"
         ws["G4"] = "Сумма"
 
         row_idx = 6
