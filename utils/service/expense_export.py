@@ -58,6 +58,10 @@ class CashFlowReportService:
             .order_by("created_at", "id")
         )
 
+        income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
+        expense_total = sum((Decimal(str(e.value)) for e in expenses), Decimal("0"))
+        closing_balance = income_total - expense_total
+
         wb = Workbook()
         ws = wb.active
         ws.title = "Cash Flow"
@@ -81,18 +85,14 @@ class CashFlowReportService:
         ws["B1"].font = bold
         ws["B1"].alignment = left
 
-        income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
-        expense_total = sum((Decimal(str(e.value)) for e in expenses), Decimal("0"))
-
         ws["D2"] = "Остаток на начало периода :"
         ws["D3"] = "Остаток на конец периода :"
         ws["E2"] = 0
-        ws["E3"] = float(income_total - expense_total)
+        ws["E3"] = float(closing_balance)
 
-        ws["D2"].font = bold
-        ws["D3"].font = bold
-        ws["E2"].font = bold
-        ws["E3"].font = bold
+        for c in ["D2", "D3", "E2", "E3"]:
+            ws[c].font = bold
+
         ws["D2"].alignment = right
         ws["D3"].alignment = right
         ws["E2"].alignment = left
@@ -102,93 +102,82 @@ class CashFlowReportService:
 
         ws["B5"] = "№"
         ws["C5"] = "Контрагент номи"
-        ws["F5"] = "Приход"
+        ws["D5"] = "Приход"
 
-        ws["I5"] = "Description"
-        ws["J5"] = "Сана"
-        ws["K5"] = "Расход"
+        ws["F5"] = "Description"
+        ws["G5"] = "Сана"
+        ws["H5"] = "Расход"
 
-        for cell in ["B5", "C5", "F5", "I5", "J5", "K5"]:
+        for cell in ["B5", "C5", "D5", "F5", "G5", "H5"]:
             ws[cell].font = bold
             ws[cell].alignment = center
             ws[cell].border = border
 
-        ws.merge_cells("C5:E5")
-        ws.merge_cells("F5:H5")
-
         left_row = 6
         right_row = 6
 
-        income_start = 6
         for idx, row in enumerate(incomes, start=1):
             ws.cell(left_row, 2, idx)
             ws.cell(left_row, 3, row["customer__full_name"] or "Аноним")
-            money(ws.cell(left_row, 6), row["total"])
+            money(ws.cell(left_row, 4), row["total"])
 
             ws.cell(left_row, 2).font = normal
             ws.cell(left_row, 3).font = normal
-            ws.cell(left_row, 6).font = normal
+            ws.cell(left_row, 4).font = normal
 
             ws.cell(left_row, 2).alignment = center
             ws.cell(left_row, 3).alignment = left
-            ws.cell(left_row, 6).alignment = right
+            ws.cell(left_row, 4).alignment = right
 
-            for col in range(2, 9):
+            for col in range(2, 5):
                 ws.cell(left_row, col).border = border
 
             left_row += 1
 
-        expense_start = 6
         for exp in expenses:
-            ws.cell(right_row, 9, exp.description)
-            ws.cell(right_row, 10, exp.created_at.strftime("%d.%m.%Y"))
-            money(ws.cell(right_row, 11), exp.value)
+            ws.cell(right_row, 6, exp.description)
+            ws.cell(right_row, 7, exp.created_at.strftime("%d.%m.%Y"))
+            money(ws.cell(right_row, 8), exp.value)
 
-            ws.cell(right_row, 9).font = normal
-            ws.cell(right_row, 10).font = normal
-            ws.cell(right_row, 11).font = normal
+            ws.cell(right_row, 6).font = normal
+            ws.cell(right_row, 7).font = normal
+            ws.cell(right_row, 8).font = normal
 
-            ws.cell(right_row, 9).alignment = left
-            ws.cell(right_row, 10).alignment = center
-            ws.cell(right_row, 11).alignment = right
+            ws.cell(right_row, 6).alignment = left
+            ws.cell(right_row, 7).alignment = center
+            ws.cell(right_row, 8).alignment = right
 
-            for col in range(9, 12):
+            for col in range(6, 9):
                 ws.cell(right_row, col).border = border
 
             right_row += 1
 
-        income_total_row = max(left_row, 6)
-        expense_total_row = max(right_row, 6)
+        ws.merge_cells(f"B{left_row}:C{left_row}")
+        ws[f"B{left_row}"] = "Жами:"
+        ws[f"B{left_row}"].font = bold
+        ws[f"B{left_row}"].alignment = right
+        money(ws[f"D{left_row}"], income_total)
 
-        ws.merge_cells(f"B{income_total_row}:E{income_total_row}")
-        ws[f"B{income_total_row}"] = "Жами:"
-        ws[f"B{income_total_row}"].font = bold
-        ws[f"B{income_total_row}"].alignment = right
-        money(ws[f"F{income_total_row}"], income_total)
+        for col in range(2, 5):
+            ws.cell(left_row, col).border = border
 
-        for col in range(2, 9):
-            ws.cell(income_total_row, col).border = border
+        ws.merge_cells(f"F{right_row}:G{right_row}")
+        ws[f"F{right_row}"] = "Жами:"
+        ws[f"F{right_row}"].font = bold
+        ws[f"F{right_row}"].alignment = right
+        money(ws[f"H{right_row}"], expense_total)
 
-        ws.merge_cells(f"I{expense_total_row}:J{expense_total_row}")
-        ws[f"I{expense_total_row}"] = "Жами:"
-        ws[f"I{expense_total_row}"].font = bold
-        ws[f"I{expense_total_row}"].alignment = right
-        money(ws[f"K{expense_total_row}"], expense_total)
-
-        for col in range(9, 12):
-            ws.cell(expense_total_row, col).border = border
+        for col in range(6, 9):
+            ws.cell(right_row, col).border = border
 
         widths = {
             "B": 6,
-            "C": 24,
-            "D": 18,
-            "E": 18,
-            "F": 14,
+            "C": 34,
+            "D": 16,
+            "E": 4,
+            "F": 34,
             "G": 14,
-            "H": 14,
-            "I": 28,
-            "J": 14,
-            "K": 16,
+            "H": 16,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
