@@ -53,7 +53,7 @@ class CashFlowReportService:
             .filter(
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
-                expense_status=Expenses.ExpensesStatus.ACCEPT,
+                expense_status=Expenses.ExpensesStatus.ACCEPT and Expenses.ExpensesStatus.CREATED,
             )
             .order_by("created_at", "id")
         )
