@@ -39,7 +39,7 @@ class Expenses(models.Model):
 
 class ExpensesHistory(models.Model):
     class Action(models.TextChoices):
-        CREATE = "create", "Create"
+        CREATE = "created", "Created"
         ACCEPT = "accept", "Accept"
         CANCEL = "cancel", "Cancel"
 
