@@ -157,6 +157,7 @@ class CashFlowReportService:
         ws[f"B{left_row}"].font = bold
         ws[f"B{left_row}"].alignment = right
         money(ws[f"D{left_row}"], income_total)
+        ws[f"D{left_row}"].font = bold
 
         for col in range(2, 5):
             ws.cell(left_row, col).border = border
@@ -166,6 +167,7 @@ class CashFlowReportService:
         ws[f"F{right_row}"].font = bold
         ws[f"F{right_row}"].alignment = right
         money(ws[f"H{right_row}"], expense_total)
+        ws[f"H{right_row}"].font = bold
 
         for col in range(6, 9):
             ws.cell(right_row, col).border = border
