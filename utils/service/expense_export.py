@@ -1,6 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
-from django.db.models import Sum, Value
+from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -38,7 +38,13 @@ class CashFlowReportService:
             BalanceHistory.objects
             .filter(created_at__gte=start_dt, created_at__lt=end_dt)
             .values("customer__full_name")
-            .annotate(total=Coalesce(Sum("amount"), Value(0)))
+            .annotate(
+                total=Coalesce(
+                    Sum("amount"),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )
             .order_by("customer__full_name")
         )
 
