@@ -1,21 +1,23 @@
-from drf_spectacular.utils import extend_schema
+from django.http import HttpResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Prefetch, Sum
+from rest_framework.viewsets import ViewSet
 from utils.base.views_base import BaseUserViewSet
 from utils.models import Expenses, ExpensesHistory
 from utils.api.serializers import ExpenseCreateSerializer, ExpenseListSerializer, \
     ExpenseHistorySerializer
+from utils.service.expense_export import CashFlowReportService
 from utils.service.expenses_service import ExpensesWorkflowService
 from rest_framework import status, viewsets
 
 
 @extend_schema(tags=["Expenses"])
 class ExpenseViewSet(BaseUserViewSet):
-    queryset = (
-        Expenses.objects.select_related("user")
-        .prefetch_related(Prefetch("histories", queryset=ExpensesHistory.objects.select_related("user")))
-    )
+    queryset = (Expenses.objects.select_related("user")
+                .prefetch_related(Prefetch("histories", queryset=ExpensesHistory.objects.select_related("user"))))
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -31,8 +33,8 @@ class ExpenseViewSet(BaseUserViewSet):
 
         return Response({
             "stats": {
-                "total_expense": total_expense
-            }, "data": serializer.data})
+                "total_expense": total_expense},
+            "data": serializer.data})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -68,3 +70,22 @@ class ExpenseHistoryViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(expense_id=expense_id)
 
         return queryset
+
+
+@extend_schema(tags=["ExpenseExport"],
+               parameters=[
+                   OpenApiParameter(name="from", required=False, type=str),
+                   OpenApiParameter(name="to", required=False, type=str)])
+class CashFlowReportExcelViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+
+        file = CashFlowReportService.build_excel(date_from=date_from, date_to=date_to, )
+
+        return HttpResponse(
+            file.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="cashflow_report.xlsx"'})
