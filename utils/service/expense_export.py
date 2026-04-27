@@ -38,24 +38,19 @@ class CashFlowReportService:
             BalanceHistory.objects
             .filter(created_at__gte=start_dt, created_at__lt=end_dt)
             .values("customer__full_name")
-            .annotate(
-                total=Coalesce(
-                    Sum("amount"),
-                    Value(Decimal("0")),
-                    output_field=DecimalField(max_digits=14, decimal_places=2),
-                )
-            )
-            .order_by("customer__full_name")
+            .annotate(total=Coalesce(
+                Sum("amount"),
+                Value(Decimal("0")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )).order_by("customer__full_name")
         )
 
         expenses = (
-            Expenses.objects
-            .filter(
+            Expenses.objects.filter(
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
                 expense_status=Expenses.ExpensesStatus.ACCEPT and Expenses.ExpensesStatus.CREATED,
-            )
-            .order_by("created_at", "id")
+            ).order_by("created_at", "id")
         )
 
         income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
@@ -84,7 +79,6 @@ class CashFlowReportService:
             "B1"] = f"Отчет по движению денежных средств за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = bold
         ws["B1"].alignment = left
-
         ws["D2"] = "Остаток на начало периода :"
         ws["D3"] = "Остаток на конец периода :"
         ws["E2"] = 0
@@ -99,12 +93,10 @@ class CashFlowReportService:
         ws["E3"].alignment = left
         ws["E2"].number_format = "#,##0"
         ws["E3"].number_format = "#,##0"
-
         ws["B5"] = "№"
         ws["C5"] = "Контрагент номи"
         ws["D5"] = "Приход"
-
-        ws["F5"] = "Description"
+        ws["F5"] = "Izoh"
         ws["G5"] = "Сана"
         ws["H5"] = "Расход"
 
@@ -120,11 +112,9 @@ class CashFlowReportService:
             ws.cell(left_row, 2, idx)
             ws.cell(left_row, 3, row["customer__full_name"] or "Аноним")
             money(ws.cell(left_row, 4), row["total"])
-
             ws.cell(left_row, 2).font = normal
             ws.cell(left_row, 3).font = normal
             ws.cell(left_row, 4).font = normal
-
             ws.cell(left_row, 2).alignment = center
             ws.cell(left_row, 3).alignment = left
             ws.cell(left_row, 4).alignment = right
@@ -138,11 +128,9 @@ class CashFlowReportService:
             ws.cell(right_row, 6, exp.description)
             ws.cell(right_row, 7, exp.created_at.strftime("%d.%m.%Y"))
             money(ws.cell(right_row, 8), exp.value)
-
             ws.cell(right_row, 6).font = normal
             ws.cell(right_row, 7).font = normal
             ws.cell(right_row, 8).font = normal
-
             ws.cell(right_row, 6).alignment = left
             ws.cell(right_row, 7).alignment = center
             ws.cell(right_row, 8).alignment = right

@@ -20,20 +20,11 @@ class ExpensesWorkflowService:
         if status == Expenses.ExpensesStatus.CREATED:
             ExpensesWorkflowService._apply_cashbox(value)
 
-        expense = Expenses.objects.create(
-            user=user,
-            value=value,
-            description=data.get("description"),
-            expense_status=status
-        )
+        expense = Expenses.objects.create(user=user, value=value, description=data.get("description"),
+                                          expense_status=status)
 
-        ExpensesHistory.objects.create(
-            expense=expense,
-            user=user,
-            action=ExpensesHistory.Action.CREATE,
-            value=expense.value,
-            description=expense.description
-        )
+        ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.CREATE,
+                                       value=expense.value, description=expense.description)
 
         return expense
 
@@ -55,13 +46,8 @@ class ExpensesWorkflowService:
 
         expense.expense_status = Expenses.ExpensesStatus.ACCEPT
         expense.save(update_fields=["expense_status"])
-        ExpensesHistory.objects.create(
-            expense=expense,
-            user=user,
-            action=ExpensesHistory.Action.ACCEPT,
-            value=expense.value,
-            description=expense.description
-        )
+        ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.ACCEPT,
+                                       value=expense.value, description=expense.description)
 
         return expense
 
@@ -75,12 +61,7 @@ class ExpensesWorkflowService:
         expense.expense_status = Expenses.ExpensesStatus.CANCEL
         expense.save(update_fields=["expense_status"])
 
-        ExpensesHistory.objects.create(
-            expense=expense,
-            user=user,
-            action=ExpensesHistory.Action.CANCEL,
-            value=expense.value,
-            description=description
-        )
+        ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.CANCEL,
+                                       value=expense.value, description=description)
 
         return expense
