@@ -66,8 +66,8 @@ class CashFlowReportService:
         ws = wb.active
         ws.title = "Cash Flow"
 
-        bold = Font(name="Arial", size=10, bold=True)
-        normal = Font(name="Arial", size=10)
+        bold = Font(name="Arial", size=12, bold=True)
+        normal = Font(name="Arial", size=12)
         center = Alignment(horizontal="center", vertical="center", wrap_text=True)
         left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         right = Alignment(horizontal="right", vertical="center")
