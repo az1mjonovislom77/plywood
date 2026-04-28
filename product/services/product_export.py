@@ -123,8 +123,14 @@ class MaterialReportService:
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         def money(cell, value):
-            cell.value = float(value or 0)
-            cell.number_format = "#,##0.000"
+            value = float(value or 0)
+
+            if value == int(value):
+                cell.value = int(value)
+                cell.number_format = "#,##0"
+            else:
+                cell.value = value
+                cell.number_format = "#,##0.000"
 
         ws.merge_cells("B1:L1")
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%B %Y')} г. - {end_date.strftime('%B %Y')} г."
