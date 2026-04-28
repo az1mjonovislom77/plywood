@@ -9,6 +9,6 @@ router.register('quality', QualityViewSet, basename='quality')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path("material-report/", MaterialReportExcelViewSet.as_view({"get": "list"}), name="material-report")
+    path("export/", MaterialReportExcelViewSet.as_view({"get": "list"}), name="material-report")
 
 ]
