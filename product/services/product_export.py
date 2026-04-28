@@ -1,11 +1,14 @@
 from io import BytesIO
 from decimal import Decimal
+
 from django.db.models import Sum, Value, DecimalField, F
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
+
 from category.models import Category
 from product.models import Product
 from acceptance.models import Acceptance
@@ -51,7 +54,8 @@ class MaterialReportService:
 
         open_in_map = cls._to_map(
             Acceptance.objects.filter(
-                acceptance_status="accept", created_at__lt=start_dt,
+                acceptance_status="accept",
+                created_at__lt=start_dt,
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
                 total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
@@ -109,7 +113,7 @@ class MaterialReportService:
             cell.value = float(value or 0)
             cell.number_format = "#,##0.000"
 
-        ws.merge_cells("B1:M1")
+        ws.merge_cells("B1:L1")
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%B %Y')} г. - {end_date.strftime('%B %Y')} г."
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
@@ -122,8 +126,7 @@ class MaterialReportService:
         ws["F3"].alignment = left
 
         ws.merge_cells("A4:A6")
-        ws.merge_cells("B4:C6")
-        ws.merge_cells("D4:D6")
+        ws.merge_cells("B4:D6")
         ws.merge_cells("E4:E6")
         ws.merge_cells("F4:G4")
         ws.merge_cells("H4:I4")
@@ -132,7 +135,6 @@ class MaterialReportService:
 
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель / Материал"
-        ws["D4"] = "ID"
         ws["E4"] = "Ед.изм"
         ws["F4"] = "Сальдо на начало"
         ws["H4"] = "Приход"
@@ -203,7 +205,6 @@ class MaterialReportService:
                 product_rows.append({
                     "code": product.id,
                     "name": product.name,
-                    "sku": getattr(product, "code", ""),
                     "unit": getattr(product, "unit", "дона"),
                     "open_qty": open_qty,
                     "open_sum": open_sum,
@@ -215,7 +216,7 @@ class MaterialReportService:
                     "end_sum": end_sum,
                 })
 
-            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
             ws.cell(row, 2).alignment = left
@@ -236,10 +237,9 @@ class MaterialReportService:
             row += 1
 
             for item in product_rows:
-                ws.cell(row, 1, item["sku"])
-                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+                ws.cell(row, 1, item["code"])
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
                 ws.cell(row, 2, item["name"])
-                ws.cell(row, 4, item["code"])
                 ws.cell(row, 5, item["unit"])
 
                 money(ws.cell(row, 6), item["open_qty"])
@@ -254,15 +254,15 @@ class MaterialReportService:
                 for c in range(1, 14):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
-                    ws.cell(row, c).alignment = left if c in [1, 2, 4, 5] else right
+                    ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
 
                 row += 1
 
         widths = {
-            "A": 14,
-            "B": 34,
-            "C": 14,
-            "D": 10,
+            "A": 12,
+            "B": 42,
+            "C": 2,
+            "D": 2,
             "E": 10,
             "F": 12,
             "G": 18,
