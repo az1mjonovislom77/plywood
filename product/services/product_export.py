@@ -38,19 +38,99 @@ class MaterialReportService:
             return Decimal("0")
         return Decimal(str(v))
 
+    @staticmethod
+    def _to_map(qs):
+        data = {}
+        for row in qs:
+            data[row["product_id"]] = {
+                "qty": Decimal(str(row["qty"] or 0)),
+                "total": Decimal(str(row["total"] or 0)),
+            }
+        return data
+
     @classmethod
     def build_excel(cls, date_from=None, date_to=None):
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
 
-        categories = Category.objects.all().order_by("name")
-        products = Product.objects.select_related("category").order_by("category__name", "name")
+        categories = list(Category.objects.all().order_by("name"))
+        products = list(Product.objects.select_related("category").order_by("category__name", "name"))
+
+        open_in_map = cls._to_map(
+            Acceptance.objects
+            .filter(
+                acceptance_status="accept",
+                created_at__lt=start_dt,
+            )
+            .values("product_id")
+            .annotate(
+                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("count") * F("arrival_price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
+            )
+        )
+
+        open_out_map = cls._to_map(
+            OrderItem.objects
+            .filter(order__created_at__lt=start_dt)
+            .values("product_id")
+            .annotate(
+                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("quantity") * F("price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
+            )
+        )
+
+        in_map = cls._to_map(
+            Acceptance.objects
+            .filter(
+                acceptance_status="accept",
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+            )
+            .values("product_id")
+            .annotate(
+                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("count") * F("arrival_price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
+            )
+        )
+
+        out_map = cls._to_map(
+            OrderItem.objects
+            .filter(
+                order__created_at__gte=start_dt,
+                order__created_at__lt=end_dt,
+            )
+            .values("product_id")
+            .annotate(
+                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("quantity") * F("price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
+            )
+        )
+
+        grouped_products = {}
+        for product in products:
+            grouped_products.setdefault(product.category_id, []).append(product)
 
         wb = Workbook()
         ws = wb.active
         ws.title = "Material Report"
 
-        bold = Font(name="Arial", size=11, bold=True)
-        normal = Font(name="Arial", size=11)
+        bold = Font(name="Arial", size=10, bold=True)
+        normal = Font(name="Arial", size=10)
         center = Alignment(horizontal="center", vertical="center", wrap_text=True)
         left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         right = Alignment(horizontal="right", vertical="center")
@@ -66,11 +146,14 @@ class MaterialReportService:
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%B %Y')} г. - {end_date.strftime('%B %Y')} г."
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
+
         ws["B3"] = "Склад"
         ws["B3"].font = Font(name="Arial", size=14, bold=True)
+
         ws["F3"] = "Асосий РМУ"
         ws["F3"].font = Font(name="Arial", size=18)
         ws["F3"].alignment = left
+
         ws.merge_cells("A4:A6")
         ws.merge_cells("B4:D6")
         ws.merge_cells("E4:E6")
@@ -78,6 +161,7 @@ class MaterialReportService:
         ws.merge_cells("H4:I4")
         ws.merge_cells("J4:K4")
         ws.merge_cells("L4:M4")
+
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель /\nМатериал"
         ws["E4"] = "Ед.изм"
@@ -85,6 +169,7 @@ class MaterialReportService:
         ws["H4"] = "Приход"
         ws["J4"] = "Расход"
         ws["L4"] = "Сальдо на конец"
+
         ws["F5"] = "Количество"
         ws["G5"] = "Сумма"
         ws["H5"] = "Количество"
@@ -104,8 +189,8 @@ class MaterialReportService:
         row = 7
 
         for category in categories:
-            category_products = products.filter(category=category)
-            if not category_products.exists():
+            category_products = grouped_products.get(category.id, [])
+            if not category_products:
                 continue
 
             cat_open_qty = Decimal("0")
@@ -120,50 +205,19 @@ class MaterialReportService:
             product_rows = []
 
             for product in category_products:
-                open_in = Acceptance.objects.filter(
-                    product=product,
-                    acceptance_status="accept",
-                    created_at__lt=start_dt
-                ).aggregate(
-                    qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                    total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
-                )
+                open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
+                open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
+                in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
+                out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
 
-                open_out = OrderItem.objects.filter(
-                    product=product,
-                    order__created_at__lt=start_dt
-                ).aggregate(
-                    qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
-                    total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
-                )
+                open_qty = open_in["qty"] - open_out["qty"]
+                open_sum = open_in["total"] - open_out["total"]
 
-                in_period = Acceptance.objects.filter(
-                    product=product,
-                    acceptance_status="accept",
-                    created_at__gte=start_dt,
-                    created_at__lt=end_dt
-                ).aggregate(
-                    qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                    total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
-                )
+                in_qty = in_period["qty"]
+                in_sum = in_period["total"]
 
-                out_period = OrderItem.objects.filter(
-                    product=product,
-                    order__created_at__gte=start_dt,
-                    order__created_at__lt=end_dt
-                ).aggregate(
-                    qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
-                    total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
-                )
-
-                open_qty = cls._num(open_in["qty"]) - cls._num(open_out["qty"])
-                open_sum = cls._num(open_in["total"]) - cls._num(open_out["total"])
-
-                in_qty = cls._num(in_period["qty"])
-                in_sum = cls._num(in_period["total"])
-
-                out_qty = cls._num(out_period["qty"])
-                out_sum = cls._num(out_period["total"])
+                out_qty = out_period["qty"]
+                out_sum = out_period["total"]
 
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_sum
