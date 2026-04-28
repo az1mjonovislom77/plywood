@@ -1,6 +1,7 @@
 import math
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Q
+from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -8,8 +9,10 @@ from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.viewsets import ViewSet
 from product.api.serializers import ProductSerializer
 from product.models import Product
+from product.services.product_export import MaterialReportService
 
 
 class ProductPagination(PageNumberPagination):
@@ -90,19 +93,36 @@ class ProductViewSet(viewsets.ModelViewSet):
         if search:
             search_latin = cyrillic_to_latin(search)
             search_cyrillic = latin_to_cyrillic(search)
-
             vector = SearchVector("name", weight="A")
             query = SearchQuery(search)
 
             queryset = (
                 queryset.annotate(rank=SearchRank(vector, query))
-                .filter(
-                    Q(rank__gte=0.1)
-                    | Q(name__icontains=search)
-                    | Q(name__icontains=search_latin)
-                    | Q(name__icontains=search_cyrillic)
-                )
+                .filter(Q(rank__gte=0.1) | Q(name__icontains=search)
+                        | Q(name__icontains=search_latin) | Q(name__icontains=search_cyrillic))
                 .order_by("-rank")
             )
 
         return queryset
+
+
+@extend_schema(
+    tags=["MaterialReport"],
+    parameters=[
+        OpenApiParameter(name="from", required=False, type=str),
+        OpenApiParameter(name="to", required=False, type=str)]
+)
+class MaterialReportExcelViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+
+        file = MaterialReportService.build_excel(date_from=date_from, date_to=date_to)
+
+        return HttpResponse(
+            file.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="material_report.xlsx"'},
+        )

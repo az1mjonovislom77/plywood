@@ -39,16 +39,13 @@ class CashFlowReportService:
             .filter(created_at__gte=start_dt, created_at__lt=end_dt)
             .values("customer__full_name")
             .annotate(total=Coalesce(
-                Sum("amount"),
-                Value(Decimal("0")),
-                output_field=DecimalField(max_digits=14, decimal_places=2),
-            )).order_by("customer__full_name")
+                Sum("amount"), Value(Decimal("0")),
+                output_field=DecimalField(max_digits=14, decimal_places=2))).order_by("customer__full_name")
         )
 
         expenses = (
             Expenses.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
+                created_at__gte=start_dt, created_at__lt=end_dt,
                 expense_status=Expenses.ExpensesStatus.ACCEPT and Expenses.ExpensesStatus.CREATED,
             ).order_by("created_at", "id")
         )
@@ -60,13 +57,11 @@ class CashFlowReportService:
         wb = Workbook()
         ws = wb.active
         ws.title = "Cash Flow"
-
         bold = Font(name="Arial", size=12, bold=True)
         normal = Font(name="Arial", size=12)
         center = Alignment(horizontal="center", vertical="center", wrap_text=True)
         left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         right = Alignment(horizontal="right", vertical="center")
-
         thin = Side(style="thin", color="000000")
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
