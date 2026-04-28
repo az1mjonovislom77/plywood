@@ -1,14 +1,11 @@
 from io import BytesIO
 from decimal import Decimal
-
 from django.db.models import Sum, Value, DecimalField, F
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
-
 from category.models import Category
 from product.models import Product
 from acceptance.models import Acceptance
@@ -58,7 +55,11 @@ class MaterialReportService:
                 created_at__lt=start_dt,
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("count") * F("arrival_price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
             )
         )
 
@@ -67,7 +68,11 @@ class MaterialReportService:
                 order__created_at__lt=start_dt
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("quantity") * F("price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
             )
         )
 
@@ -78,7 +83,11 @@ class MaterialReportService:
                 created_at__lt=end_dt,
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("count") * F("arrival_price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
             )
         )
 
@@ -88,7 +97,11 @@ class MaterialReportService:
                 order__created_at__lt=end_dt,
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
+                total=Coalesce(
+                    Sum(F("quantity") * F("price")),
+                    Value(Decimal("0")),
+                    output_field=DecimalField(),
+                ),
             )
         )
 
@@ -159,6 +172,15 @@ class MaterialReportService:
 
         row = 7
 
+        grand_open_qty = Decimal("0")
+        grand_open_sum = Decimal("0")
+        grand_in_qty = Decimal("0")
+        grand_in_sum = Decimal("0")
+        grand_out_qty = Decimal("0")
+        grand_out_sum = Decimal("0")
+        grand_end_qty = Decimal("0")
+        grand_end_sum = Decimal("0")
+
         for category in categories:
             category_products = grouped_products.get(category.id, [])
             if not category_products:
@@ -216,6 +238,15 @@ class MaterialReportService:
                     "end_sum": end_sum,
                 })
 
+            grand_open_qty += cat_open_qty
+            grand_open_sum += cat_open_sum
+            grand_in_qty += cat_in_qty
+            grand_in_sum += cat_in_sum
+            grand_out_qty += cat_out_qty
+            grand_out_sum += cat_out_sum
+            grand_end_qty += cat_end_qty
+            grand_end_sum += cat_end_sum
+
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
@@ -257,6 +288,24 @@ class MaterialReportService:
                     ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
 
                 row += 1
+
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
+        ws.cell(row, 1, "Жами:")
+        ws.cell(row, 1).font = bold
+        ws.cell(row, 1).alignment = right
+
+        money(ws.cell(row, 6), grand_open_qty)
+        money(ws.cell(row, 7), grand_open_sum)
+        money(ws.cell(row, 8), grand_in_qty)
+        money(ws.cell(row, 9), grand_in_sum)
+        money(ws.cell(row, 10), grand_out_qty)
+        money(ws.cell(row, 11), grand_out_sum)
+        money(ws.cell(row, 12), grand_end_qty)
+        money(ws.cell(row, 13), grand_end_sum)
+
+        for c in range(1, 14):
+            ws.cell(row, c).border = border
+            ws.cell(row, c).font = bold
 
         widths = {
             "A": 12,
