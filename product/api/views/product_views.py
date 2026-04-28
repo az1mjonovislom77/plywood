@@ -107,7 +107,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(
-    tags=["MaterialReport"],
+    tags=["ProductExport"],
     parameters=[
         OpenApiParameter(name="from", required=False, type=str),
         OpenApiParameter(name="to", required=False, type=str)]
