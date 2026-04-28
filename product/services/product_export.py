@@ -133,7 +133,7 @@ class MaterialReportService:
                 cell.number_format = "#,##0.000"
 
         ws.merge_cells("B1:L1")
-        ws["B1"] = f"Материальный отчет за {start_date.strftime('%B %Y')} г. - {end_date.strftime('%B %Y')} г."
+        ws["B1"] = f"Материальный отчет за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
 
