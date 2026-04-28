@@ -1,6 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
-from django.db.models import Sum, Value, DecimalField, F, Q
+from django.db.models import Sum, Value, DecimalField, F
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -48,8 +48,9 @@ class MaterialReportService:
         wb = Workbook()
         ws = wb.active
         ws.title = "Material Report"
-        bold = Font(name="Arial", size=12, bold=True)
-        normal = Font(name="Arial", size=12)
+
+        bold = Font(name="Arial", size=11, bold=True)
+        normal = Font(name="Arial", size=11)
         center = Alignment(horizontal="center", vertical="center", wrap_text=True)
         left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         right = Alignment(horizontal="right", vertical="center")
@@ -61,7 +62,7 @@ class MaterialReportService:
             cell.value = float(value or 0)
             cell.number_format = "#,##0.000"
 
-        ws.merge_cells("B1:L1")
+        ws.merge_cells("B1:M1")
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%B %Y')} г. - {end_date.strftime('%B %Y')} г."
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
@@ -69,6 +70,7 @@ class MaterialReportService:
         ws["B3"].font = Font(name="Arial", size=14, bold=True)
         ws["F3"] = "Асосий РМУ"
         ws["F3"].font = Font(name="Arial", size=18)
+        ws["F3"].alignment = left
         ws.merge_cells("A4:A6")
         ws.merge_cells("B4:D6")
         ws.merge_cells("E4:E6")
@@ -124,8 +126,7 @@ class MaterialReportService:
                     created_at__lt=start_dt
                 ).aggregate(
                     qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                    total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")),
-                                   output_field=DecimalField()),
+                    total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
                 )
 
                 open_out = OrderItem.objects.filter(
@@ -143,8 +144,7 @@ class MaterialReportService:
                     created_at__lt=end_dt
                 ).aggregate(
                     qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                    total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")),
-                                   output_field=DecimalField()),
+                    total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
                 )
 
                 out_period = OrderItem.objects.filter(
@@ -158,12 +158,16 @@ class MaterialReportService:
 
                 open_qty = cls._num(open_in["qty"]) - cls._num(open_out["qty"])
                 open_sum = cls._num(open_in["total"]) - cls._num(open_out["total"])
+
                 in_qty = cls._num(in_period["qty"])
                 in_sum = cls._num(in_period["total"])
+
                 out_qty = cls._num(out_period["qty"])
                 out_sum = cls._num(out_period["total"])
+
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_sum
+
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
@@ -187,9 +191,11 @@ class MaterialReportService:
                     "end_sum": end_sum,
                 })
 
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
             ws.cell(row, 2).alignment = left
+
             money(ws.cell(row, 6), cat_open_qty)
             money(ws.cell(row, 7), cat_open_sum)
             money(ws.cell(row, 8), cat_in_qty)
@@ -207,8 +213,10 @@ class MaterialReportService:
 
             for item in product_rows:
                 ws.cell(row, 1, item["code"])
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
                 ws.cell(row, 2, item["name"])
                 ws.cell(row, 5, item["unit"])
+
                 money(ws.cell(row, 6), item["open_qty"])
                 money(ws.cell(row, 7), item["open_sum"])
                 money(ws.cell(row, 8), item["in_qty"])
@@ -226,10 +234,19 @@ class MaterialReportService:
                 row += 1
 
         widths = {
-            "A": 12, "B": 38, "E": 12,
-            "F": 12, "G": 18, "H": 12, "I": 18,
-            "J": 12, "K": 18, "L": 12, "M": 18,
+            "A": 12,
+            "B": 52,
+            "E": 12,
+            "F": 12,
+            "G": 18,
+            "H": 12,
+            "I": 18,
+            "J": 12,
+            "K": 18,
+            "L": 12,
+            "M": 18,
         }
+
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
 
