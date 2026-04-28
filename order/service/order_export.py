@@ -78,7 +78,7 @@ def generate_order_ledger_excel(order):
     row = 8
     i = 1
 
-    for item in order.items.select_related("product", "banding", "cutting"):
+    for item in order.items.select_related("product", "banding__thickness", "cutting"):
         qty = item.quantity
         amount = item.price * qty
 

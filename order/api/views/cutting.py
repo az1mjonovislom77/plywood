@@ -12,7 +12,7 @@ from utils.base.views_base import BaseUserViewSet
 
 @extend_schema(tags=["Cutting"])
 class CuttingViewSet(BaseUserViewSet):
-    queryset = Cutting.objects.all()
+    queryset = Cutting.objects.select_related("customer").all()
     serializer_class = CuttingSerializer
     ordering = ["-created_at"]
 
