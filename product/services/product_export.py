@@ -33,12 +33,6 @@ class MaterialReportService:
         return start_date, end_date, start_dt, end_dt
 
     @staticmethod
-    def _num(v):
-        if v is None:
-            return Decimal("0")
-        return Decimal(str(v))
-
-    @staticmethod
     def _to_map(qs):
         data = {}
         for row in qs:
@@ -56,68 +50,41 @@ class MaterialReportService:
         products = list(Product.objects.select_related("category").order_by("category__name", "name"))
 
         open_in_map = cls._to_map(
-            Acceptance.objects
-            .filter(
-                acceptance_status="accept",
-                created_at__lt=start_dt,
-            )
-            .values("product_id")
-            .annotate(
+            Acceptance.objects.filter(
+                acceptance_status="accept", created_at__lt=start_dt,
+            ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(
-                    Sum(F("count") * F("arrival_price")),
-                    Value(Decimal("0")),
-                    output_field=DecimalField(),
-                ),
+                total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
 
         open_out_map = cls._to_map(
-            OrderItem.objects
-            .filter(order__created_at__lt=start_dt)
-            .values("product_id")
-            .annotate(
+            OrderItem.objects.filter(
+                order__created_at__lt=start_dt
+            ).values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(
-                    Sum(F("quantity") * F("price")),
-                    Value(Decimal("0")),
-                    output_field=DecimalField(),
-                ),
+                total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
 
         in_map = cls._to_map(
-            Acceptance.objects
-            .filter(
+            Acceptance.objects.filter(
                 acceptance_status="accept",
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
-            )
-            .values("product_id")
-            .annotate(
+            ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(
-                    Sum(F("count") * F("arrival_price")),
-                    Value(Decimal("0")),
-                    output_field=DecimalField(),
-                ),
+                total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
 
         out_map = cls._to_map(
-            OrderItem.objects
-            .filter(
+            OrderItem.objects.filter(
                 order__created_at__gte=start_dt,
                 order__created_at__lt=end_dt,
-            )
-            .values("product_id")
-            .annotate(
+            ).values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
-                total=Coalesce(
-                    Sum(F("quantity") * F("price")),
-                    Value(Decimal("0")),
-                    output_field=DecimalField(),
-                ),
+                total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
 
@@ -155,7 +122,8 @@ class MaterialReportService:
         ws["F3"].alignment = left
 
         ws.merge_cells("A4:A6")
-        ws.merge_cells("B4:D6")
+        ws.merge_cells("B4:C6")
+        ws.merge_cells("D4:D6")
         ws.merge_cells("E4:E6")
         ws.merge_cells("F4:G4")
         ws.merge_cells("H4:I4")
@@ -163,7 +131,8 @@ class MaterialReportService:
         ws.merge_cells("L4:M4")
 
         ws["A4"] = "Код"
-        ws["B4"] = "МатериалРодитель /\nМатериал"
+        ws["B4"] = "МатериалРодитель / Материал"
+        ws["D4"] = "ID"
         ws["E4"] = "Ед.изм"
         ws["F4"] = "Сальдо на начало"
         ws["H4"] = "Приход"
@@ -232,8 +201,9 @@ class MaterialReportService:
                 cat_end_sum += end_sum
 
                 product_rows.append({
-                    "code": getattr(product, "code", ""),
+                    "code": product.id,
                     "name": product.name,
+                    "sku": getattr(product, "code", ""),
                     "unit": getattr(product, "unit", "дона"),
                     "open_qty": open_qty,
                     "open_sum": open_sum,
@@ -245,7 +215,7 @@ class MaterialReportService:
                     "end_sum": end_sum,
                 })
 
-            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
             ws.cell(row, 2).alignment = left
@@ -266,9 +236,10 @@ class MaterialReportService:
             row += 1
 
             for item in product_rows:
-                ws.cell(row, 1, item["code"])
-                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
+                ws.cell(row, 1, item["sku"])
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
                 ws.cell(row, 2, item["name"])
+                ws.cell(row, 4, item["code"])
                 ws.cell(row, 5, item["unit"])
 
                 money(ws.cell(row, 6), item["open_qty"])
@@ -283,14 +254,16 @@ class MaterialReportService:
                 for c in range(1, 14):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
-                    ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
+                    ws.cell(row, c).alignment = left if c in [1, 2, 4, 5] else right
 
                 row += 1
 
         widths = {
-            "A": 12,
-            "B": 52,
-            "E": 12,
+            "A": 14,
+            "B": 34,
+            "C": 14,
+            "D": 10,
+            "E": 10,
             "F": 12,
             "G": 18,
             "H": 12,
