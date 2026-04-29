@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from utils.api.views.dashboard import DashboardStatsView, DashboardRangeStatsAPIView, DashboardDailyStatsAPIView, \
-    CashboxTotalStatsAPIView
+    CashboxTotalStatsAPIView, ComprehensiveDashboardStatsAPIView
 from utils.api.views.expenses import ExpenseViewSet, ExpenseHistoryViewSet, CashFlowReportExcelViewSet
 from utils.api.views.utils import CurrencyViewSet, LowStockNotificationView
 
@@ -17,5 +17,6 @@ urlpatterns = [
     path("range/stats/", DashboardRangeStatsAPIView.as_view()),
     path("daily/stats/", DashboardDailyStatsAPIView.as_view()),
     path("cashbox/stats/", CashboxTotalStatsAPIView.as_view()),
+    path("dashboard/comprehensive-stats/", ComprehensiveDashboardStatsAPIView.as_view()),
     path("export/", CashFlowReportExcelViewSet.as_view({"get": "list"}), name="cashflow-report")
 ]
