@@ -67,7 +67,8 @@ class DashboardStatsService:
 
         order_stats = Order.objects.filter(created_at__gte=start, created_at__lt=end).aggregate(
             cash_total=Coalesce(
-                Sum("covered_amount", filter=Q(payment_method__in=[Order.PaymentMethod.CASH, Order.PaymentMethod.NASIYA])),
+                Sum("covered_amount",
+                    filter=Q(payment_method__in=[Order.PaymentMethod.CASH, Order.PaymentMethod.NASIYA])),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2)
             ),
@@ -112,17 +113,15 @@ class DashboardStatsService:
             total=Coalesce(
                 Sum("amount", filter=Q(transaction_type=SupplierTransaction.TransactionType.PAYMENT)),
                 Value(Decimal("0.00")),
-                output_field=DecimalField(max_digits=14, decimal_places=2)
-            )
-        )["total"]
+                output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
 
         today_cash = (
-            order_stats["paid_total"]
-            + banding_stats["paid_total"]
-            + cutting_stats["paid_total"]
-            + balance_stats["paid_total"]
-            - today_expense
-            - today_supplier_payments
+                order_stats["paid_total"]
+                + banding_stats["paid_total"]
+                + cutting_stats["paid_total"]
+                + balance_stats["paid_total"]
+                - today_expense
+                - today_supplier_payments
         )
 
         return {
