@@ -88,8 +88,11 @@ class ComprehensiveDashboardStatsAPIView(APIView):
         date_to = request.query_params.get("to")
 
         try:
-            data = DashboardStatsService.get_stats(date_from=date_from, date_to=date_to)
+            data = DashboardStatsService.get_stats(date_from, date_to)
             return Response(data, status=status.HTTP_200_OK)
 
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
