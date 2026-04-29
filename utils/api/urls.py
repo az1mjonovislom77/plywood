@@ -17,6 +17,6 @@ urlpatterns = [
     path("range/stats/", DashboardRangeStatsAPIView.as_view()),
     path("daily/stats/", DashboardDailyStatsAPIView.as_view()),
     path("cashbox/stats/", CashboxTotalStatsAPIView.as_view()),
-    path("dashboard/comprehensive-stats/", ComprehensiveDashboardStatsAPIView.as_view()),
+    path("all-stats/", ComprehensiveDashboardStatsAPIView.as_view()),
     path("export/", CashFlowReportExcelViewSet.as_view({"get": "list"}), name="cashflow-report")
 ]
