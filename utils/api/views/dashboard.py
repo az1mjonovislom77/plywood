@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.service.all_stats import ALlDashboardStatsService
+from utils.service.comprehensive_stats import DashboardStatsService as ComprehensiveStatsService
 from utils.service.daily_stats import DailyDashboardStatsService
 from utils.service.dasboard_stats import DashboardStatsService
 from rest_framework import status
@@ -88,7 +89,7 @@ class ComprehensiveDashboardStatsAPIView(APIView):
         date_to = request.query_params.get("to")
 
         try:
-            data = DashboardStatsService.get_stats(date_from, date_to)
+            data = ComprehensiveStatsService.get_stats(date_from, date_to)
             return Response(data, status=status.HTTP_200_OK)
 
         except ValueError as exc:
