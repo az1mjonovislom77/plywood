@@ -1,3 +1,4 @@
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
@@ -24,9 +25,8 @@ class DateRangeMixin:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
-        end_dt = timezone.make_aware(
-            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time()))
+        start_dt = timezone.make_aware(datetime.combine(start_date, time.min))
+        end_dt = timezone.make_aware(datetime.combine(end_date + timedelta(days=1), time.min))
 
         return start_date, end_date, start_dt, end_dt
 
