@@ -93,9 +93,3 @@ class ComprehensiveDashboardStatsAPIView(APIView):
 
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception:
-            return Response(
-                {"detail": "Failed to fetch dashboard statistics"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
