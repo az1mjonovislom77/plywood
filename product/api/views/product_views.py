@@ -130,7 +130,7 @@ class MaterialReportExcelViewSet(ViewSet):
 
 
 @extend_schema(
-    tags=["MaterialReport"],
+    tags=["ProductReport"],
     parameters=[
         OpenApiParameter(name="from", required=False, type=str),
         OpenApiParameter(name="to", required=False, type=str),
