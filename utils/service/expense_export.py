@@ -53,7 +53,6 @@ class CashFlowReportService:
         income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
         expense_total = sum((Decimal(str(e.value)) for e in expenses), Decimal("0"))
         closing_balance = income_total - expense_total
-
         wb = Workbook()
         ws = wb.active
         ws.title = "Cash Flow"

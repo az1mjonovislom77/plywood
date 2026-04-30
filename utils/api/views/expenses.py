@@ -13,6 +13,8 @@ from utils.service.expense_export import CashFlowReportService
 from utils.service.expenses_service import ExpensesWorkflowService
 from rest_framework import status, viewsets
 
+from utils.service.finance_json import FinanceReportJsonService
+
 
 @extend_schema(tags=["Expenses"])
 class ExpenseViewSet(BaseUserViewSet):
@@ -89,3 +91,19 @@ class CashFlowReportExcelViewSet(ViewSet):
             file.getvalue(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": 'attachment; filename="cashflow_report.xlsx"'})
+
+
+@extend_schema(
+    tags=["FinanceReport"],
+    parameters=[
+        OpenApiParameter(name="from", required=False, type=str),
+        OpenApiParameter(name="to", required=False, type=str),
+    ],
+)
+class FinanceReportJsonViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        return Response(FinanceReportJsonService.build(
+            date_from=request.query_params.get("from"),
+            date_to=request.query_params.get("to")))

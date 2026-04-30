@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from product.api.serializers import ProductSerializer
 from product.models import Product
+from product.services.export_json import MaterialReportJsonService
 from product.services.product_export import MaterialReportService
 
 
@@ -126,3 +127,19 @@ class MaterialReportExcelViewSet(ViewSet):
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": 'attachment; filename="material_report.xlsx"'},
         )
+
+
+@extend_schema(
+    tags=["MaterialReport"],
+    parameters=[
+        OpenApiParameter(name="from", required=False, type=str),
+        OpenApiParameter(name="to", required=False, type=str),
+    ],
+)
+class MaterialReportJsonViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        return Response(MaterialReportJsonService.build(
+            date_from=request.query_params.get("from"),
+            date_to=request.query_params.get("to")))
