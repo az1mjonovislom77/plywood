@@ -1,6 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
-from django.db.models import Sum, Value, DecimalField, F
+from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -13,6 +13,14 @@ from order.models import OrderItem
 
 
 class MaterialReportService:
+    @staticmethod
+    def _money_field():
+        return DecimalField(max_digits=18, decimal_places=2)
+
+    @classmethod
+    def _money_expr(cls, left, right):
+        return ExpressionWrapper(F(left) * F(right), output_field=cls._money_field())
+
     @classmethod
     def _parse_bounds(cls, date_from, date_to):
         today = timezone.localdate()
@@ -50,36 +58,40 @@ class MaterialReportService:
         open_in_map = cls._to_map(
             Acceptance.objects.filter(acceptance_status="accept", created_at__lt=start_dt).values("product_id")
             .annotate(
-                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
+                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
+                    Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                    output_field=cls._money_field()),
             )
         )
 
         open_out_map = cls._to_map(
             OrderItem.objects.filter(order__created_at__lt=start_dt).values("product_id")
             .annotate(
-                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
+                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
+                    Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")),
+                    output_field=cls._money_field()),
             )
         )
 
         in_map = cls._to_map(
             Acceptance.objects.filter(acceptance_status="accept", created_at__gte=start_dt, created_at__lt=end_dt, )
             .values("product_id").annotate(
-                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
+                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
+                    Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                    output_field=cls._money_field()),
             )
         )
 
         out_map = cls._to_map(
             OrderItem.objects.filter(order__created_at__gte=start_dt, order__created_at__lt=end_dt, )
             .values("product_id").annotate(
-                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
+                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
+                    Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")),
+                    output_field=cls._money_field()),
             )
         )
 
