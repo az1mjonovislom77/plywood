@@ -1,5 +1,4 @@
 from django.db import transaction
-
 from utils.models import Expenses, ExpensesHistory
 from utils.service.comprehensive_stats import DashboardStatsService
 
