@@ -1,6 +1,8 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
+from acceptance.models import CurrencyRate
 from customer.models import BalanceHistory, Customer
 from order.models import Banding, Basket, Cutting, Order, OrderHistory, OrderItem
 from order.service.basket import BasketService
@@ -74,6 +76,10 @@ class OrderService:
     @staticmethod
     @transaction.atomic
     def checkout(user, payment_method, items, customer_id=None, covered_amount=0, discount=0, discount_type="c"):
+        today = timezone.localdate()
+        rate_obj = CurrencyRate.objects.filter(date__lte=today).order_by("-date").first()
+        rate_value = rate_obj.rate if rate_obj else None
+
         basket = BasketService.get_basket(user)
         if not basket:
             raise ValueError("Basket not found")
@@ -164,6 +170,11 @@ class OrderService:
                     covered_amount=0,
                 )
 
+            price_in_dollar = (
+                (actual_sell_price / rate_value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+                if rate_value else None
+            )
+
             order_items.append(OrderItem(
                 order=order,
                 product=product,
@@ -174,6 +185,8 @@ class OrderService:
                 original_sell_price=original_sell_price,
                 new_sell_price=new_sell_price,
                 sell_price_difference=sell_price_difference,
+                exchange_rate=rate_value,
+                price_in_dollar=price_in_dollar,
             ))
             created_product_ids.append(product.id)
 
