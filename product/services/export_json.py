@@ -34,7 +34,7 @@ class MaterialReportJsonService:
         data = {}
         for row in qs:
             data[row["product_id"]] = {
-                "qty": Decimal(str(row["qty"] or 0)),
+                "quantity": Decimal(str(row["quantity"] or 0)),
                 "total": Decimal(str(row["total"] or 0)),
             }
         return data
@@ -53,7 +53,7 @@ class MaterialReportJsonService:
         open_in_map = cls._to_map(
             Acceptance.objects.filter(acceptance_status="accept", created_at__lt=start_dt)
             .values("product_id").annotate(
-                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
+                quantity=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
                 total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
@@ -61,7 +61,7 @@ class MaterialReportJsonService:
         open_out_map = cls._to_map(
             OrderItem.objects.filter(order__created_at__lt=start_dt)
             .values("product_id").annotate(
-                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
+                quantity=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
                 total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
@@ -69,7 +69,7 @@ class MaterialReportJsonService:
         in_map = cls._to_map(
             Acceptance.objects.filter(acceptance_status="accept", created_at__gte=start_dt, created_at__lt=end_dt)
             .values("product_id").annotate(
-                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
+                quantity=Coalesce(Sum("count"), Value(Decimal("0")), output_field=DecimalField()),
                 total=Coalesce(Sum(F("count") * F("arrival_price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
@@ -77,7 +77,7 @@ class MaterialReportJsonService:
         out_map = cls._to_map(
             OrderItem.objects.filter(order__created_at__gte=start_dt, order__created_at__lt=end_dt)
             .values("product_id").annotate(
-                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
+                quantity=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=DecimalField()),
                 total=Coalesce(Sum(F("quantity") * F("price")), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
@@ -91,14 +91,14 @@ class MaterialReportJsonService:
             "to": str(end_date),
             "categories": [],
             "totals": {
-                "open_qty": 0,
-                "open_sum": 0,
-                "in_qty": 0,
-                "in_sum": 0,
-                "out_qty": 0,
-                "out_sum": 0,
-                "end_qty": 0,
-                "end_sum": 0,
+                "opening_balance_quantity": 0,
+                "opening_balance_sum": 0,
+                "received_quantity": 0,
+                "received_sum": 0,
+                "issued_quantity": 0,
+                "issued_sum": 0,
+                "closing_balance_quantity": 0,
+                "closing_balance_sum": 0,
             },
         }
 
@@ -110,63 +110,63 @@ class MaterialReportJsonService:
             cat_data = {
                 "id": category.id,
                 "name": category.name,
-                "open_qty": 0,
-                "open_sum": 0,
-                "in_qty": 0,
-                "in_sum": 0,
-                "out_qty": 0,
-                "out_sum": 0,
-                "end_qty": 0,
-                "end_sum": 0,
+                "opening_balance_quantity": 0,
+                "opening_balance_sum": 0,
+                "received_quantity": 0,
+                "received_sum": 0,
+                "issued_quantity": 0,
+                "issued_sum": 0,
+                "closing_balance_quantity": 0,
+                "closing_balance_sum": 0,
                 "products": [],
             }
 
             for product in category_products:
-                open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                open_qty = open_in["qty"] - open_out["qty"]
+                open_in = open_in_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
+                open_out = open_out_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
+                in_period = in_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
+                out_period = out_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
+                open_quantity = open_in["quantity"] - open_out["quantity"]
                 open_sum = open_in["total"] - open_out["total"]
-                in_qty = in_period["qty"]
+                in_quantity = in_period["quantity"]
                 in_sum = in_period["total"]
-                out_qty = out_period["qty"]
+                out_quantity = out_period["quantity"]
                 out_sum = out_period["total"]
-                end_qty = open_qty + in_qty - out_qty
+                end_quantity = open_quantity + in_quantity - out_quantity
                 end_sum = open_sum + in_sum - out_sum
 
                 item = {
                     "id": product.id,
                     "name": product.name,
                     "unit": getattr(product, "unit", "дона"),
-                    "open_qty": cls._num(open_qty),
-                    "open_sum": cls._num(open_sum),
-                    "in_qty": cls._num(in_qty),
-                    "in_sum": cls._num(in_sum),
-                    "out_qty": cls._num(out_qty),
-                    "out_sum": cls._num(out_sum),
-                    "end_qty": cls._num(end_qty),
-                    "end_sum": cls._num(end_sum),
+                    "opening_balance_quantity": cls._num(open_quantity),
+                    "opening_balance_sum": cls._num(open_sum),
+                    "received_quantity": cls._num(in_quantity),
+                    "received_sum": cls._num(in_sum),
+                    "issued_quantity": cls._num(out_quantity),
+                    "issued_sum": cls._num(out_sum),
+                    "closing_balance_quantity": cls._num(end_quantity),
+                    "closing_balance_sum": cls._num(end_sum),
                 }
 
                 cat_data["products"].append(item)
-                cat_data["open_qty"] += item["open_qty"]
-                cat_data["open_sum"] += item["open_sum"]
-                cat_data["in_qty"] += item["in_qty"]
-                cat_data["in_sum"] += item["in_sum"]
-                cat_data["out_qty"] += item["out_qty"]
-                cat_data["out_sum"] += item["out_sum"]
-                cat_data["end_qty"] += item["end_qty"]
-                cat_data["end_sum"] += item["end_sum"]
+                cat_data["opening_balance_quantity"] += item["opening_balance_quantity"]
+                cat_data["opening_balance_sum"] += item["opening_balance_sum"]
+                cat_data["received_quantity"] += item["received_quantity"]
+                cat_data["received_sum"] += item["received_sum"]
+                cat_data["issued_quantity"] += item["issued_quantity"]
+                cat_data["issued_sum"] += item["issued_sum"]
+                cat_data["closing_balance_quantity"] += item["closing_balance_quantity"]
+                cat_data["closing_balance_sum"] += item["closing_balance_sum"]
 
             result["categories"].append(cat_data)
-            result["totals"]["open_qty"] += cat_data["open_qty"]
-            result["totals"]["open_sum"] += cat_data["open_sum"]
-            result["totals"]["in_qty"] += cat_data["in_qty"]
-            result["totals"]["in_sum"] += cat_data["in_sum"]
-            result["totals"]["out_qty"] += cat_data["out_qty"]
-            result["totals"]["out_sum"] += cat_data["out_sum"]
-            result["totals"]["end_qty"] += cat_data["end_qty"]
-            result["totals"]["end_sum"] += cat_data["end_sum"]
+            result["totals"]["opening_balance_quantity"] += cat_data["opening_balance_quantity"]
+            result["totals"]["opening_balance_sum"] += cat_data["opening_balance_sum"]
+            result["totals"]["received_quantity"] += cat_data["received_quantity"]
+            result["totals"]["received_sum"] += cat_data["received_sum"]
+            result["totals"]["issued_quantity"] += cat_data["issued_quantity"]
+            result["totals"]["issued_sum"] += cat_data["issued_sum"]
+            result["totals"]["closing_balance_quantity"] += cat_data["closing_balance_quantity"]
+            result["totals"]["closing_balance_sum"] += cat_data["closing_balance_sum"]
 
         return result
