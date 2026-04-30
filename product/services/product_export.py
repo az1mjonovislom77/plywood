@@ -1,6 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
-from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper
+from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -9,7 +9,7 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from category.models import Category
 from product.models import Product
 from acceptance.models import Acceptance
-from order.models import OrderItem
+from order.models import Order, OrderItem
 
 
 class MaterialReportService:
@@ -20,6 +20,25 @@ class MaterialReportService:
     @classmethod
     def _money_expr(cls, left, right):
         return ExpressionWrapper(F(left) * F(right), output_field=cls._money_field())
+
+    @staticmethod
+    def _accepted_order_filter():
+        return Q(order__order_status=Order.OrderStatus.ACCEPT)
+
+    @staticmethod
+    def _accepted_order_before_filter(start_dt):
+        return Q(order__accepted_at__lt=start_dt) | Q(
+            order__accepted_at__isnull=True,
+            order__created_at__lt=start_dt,
+        )
+
+    @staticmethod
+    def _accepted_order_range_filter(start_dt, end_dt):
+        return Q(order__accepted_at__gte=start_dt, order__accepted_at__lt=end_dt) | Q(
+            order__accepted_at__isnull=True,
+            order__created_at__gte=start_dt,
+            order__created_at__lt=end_dt,
+        )
 
     @classmethod
     def _parse_bounds(cls, date_from, date_to):
@@ -56,7 +75,7 @@ class MaterialReportService:
         categories = list(Category.objects.all().order_by("name"))
         products = list(Product.objects.select_related("category").order_by("category__name", "name"))
         open_in_map = cls._to_map(
-            Acceptance.objects.filter(acceptance_status="accept", created_at__lt=start_dt).values("product_id")
+            Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date).values("product_id")
             .annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
@@ -66,7 +85,10 @@ class MaterialReportService:
         )
 
         open_out_map = cls._to_map(
-            OrderItem.objects.filter(order__created_at__lt=start_dt).values("product_id")
+            OrderItem.objects.filter(
+                cls._accepted_order_filter(),
+                cls._accepted_order_before_filter(start_dt),
+            ).values("product_id")
             .annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
@@ -76,7 +98,11 @@ class MaterialReportService:
         )
 
         in_map = cls._to_map(
-            Acceptance.objects.filter(acceptance_status="accept", created_at__gte=start_dt, created_at__lt=end_dt, )
+            Acceptance.objects.filter(
+                acceptance_status="accept",
+                arrival_date__gte=start_date,
+                arrival_date__lte=end_date,
+            )
             .values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
@@ -86,7 +112,10 @@ class MaterialReportService:
         )
 
         out_map = cls._to_map(
-            OrderItem.objects.filter(order__created_at__gte=start_dt, order__created_at__lt=end_dt, )
+            OrderItem.objects.filter(
+                cls._accepted_order_filter(),
+                cls._accepted_order_range_filter(start_dt, end_dt),
+            )
             .values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
