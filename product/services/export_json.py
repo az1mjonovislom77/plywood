@@ -1,4 +1,5 @@
 from decimal import Decimal
+from collections import defaultdict, deque
 from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -37,6 +38,17 @@ class MaterialReportJsonService:
             order__created_at__lt=end_dt,
         )
 
+    @staticmethod
+    def _accepted_order_until_filter(end_dt):
+        return Q(order__accepted_at__lt=end_dt) | Q(
+            order__accepted_at__isnull=True,
+            order__created_at__lt=end_dt,
+        )
+
+    @staticmethod
+    def _sale_date(row):
+        return row["order__accepted_at"] or row["order__created_at"]
+
     @classmethod
     def _parse_bounds(cls, date_from, date_to):
         today = timezone.localdate()
@@ -57,14 +69,63 @@ class MaterialReportJsonService:
         return start_date, end_date, start_dt, end_dt
 
     @staticmethod
-    def _to_map(qs):
+    def _to_qty_map(qs, qty_field):
         data = {}
         for row in qs:
-            data[row["product_id"]] = {
-                "quantity": Decimal(str(row["movement_quantity"] or 0)),
-                "total": Decimal(str(row["total"] or 0)),
-            }
+            data[row["product_id"]] = Decimal(str(row[qty_field] or 0))
         return data
+
+    @classmethod
+    def _calc_fifo(cls, start_dt, end_dt, end_date):
+        stock_map = defaultdict(deque)
+
+        acceptance_rows = (
+            Acceptance.objects
+            .filter(acceptance_status="accept", arrival_date__lte=end_date)
+            .values("product_id", "count", "arrival_price", "arrival_date", "id")
+            .order_by("product_id", "arrival_date", "id")
+        )
+        for row in acceptance_rows:
+            stock_map[row["product_id"]].append({
+                "qty": Decimal(str(row["count"])),
+                "price": Decimal(str(row["arrival_price"])),
+            })
+
+        sale_rows = list(
+            OrderItem.objects
+            .filter(
+                cls._accepted_order_filter(),
+                cls._accepted_order_until_filter(end_dt),
+            )
+            .values("product_id", "quantity", "order__created_at", "order__accepted_at", "id")
+        )
+        sale_rows.sort(key=lambda r: (r["product_id"], cls._sale_date(r), r["id"]))
+
+        open_cogs_map = defaultdict(lambda: Decimal("0"))
+        period_cogs_map = defaultdict(lambda: Decimal("0"))
+
+        for row in sale_rows:
+            product_id = row["product_id"]
+            qty = Decimal(str(row["quantity"]))
+            sale_date = cls._sale_date(row)
+
+            cogs = Decimal("0")
+            remaining = qty
+            while remaining > 0 and stock_map[product_id]:
+                batch = stock_map[product_id][0]
+                take = min(remaining, batch["qty"])
+                cogs += take * batch["price"]
+                batch["qty"] -= take
+                remaining -= take
+                if batch["qty"] <= 0:
+                    stock_map[product_id].popleft()
+
+            if sale_date < start_dt:
+                open_cogs_map[product_id] += cogs
+            elif sale_date < end_dt:
+                period_cogs_map[product_id] += cogs
+
+        return open_cogs_map, period_cogs_map
 
     @staticmethod
     def _num(v):
@@ -77,51 +138,67 @@ class MaterialReportJsonService:
         categories = list(Category.objects.all().order_by("name"))
         products = list(Product.objects.select_related("category").order_by("category__name", "name"))
 
-        open_in_map = cls._to_map(
+        # Opening balance: acceptances before start_date
+        open_in_qty_map = cls._to_qty_map(
             Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
-            .values("product_id").annotate(
-                movement_quantity=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
-                               output_field=cls._money_field()),
-            )
+            .values("product_id")
+            .annotate(qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field())),
+            "qty",
         )
+        open_in_sum_map = {}
+        for row in (
+            Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
+            .values("product_id")
+            .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")), output_field=cls._money_field()))
+        ):
+            open_in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 
-        open_out_map = cls._to_map(
+        # Opening balance: sales before start_dt (qty only, sum from FIFO)
+        open_out_qty_map = cls._to_qty_map(
             OrderItem.objects.filter(
                 cls._accepted_order_filter(),
                 cls._accepted_order_before_filter(start_dt),
             )
-            .values("product_id").annotate(
-                movement_quantity=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")),
-                               output_field=cls._money_field()),
-            )
+            .values("product_id")
+            .annotate(qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field())),
+            "qty",
         )
 
-        in_map = cls._to_map(
+        # Period income: acceptances in [start_date, end_date]
+        in_qty_map = cls._to_qty_map(
             Acceptance.objects.filter(
                 acceptance_status="accept",
                 arrival_date__gte=start_date,
                 arrival_date__lte=end_date,
             )
-            .values("product_id").annotate(
-                movement_quantity=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
-                               output_field=cls._money_field()),
-            )
+            .values("product_id")
+            .annotate(qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field())),
+            "qty",
         )
+        in_sum_map = {}
+        for row in (
+            Acceptance.objects.filter(
+                acceptance_status="accept",
+                arrival_date__gte=start_date,
+                arrival_date__lte=end_date,
+            )
+            .values("product_id")
+            .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")), output_field=cls._money_field()))
+        ):
+            in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 
-        out_map = cls._to_map(
+        # Period expense: sales in [start_dt, end_dt) (qty only, sum from FIFO)
+        out_qty_map = cls._to_qty_map(
             OrderItem.objects.filter(
                 cls._accepted_order_filter(),
                 cls._accepted_order_range_filter(start_dt, end_dt),
             )
-            .values("product_id").annotate(
-                movement_quantity=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")),
-                               output_field=cls._money_field()),
-            )
+            .values("product_id")
+            .annotate(qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field())),
+            "qty",
         )
+
+        open_cogs_map, period_cogs_map = cls._calc_fifo(start_dt, end_dt, end_date)
 
         grouped_products = {}
         for product in products:
@@ -163,28 +240,33 @@ class MaterialReportJsonService:
             }
 
             for product in category_products:
-                open_in = open_in_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
-                open_out = open_out_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
-                in_period = in_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
-                out_period = out_map.get(product.id, {"quantity": Decimal("0"), "total": Decimal("0")})
-                open_quantity = open_in["quantity"] - open_out["quantity"]
-                open_sum = open_in["total"] - open_out["total"]
-                in_quantity = in_period["quantity"]
-                in_sum = in_period["total"]
-                out_quantity = out_period["quantity"]
-                out_sum = out_period["total"]
-                end_quantity = open_quantity + in_quantity - out_quantity
-                end_sum = open_sum + in_sum - out_sum
+                pid = product.id
+
+                open_in_qty = open_in_qty_map.get(pid, Decimal("0"))
+                open_in_sum = open_in_sum_map.get(pid, Decimal("0"))
+                open_out_qty = open_out_qty_map.get(pid, Decimal("0"))
+                open_out_sum = open_cogs_map[pid]  # FIFO tannarxi
+
+                in_qty = in_qty_map.get(pid, Decimal("0"))
+                in_sum = in_sum_map.get(pid, Decimal("0"))
+
+                out_qty = out_qty_map.get(pid, Decimal("0"))
+                out_sum = period_cogs_map[pid]  # FIFO tannarxi
+
+                open_quantity = open_in_qty - open_out_qty
+                open_sum = open_in_sum - open_out_sum  # kelish narxi asosida ✓
+                end_quantity = open_quantity + in_qty - out_qty
+                end_sum = open_sum + in_sum - out_sum  # hammasi kelish narxida ✓
 
                 item = {
-                    "id": product.id,
+                    "id": pid,
                     "name": product.name,
                     "unit": getattr(product, "unit", "дона"),
                     "opening_balance_quantity": cls._num(open_quantity),
                     "opening_balance_sum": cls._num(open_sum),
-                    "received_quantity": cls._num(in_quantity),
+                    "received_quantity": cls._num(in_qty),
                     "received_sum": cls._num(in_sum),
-                    "issued_quantity": cls._num(out_quantity),
+                    "issued_quantity": cls._num(out_qty),
                     "issued_sum": cls._num(out_sum),
                     "closing_balance_quantity": cls._num(end_quantity),
                     "closing_balance_sum": cls._num(end_sum),
