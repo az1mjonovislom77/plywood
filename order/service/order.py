@@ -77,8 +77,12 @@ class OrderService:
     @transaction.atomic
     def checkout(user, payment_method, items, customer_id=None, covered_amount=0, discount=0, discount_type="c"):
         today = timezone.localdate()
-        rate_obj = CurrencyRate.objects.filter(date__lte=today).order_by("-date").first()
-        rate_value = rate_obj.rate if rate_obj else None
+        rate_obj = CurrencyRate.objects.filter(date=today).first()
+
+        if not rate_obj:
+            raise ValueError("Bugungi dollar kursi kiritilmagan")
+
+        rate_value = rate_obj.rate
 
         basket = BasketService.get_basket(user)
         if not basket:
