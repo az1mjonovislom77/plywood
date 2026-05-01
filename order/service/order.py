@@ -170,10 +170,9 @@ class OrderService:
                     covered_amount=0,
                 )
 
-            price_in_dollar = (
-                (actual_sell_price / rate_value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-                if rate_value else None
-            )
+            price_in_dollar = None
+            if rate_value is not None and rate_value != Decimal("0"):
+                price_in_dollar = (actual_sell_price / rate_value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
             order_items.append(OrderItem(
                 order=order,

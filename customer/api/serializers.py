@@ -5,8 +5,8 @@ from customer.models import Customer, BalanceHistory
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ["id", "full_name", "phone_number", "location", "debt", "about", "description"]
-        read_only_fields = ["debt"]
+        fields = ["id", "full_name", "phone_number", "location", "debt", "balance", "about", "description"]
+        read_only_fields = ["debt", "balance"]
 
 
 class CoverDebtSerializer(serializers.Serializer):
