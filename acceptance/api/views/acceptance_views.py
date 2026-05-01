@@ -23,6 +23,8 @@ from utils.base.views_base import BaseUserViewSet
 
 class AnalyticsPagination(PageNumberPagination):
     page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 1000
 
     def get_paginated_response(self, data):
         return Response({
@@ -31,7 +33,6 @@ class AnalyticsPagination(PageNumberPagination):
             "previous": self.get_previous_link(),
             "results": data
         })
-
 
 @extend_schema(tags=["Acceptance"],
                parameters=[
