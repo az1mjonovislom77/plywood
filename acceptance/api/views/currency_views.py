@@ -10,7 +10,6 @@ from acceptance.models import CurrencyRate
 
 @extend_schema(tags=["UpdateCurrency"])
 class UpdateCurrencyRateView(APIView):
-    permission_classes = [IsAuthenticated]
     CBU_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/"
 
     def get(self, request):
