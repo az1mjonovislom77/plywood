@@ -109,6 +109,28 @@ class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(
+    tags=["Acceptance"],
+    parameters=[
+        OpenApiParameter(name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+    ],
+)
+class AcceptanceSuppliersViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+    pagination_class = AnalyticsPagination
+
+    def list(self, request):
+        data = AcceptanceAnalyticsService.get_grouped_suppliers(date_field="arrival_date")
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(data, request)
+
+        serializer = AcceptanceGroupedSerializer(page, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
+
+
 class AcceptanceExportViewSet(ViewSet):
     permission_classes = [IsAuthenticated]
 
