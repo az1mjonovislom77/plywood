@@ -2,7 +2,6 @@ from datetime import date
 from decimal import Decimal
 import requests
 from drf_spectacular.utils import extend_schema
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from acceptance.models import CurrencyRate
