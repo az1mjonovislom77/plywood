@@ -3,11 +3,7 @@ from .base import *
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    "sklad-fanera.vercel.app/",
-    "tfd-group.uz",
-    "api.tfd-group.uz",
-    "localhost",
-    "127.0.0.1",
+    host.strip() for host in config('ALLOWED_HOSTS').split(',')
 ]
 
 DATABASES = {
