@@ -50,9 +50,25 @@ class CashFlowReportService:
             ).order_by("created_at", "id")
         )
 
+        prior_incomes = BalanceHistory.objects.filter(
+            created_at__lt=start_dt
+        ).aggregate(
+            total=Coalesce(Sum("amount"), Value(Decimal("0")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2))
+        )["total"]
+
+        prior_expenses = Expenses.objects.filter(
+            created_at__lt=start_dt,
+            expense_status__in=[Expenses.ExpensesStatus.ACCEPT, Expenses.ExpensesStatus.CREATED],
+        ).aggregate(
+            total=Coalesce(Sum("value"), Value(Decimal("0")),
+                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
+
+        opening_balance = Decimal(str(prior_incomes)) - Decimal(str(prior_expenses))
+
         income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
         expense_total = sum((Decimal(str(e.value)) for e in expenses), Decimal("0"))
-        closing_balance = income_total - expense_total
+        closing_balance = opening_balance + income_total - expense_total
         wb = Workbook()
         ws = wb.active
         ws.title = "Cash Flow"
@@ -75,7 +91,7 @@ class CashFlowReportService:
         ws["B1"].alignment = left
         ws["D2"] = "Остаток на начало периода :"
         ws["D3"] = "Остаток на конец периода :"
-        ws["E2"] = 0
+        ws["E2"] = float(opening_balance)
         ws["E3"] = float(closing_balance)
 
         for c in ["D2", "D3", "E2", "E3"]:
