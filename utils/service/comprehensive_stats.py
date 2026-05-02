@@ -127,9 +127,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
                 Expenses.ExpensesStatus.ACCEPT,
             ]
         )
-        supplier_filter = Q(
-            transaction_type=SupplierTransaction.TransactionType.PAYMENT
-        )
+        supplier_filter = Q(transaction_type=SupplierTransaction.TransactionType.PAYMENT)
         banding_filter = Q()
         cutting_filter = Q()
 
@@ -142,17 +140,35 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             banding_filter &= date_filter
             cutting_filter &= date_filter
 
+        elif end_dt:
+            date_filter = Q(created_at__lt=end_dt)
+            order_filter &= date_filter
+            balance_filter &= date_filter
+            expense_filter &= date_filter
+            supplier_filter &= date_filter
+            banding_filter &= date_filter
+            cutting_filter &= date_filter
+
+        elif start_dt:
+            date_filter = Q(created_at__gte=start_dt)
+            order_filter &= date_filter
+            balance_filter &= date_filter
+            expense_filter &= date_filter
+            supplier_filter &= date_filter
+            banding_filter &= date_filter
+            cutting_filter &= date_filter
+
         order_paid = cls.sum(Order.objects.filter(order_filter), "covered_amount")
         banding_paid = cls.sum(Banding.objects.filter(banding_filter), "covered_amount")
         cutting_paid = cls.sum(Cutting.objects.filter(cutting_filter), "covered_amount")
+
         debt_paid = cls.sum(
-            BalanceHistory.objects.filter(balance_filter, type=BalanceHistory.Type.PAYMENT),
-            "amount",
-        )
-        expenses = cls.sum(Expenses.objects.filter(expense_filter), "value")
-        supplier_payments = cls.sum(
-            SupplierTransaction.objects.filter(supplier_filter), "amount"
-        )
+            BalanceHistory.objects.filter(balance_filter, type=BalanceHistory.Type.PAYMENT), "amount")
+
+        expenses = cls.sum(
+            Expenses.objects.filter(expense_filter), "value")
+
+        supplier_payments = cls.sum(SupplierTransaction.objects.filter(supplier_filter), "amount")
 
         return (
                 order_paid
