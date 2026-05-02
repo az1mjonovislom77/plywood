@@ -44,24 +44,11 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://localhost:3003",
-    "http://localhost:3004",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://sklad-fanera.vercel.app",
-    "https://api.tfd-group.uz",
-    "https://tfd-group.uz"
+    origin.strip() for origin in config('CORS_ALLOWED_ORIGINS').split(',')
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://sklad-fanera.vercel.app",
-    "https://api.tfd-group.uz",
-    "https://tfd-group.uz",
-    "http://localhost:5173",
-    "http://localhost:5174"
+    origin.strip() for origin in config('CSRF_TRUSTED_ORIGINS').split(',')
 ]
 
 MIDDLEWARE = [
