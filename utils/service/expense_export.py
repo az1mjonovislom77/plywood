@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from customer.models import BalanceHistory
 from utils.models import Expenses
+from utils.service.comprehensive_stats import DashboardStatsService
 
 
 class CashFlowReportService:
@@ -50,25 +51,11 @@ class CashFlowReportService:
             ).order_by("created_at", "id")
         )
 
-        prior_incomes = BalanceHistory.objects.filter(
-            created_at__lt=start_dt
-        ).aggregate(
-            total=Coalesce(Sum("amount"), Value(Decimal("0")),
-                           output_field=DecimalField(max_digits=14, decimal_places=2))
-        )["total"]
-
-        prior_expenses = Expenses.objects.filter(
-            created_at__lt=start_dt,
-            expense_status__in=[Expenses.ExpensesStatus.ACCEPT, Expenses.ExpensesStatus.CREATED],
-        ).aggregate(
-            total=Coalesce(Sum("value"), Value(Decimal("0")),
-                           output_field=DecimalField(max_digits=14, decimal_places=2)))["total"]
-
-        opening_balance = Decimal(str(prior_incomes)) - Decimal(str(prior_expenses))
-
+        opening_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=start_dt)))
         income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
         expense_total = sum((Decimal(str(e.value)) for e in expenses), Decimal("0"))
-        closing_balance = opening_balance + income_total - expense_total
+        closing_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=end_dt)))
+
         wb = Workbook()
         ws = wb.active
         ws.title = "Cash Flow"
