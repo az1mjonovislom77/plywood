@@ -23,12 +23,9 @@ class CashFlowReportService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(start_date, timezone.datetime.min.time())
-        )
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
-            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
-        )
+            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time()))
         return start_date, end_date, start_dt, end_dt
 
     @classmethod
@@ -41,19 +38,39 @@ class CashFlowReportService:
             .values("customer__full_name")
             .annotate(total=Coalesce(
                 Sum("amount"), Value(Decimal("0")),
-                output_field=DecimalField(max_digits=14, decimal_places=2))).order_by("customer__full_name")
+                output_field=DecimalField(max_digits=14, decimal_places=2)))
+            .order_by("customer__full_name")
         )
 
-        expenses = (
-            Expenses.objects.filter(
-                created_at__gte=start_dt, created_at__lt=end_dt,
-                expense_status=Expenses.ExpensesStatus.ACCEPT and Expenses.ExpensesStatus.CREATED,
-            ).order_by("created_at", "id")
-        )
+        expense_rows = []
 
+        for exp in Expenses.objects.filter(
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                expense_status__in=[
+                    Expenses.ExpensesStatus.ACCEPT,
+                    Expenses.ExpensesStatus.CREATED,
+                ],
+        ).order_by("created_at", "id"):
+            expense_rows.append({
+                "description": exp.description,
+                "created_at": exp.created_at,
+                "amount": Decimal(str(exp.value)),
+            })
+
+        for payment in BalanceHistory.objects.filter(
+                created_at__gte=start_dt, created_at__lt=end_dt, type=BalanceHistory.Type.PAYMENT,
+        ).select_related("customer").order_by("created_at", "id"):
+            expense_rows.append({
+                "description": payment.customer.full_name if payment.customer else "Аноним",
+                "created_at": payment.created_at,
+                "amount": Decimal(str(payment.amount)),
+            })
+
+        expense_rows.sort(key=lambda x: (x["created_at"], x["description"]))
         opening_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=start_dt)))
         income_total = sum((Decimal(str(i["total"])) for i in incomes), Decimal("0"))
-        expense_total = sum((Decimal(str(e.value)) for e in expenses), Decimal("0"))
+        expense_total = sum((row["amount"] for row in expense_rows), Decimal("0"))
         closing_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=end_dt)))
 
         wb = Workbook()
@@ -121,10 +138,10 @@ class CashFlowReportService:
 
             left_row += 1
 
-        for exp in expenses:
-            ws.cell(right_row, 6, exp.description)
-            ws.cell(right_row, 7, exp.created_at.strftime("%d.%m.%Y"))
-            money(ws.cell(right_row, 8), exp.value)
+        for row in expense_rows:
+            ws.cell(right_row, 6, row["description"])
+            ws.cell(right_row, 7, row["created_at"].strftime("%d.%m.%Y"))
+            money(ws.cell(right_row, 8), row["amount"])
             ws.cell(right_row, 6).font = normal
             ws.cell(right_row, 7).font = normal
             ws.cell(right_row, 8).font = normal
@@ -166,6 +183,7 @@ class CashFlowReportService:
             "G": 14,
             "H": 16,
         }
+
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
 
