@@ -28,10 +28,7 @@ class MaterialReportService:
 
     @staticmethod
     def _accepted_order_before_filter(start_dt):
-        return Q(order__accepted_at__lt=start_dt) | Q(
-            order__accepted_at__isnull=True,
-            order__created_at__lt=start_dt,
-        )
+        return Q(order__accepted_at__lt=start_dt) | Q(order__accepted_at__isnull=True, order__created_at__lt=start_dt)
 
     @staticmethod
     def _accepted_order_range_filter(start_dt, end_dt):
@@ -43,10 +40,7 @@ class MaterialReportService:
 
     @staticmethod
     def _accepted_order_until_filter(end_dt):
-        return Q(order__accepted_at__lt=end_dt) | Q(
-            order__accepted_at__isnull=True,
-            order__created_at__lt=end_dt,
-        )
+        return Q(order__accepted_at__lt=end_dt) | Q(order__accepted_at__isnull=True, order__created_at__lt=end_dt)
 
     @staticmethod
     def _sale_date(row):
@@ -63,12 +57,9 @@ class MaterialReportService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(start_date, timezone.datetime.min.time())
-        )
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
-            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
-        )
+            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time()))
         return start_date, end_date, start_dt, end_dt
 
     @staticmethod
@@ -157,10 +148,7 @@ class MaterialReportService:
 
         sale_rows = (
             OrderItem.objects
-            .filter(
-                cls._accepted_order_filter(),
-                cls._accepted_order_until_filter(end_dt),
-            )
+            .filter(cls._accepted_order_filter(), cls._accepted_order_until_filter(end_dt))
             .values("product_id", "quantity", "price", "order__created_at", "order__accepted_at", "id")
         )
 
@@ -170,17 +158,13 @@ class MaterialReportService:
                 "price": Decimal(str(row["arrival_price"])),
             })
 
-        sale_rows = sorted(
-            sale_rows,
-            key=lambda row: (row["product_id"], cls._sale_date(row), row["id"]),
-        )
+        sale_rows = sorted(sale_rows, key=lambda row: (row["product_id"], cls._sale_date(row), row["id"]))
 
         for row in sale_rows:
             product_id = row["product_id"]
             qty = Decimal(str(row["quantity"]))
             sell_price = Decimal(str(row["price"]))
             sale_date = cls._sale_date(row)
-
             revenue = qty * sell_price
             cogs = Decimal("0")
 
@@ -208,13 +192,11 @@ class MaterialReportService:
         wb = Workbook()
         ws = wb.active
         ws.title = "Material Report"
-
         bold = Font(name="Arial", size=10, bold=True)
         normal = Font(name="Arial", size=10)
         center = Alignment(horizontal="center", vertical="center", wrap_text=True)
         left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         right = Alignment(horizontal="right", vertical="center")
-
         thin = Side(style="thin", color="000000")
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
@@ -231,14 +213,11 @@ class MaterialReportService:
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
-
         ws["B3"] = "Склад"
         ws["B3"].font = Font(name="Arial", size=14, bold=True)
-
         ws["F3"] = "Асосий РМУ"
         ws["F3"].font = Font(name="Arial", size=18)
         ws["F3"].alignment = left
-
         ws.merge_cells("A4:A6")
         ws.merge_cells("B4:D6")
         ws.merge_cells("E4:E6")
@@ -247,7 +226,6 @@ class MaterialReportService:
         ws.merge_cells("J4:K4")
         ws.merge_cells("L4:M4")
         ws.merge_cells("N4:N6")
-
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель / Материал"
         ws["E4"] = "Ед.изм"
@@ -273,7 +251,6 @@ class MaterialReportService:
                 cell.border = border
 
         row = 7
-
         grand_open_qty = Decimal("0")
         grand_open_sum = Decimal("0")
         grand_in_qty = Decimal("0")
@@ -307,19 +284,14 @@ class MaterialReportService:
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 profit = profit_map.get(product.id, Decimal("0"))
-
                 open_qty = open_in["qty"] - open_out["qty"]
                 open_sum = open_in["total"] - open_out["total"]
-
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
-
                 out_qty = out_period["qty"]
                 out_sum = out_period["total"]
-
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_sum
-
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
@@ -329,7 +301,6 @@ class MaterialReportService:
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
                 cat_profit += profit
-
                 product_rows.append({
                     "code": product.id,
                     "name": product.name,
@@ -354,12 +325,10 @@ class MaterialReportService:
             grand_end_qty += cat_end_qty
             grand_end_sum += cat_end_sum
             grand_profit += cat_profit
-
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
             ws.cell(row, 2).alignment = left
-
             money(ws.cell(row, 6), cat_open_qty)
             money(ws.cell(row, 7), cat_open_sum)
             money(ws.cell(row, 8), cat_in_qty)
@@ -381,7 +350,6 @@ class MaterialReportService:
                 ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
                 ws.cell(row, 2, item["name"])
                 ws.cell(row, 5, item["unit"])
-
                 money(ws.cell(row, 6), item["open_qty"])
                 money(ws.cell(row, 7), item["open_sum"])
                 money(ws.cell(row, 8), item["in_qty"])
@@ -403,7 +371,6 @@ class MaterialReportService:
         ws.cell(row, 1, "Жами:")
         ws.cell(row, 1).font = bold
         ws.cell(row, 1).alignment = right
-
         money(ws.cell(row, 6), grand_open_qty)
         money(ws.cell(row, 7), grand_open_sum)
         money(ws.cell(row, 8), grand_in_qty)
@@ -418,22 +385,8 @@ class MaterialReportService:
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
 
-        widths = {
-            "A": 12,
-            "B": 42,
-            "C": 2,
-            "D": 2,
-            "E": 10,
-            "F": 12,
-            "G": 18,
-            "H": 12,
-            "I": 18,
-            "J": 12,
-            "K": 18,
-            "L": 12,
-            "M": 18,
-            "N": 18,
-        }
+        widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
+                  "L": 12, "M": 18, "N": 18}
 
         for col, width in widths.items():
             ws.column_dimensions[col].width = width

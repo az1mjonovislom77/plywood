@@ -41,7 +41,6 @@ class ExpensesWorkflowService:
             raise ValueError("Expense already processed")
 
         ExpensesWorkflowService._apply_cashbox(expense.value)
-
         expense.expense_status = Expenses.ExpensesStatus.ACCEPT
         expense.save(update_fields=["expense_status"])
         ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.ACCEPT,

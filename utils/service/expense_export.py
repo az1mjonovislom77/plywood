@@ -23,12 +23,9 @@ class CashFlowReportService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(start_date, timezone.datetime.min.time())
-        )
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
-            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
-        )
+            timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time()))
         return start_date, end_date, start_dt, end_dt
 
     @classmethod
@@ -38,10 +35,10 @@ class CashFlowReportService:
         expense_rows = []
 
         for order in Order.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-            order_status=Order.OrderStatus.ACCEPT,
-            covered_amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                order_status=Order.OrderStatus.ACCEPT,
+                covered_amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
                 "name": order.customer.full_name if order.customer else "Аноним",
@@ -50,9 +47,9 @@ class CashFlowReportService:
             })
 
         for banding in Banding.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-            covered_amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                covered_amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
                 "name": banding.customer.full_name if banding.customer else "Аноним",
@@ -61,9 +58,9 @@ class CashFlowReportService:
             })
 
         for cutting in Cutting.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-            covered_amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                covered_amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
                 "name": cutting.customer.full_name if cutting.customer else "Аноним",
@@ -72,10 +69,10 @@ class CashFlowReportService:
             })
 
         for payment in BalanceHistory.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-            type=BalanceHistory.Type.PAYMENT,
-            amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                type=BalanceHistory.Type.PAYMENT,
+                amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
                 "name": payment.customer.full_name if payment.customer else "Аноним",
@@ -86,12 +83,12 @@ class CashFlowReportService:
         income_rows.sort(key=lambda x: (x["created_at"], x["name"]))
 
         for exp in Expenses.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-            expense_status__in=[
-                Expenses.ExpensesStatus.ACCEPT,
-                Expenses.ExpensesStatus.CREATED,
-            ],
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                expense_status__in=[
+                    Expenses.ExpensesStatus.ACCEPT,
+                    Expenses.ExpensesStatus.CREATED,
+                ],
         ).order_by("created_at", "id"):
             expense_rows.append({
                 "description": exp.description,
@@ -100,10 +97,10 @@ class CashFlowReportService:
             })
 
         for payment in SupplierTransaction.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-            transaction_type=SupplierTransaction.TransactionType.PAYMENT,
-            amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                transaction_type=SupplierTransaction.TransactionType.PAYMENT,
+                amount__gt=0,
         ).select_related("supplier").order_by("created_at", "id"):
             expense_rows.append({
                 "description": payment.supplier.full_name if payment.supplier else "Поставщик",
@@ -116,7 +113,6 @@ class CashFlowReportService:
         income_total = sum((row["amount"] for row in income_rows), Decimal("0"))
         expense_total = sum((row["amount"] for row in expense_rows), Decimal("0"))
         closing_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=end_dt)))
-
         wb = Workbook()
         ws = wb.active
         ws.title = "Cash Flow"
@@ -133,7 +129,8 @@ class CashFlowReportService:
             cell.number_format = "#,##0"
 
         ws.merge_cells("B1:H1")
-        ws["B1"] = f"Отчет по движению денежных средств за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
+        ws[
+            "B1"] = f"Отчет по движению денежных средств за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = bold
         ws["B1"].alignment = left
         ws["D2"] = "Остаток на начало периода :"
@@ -169,7 +166,6 @@ class CashFlowReportService:
             ws.cell(left_row, 2, idx)
             ws.cell(left_row, 3, row["name"])
             money(ws.cell(left_row, 4), row["amount"])
-
             ws.cell(left_row, 2).font = normal
             ws.cell(left_row, 3).font = normal
             ws.cell(left_row, 4).font = normal
@@ -186,7 +182,6 @@ class CashFlowReportService:
             ws.cell(right_row, 6, row["description"])
             ws.cell(right_row, 7, row["created_at"].strftime("%d.%m.%Y"))
             money(ws.cell(right_row, 8), row["amount"])
-
             ws.cell(right_row, 6).font = normal
             ws.cell(right_row, 7).font = normal
             ws.cell(right_row, 8).font = normal

@@ -25,10 +25,7 @@ class MaterialReportJsonService:
 
     @staticmethod
     def _accepted_order_before_filter(start_dt):
-        return Q(order__accepted_at__lt=start_dt) | Q(
-            order__accepted_at__isnull=True,
-            order__created_at__lt=start_dt,
-        )
+        return Q(order__accepted_at__lt=start_dt) | Q(order__accepted_at__isnull=True, order__created_at__lt=start_dt)
 
     @staticmethod
     def _accepted_order_range_filter(start_dt, end_dt):
@@ -40,10 +37,7 @@ class MaterialReportJsonService:
 
     @staticmethod
     def _accepted_order_until_filter(end_dt):
-        return Q(order__accepted_at__lt=end_dt) | Q(
-            order__accepted_at__isnull=True,
-            order__created_at__lt=end_dt,
-        )
+        return Q(order__accepted_at__lt=end_dt) | Q(order__accepted_at__isnull=True, order__created_at__lt=end_dt)
 
     @staticmethod
     def _sale_date(row):
@@ -60,9 +54,7 @@ class MaterialReportJsonService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(start_date, timezone.datetime.min.time())
-        )
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
             timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
         )
@@ -134,11 +126,8 @@ class MaterialReportJsonService:
     @classmethod
     def build(cls, date_from=None, date_to=None):
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
-
         categories = list(Category.objects.all().order_by("name"))
         products = list(Product.objects.select_related("category").order_by("category__name", "name"))
-
-        # Opening balance: acceptances before start_date
         open_in_qty_map = cls._to_qty_map(
             Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
             .values("product_id")
@@ -147,13 +136,13 @@ class MaterialReportJsonService:
         )
         open_in_sum_map = {}
         for row in (
-            Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
-            .values("product_id")
-            .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")), output_field=cls._money_field()))
+                Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
+                        .values("product_id")
+                        .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                                                 output_field=cls._money_field()))
         ):
             open_in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 
-        # Opening balance: sales before start_dt (qty only, sum from FIFO)
         open_out_qty_map = cls._to_qty_map(
             OrderItem.objects.filter(
                 cls._accepted_order_filter(),
@@ -164,30 +153,25 @@ class MaterialReportJsonService:
             "qty",
         )
 
-        # Period income: acceptances in [start_date, end_date]
         in_qty_map = cls._to_qty_map(
             Acceptance.objects.filter(
                 acceptance_status="accept",
                 arrival_date__gte=start_date,
-                arrival_date__lte=end_date,
-            )
+                arrival_date__lte=end_date)
             .values("product_id")
             .annotate(qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field())),
             "qty",
         )
         in_sum_map = {}
         for row in (
-            Acceptance.objects.filter(
-                acceptance_status="accept",
-                arrival_date__gte=start_date,
-                arrival_date__lte=end_date,
-            )
-            .values("product_id")
-            .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")), output_field=cls._money_field()))
-        ):
+                Acceptance.objects.filter(
+                    acceptance_status="accept",
+                    arrival_date__gte=start_date,
+                    arrival_date__lte=end_date).values("product_id")
+                        .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                                                 output_field=cls._money_field()))):
             in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 
-        # Period expense: sales in [start_dt, end_dt) (qty only, sum from FIFO)
         out_qty_map = cls._to_qty_map(
             OrderItem.objects.filter(
                 cls._accepted_order_filter(),
@@ -241,22 +225,18 @@ class MaterialReportJsonService:
 
             for product in category_products:
                 pid = product.id
-
                 open_in_qty = open_in_qty_map.get(pid, Decimal("0"))
                 open_in_sum = open_in_sum_map.get(pid, Decimal("0"))
                 open_out_qty = open_out_qty_map.get(pid, Decimal("0"))
-                open_out_sum = open_cogs_map[pid]  # FIFO tannarxi
-
+                open_out_sum = open_cogs_map[pid]
                 in_qty = in_qty_map.get(pid, Decimal("0"))
                 in_sum = in_sum_map.get(pid, Decimal("0"))
-
                 out_qty = out_qty_map.get(pid, Decimal("0"))
-                out_sum = period_cogs_map[pid]  # FIFO tannarxi
-
+                out_sum = period_cogs_map[pid]
                 open_quantity = open_in_qty - open_out_qty
-                open_sum = open_in_sum - open_out_sum  # kelish narxi asosida ✓
+                open_sum = open_in_sum - open_out_sum
                 end_quantity = open_quantity + in_qty - out_qty
-                end_sum = open_sum + in_sum - out_sum  # hammasi kelish narxida ✓
+                end_sum = open_sum + in_sum - out_sum
 
                 item = {
                     "id": pid,
@@ -281,7 +261,6 @@ class MaterialReportJsonService:
                 cat_data["issued_sum"] += item["issued_sum"]
                 cat_data["closing_balance_quantity"] += item["closing_balance_quantity"]
                 cat_data["closing_balance_sum"] += item["closing_balance_sum"]
-
             result["categories"].append(cat_data)
             result["totals"]["opening_balance_quantity"] += cat_data["opening_balance_quantity"]
             result["totals"]["opening_balance_sum"] += cat_data["opening_balance_sum"]

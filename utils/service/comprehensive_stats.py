@@ -42,14 +42,8 @@ class MoneyQueryMixin:
     @classmethod
     def sum(cls, queryset, expression, key="total"):
         return queryset.aggregate(
-            **{
-                key: Coalesce(
-                    Sum(expression),
-                    cls.zero(),
-                    output_field=cls.money_field(),
-                )
-            }
-        )[key]
+            **{key: Coalesce(Sum(expression),
+                             cls.zero(), output_field=cls.money_field())})[key]
 
     @classmethod
     def mul(cls, left, right):
@@ -108,10 +102,8 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
 
     @classmethod
     def _accepted_order_item_range_filter(cls, start_dt, end_dt):
-        return Q(order__order_status=Order.OrderStatus.ACCEPT) & Q(
-            order__created_at__gte=start_dt,
-            order__created_at__lt=end_dt,
-        )
+        return Q(order__order_status=Order.OrderStatus.ACCEPT) & Q(order__created_at__gte=start_dt,
+                                                                   order__created_at__lt=end_dt)
 
     @classmethod
     def _standalone_service_filter(cls, start_dt, end_dt):
@@ -121,12 +113,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
     def _cashbox_total(cls, start_dt=None, end_dt=None):
         order_filter = cls._accepted_order_filter()
         balance_filter = Q()
-        expense_filter = Q(
-            expense_status__in=[
-                Expenses.ExpensesStatus.CREATED,
-                Expenses.ExpensesStatus.ACCEPT,
-            ]
-        )
+        expense_filter = Q(expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT])
         supplier_filter = Q(transaction_type=SupplierTransaction.TransactionType.PAYMENT)
         banding_filter = Q()
         cutting_filter = Q()
@@ -165,9 +152,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         debt_paid = cls.sum(
             BalanceHistory.objects.filter(balance_filter, type=BalanceHistory.Type.PAYMENT), "amount")
 
-        expenses = cls.sum(
-            Expenses.objects.filter(expense_filter), "value")
-
+        expenses = cls.sum(Expenses.objects.filter(expense_filter), "value")
         supplier_payments = cls.sum(SupplierTransaction.objects.filter(supplier_filter), "amount")
 
         return (
@@ -183,17 +168,10 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
     def _get_sales_stats(cls, start_dt, end_dt):
         order_item_filter = cls._accepted_order_item_range_filter(start_dt, end_dt)
         order_filter = cls._accepted_order_range_filter(start_dt, end_dt)
-
-        product_sales = cls.sum(
-            OrderItem.objects.filter(order_item_filter), cls._product_sales_expr()
-        )
-        product_profit = cls.sum(
-            OrderItem.objects.filter(order_item_filter), cls._product_profit_expr()
-        )
-
+        product_sales = cls.sum(OrderItem.objects.filter(order_item_filter), cls._product_sales_expr())
+        product_profit = cls.sum(OrderItem.objects.filter(order_item_filter), cls._product_profit_expr())
         standalone_banding_filter = cls._standalone_service_filter(start_dt, end_dt)
         standalone_cutting_filter = cls._standalone_service_filter(start_dt, end_dt)
-
         banding_sales = (
                 cls.sum(OrderItem.objects.filter(order_item_filter, banding__isnull=False),
                         cls._service_sales_expr("banding__"))
@@ -225,7 +203,6 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         order_filter = cls._accepted_order_range_filter(start_dt, end_dt)
         standalone_banding_filter = cls._standalone_service_filter(start_dt, end_dt)
         standalone_cutting_filter = cls._standalone_service_filter(start_dt, end_dt)
-
         sales_by_payment = Order.objects.filter(order_filter).aggregate(
             cash=Coalesce(
                 Sum(
@@ -234,9 +211,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
                         payment_method__in=[
                             Order.PaymentMethod.CASH,
                             Order.PaymentMethod.NASIYA,
-                        ]
-                    ),
-                ), cls.zero(), output_field=cls.money_field()),
+                        ])), cls.zero(), output_field=cls.money_field()),
             card=Coalesce(Sum("covered_amount", filter=Q(payment_method=Order.PaymentMethod.CARD)),
                           cls.zero(), output_field=cls.money_field()))
 
@@ -281,15 +256,10 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
     def _get_debt_stats(cls, start_dt, end_dt):
         stats = (BalanceHistory.objects.filter(cls._range_filter(start_dt, end_dt))
         .aggregate(
-            paid=Coalesce(
-                Sum("amount", filter=Q(type=BalanceHistory.Type.PAYMENT)),
-                cls.zero(), output_field=cls.money_field(),
-            ),
-            added=Coalesce(
-                Sum("amount", filter=Q(type=BalanceHistory.Type.DEBT_ADD)),
-                cls.zero(), output_field=cls.money_field(),
-            ),
-        ))
+            paid=Coalesce(Sum("amount", filter=Q(type=BalanceHistory.Type.PAYMENT)),
+                          cls.zero(), output_field=cls.money_field()),
+            added=Coalesce(Sum("amount", filter=Q(type=BalanceHistory.Type.DEBT_ADD)),
+                           cls.zero(), output_field=cls.money_field())))
 
         return {
             "paid_debt": stats["paid"],
@@ -312,10 +282,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         expenses = cls.sum(
             Expenses.objects.filter(
                 cls._range_filter(start_dt, end_dt),
-                expense_status__in=[
-                    Expenses.ExpensesStatus.CREATED,
-                    Expenses.ExpensesStatus.ACCEPT,
-                ]), "value")
+                expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT]), "value")
         return {"daily_expense": expenses}
 
     @classmethod
