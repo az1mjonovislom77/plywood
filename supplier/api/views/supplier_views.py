@@ -1,15 +1,15 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import filters
 from supplier.api.serializers import SupplierSerializer
 from supplier.models import Supplier
 from utils.base.views_base import BaseUserViewSet
+from utils.search import TransliteratedSearchFilter
 
 
 @extend_schema(tags=["Supplier"])
 class SupplierViewSet(BaseUserViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [TransliteratedSearchFilter]
     search_fields = ["full_name"]
     ordering = ["full_name"]
 

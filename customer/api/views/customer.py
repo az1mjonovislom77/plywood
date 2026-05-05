@@ -1,4 +1,3 @@
-from rest_framework import filters
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +7,7 @@ from customer.models import Customer
 from customer.service.customer_export import SalesStatementService
 from customer.service.statement_service import CustomerStatementService
 from utils.base.views_base import BaseUserViewSet
+from utils.search import TransliteratedSearchFilter
 
 
 @extend_schema(tags=["Customer"])
@@ -15,7 +15,7 @@ class CustomerViewSet(BaseUserViewSet):
     serializer_class = CustomerSerializer
     queryset = Customer.objects.all()
     ordering = ['-id']
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [TransliteratedSearchFilter]
     search_fields = ['full_name', 'phone_number']
 
 
