@@ -14,6 +14,7 @@ from product.models import Product
 from product.services.export_json import MaterialReportJsonService
 from product.services.product_export import MaterialReportService
 from utils.search import build_transliterated_search_q
+from django.db.models import Q
 
 
 class ProductPagination(PageNumberPagination):
