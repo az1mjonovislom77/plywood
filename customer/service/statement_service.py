@@ -49,15 +49,39 @@ class CustomerStatementService:
         return start_date, end_date, start_dt, end_dt
 
     @classmethod
+    def _get_cancelled_debt_add_ids(cls, customer_id):
+        cancelled_orders = Order.objects.filter(
+            customer_id=customer_id, 
+            order_status=Order.OrderStatus.CANCEL,
+            payment_method=Order.PaymentMethod.NASIYA
+        )
+        cancelled_debt_add_ids = set()
+        for co in cancelled_orders:
+            remaining = co.total_price - co.covered_amount
+            if remaining > 0:
+                matching_debt = BalanceHistory.objects.filter(
+                    customer_id=customer_id,
+                    type=BalanceHistory.Type.DEBT_ADD,
+                    amount=remaining,
+                    created_at__gte=co.created_at - timezone.timedelta(seconds=5),
+                    created_at__lt=co.created_at + timezone.timedelta(seconds=5)
+                ).first()
+                if matching_debt:
+                    cancelled_debt_add_ids.add(matching_debt.id)
+        return cancelled_debt_add_ids
+
+    @classmethod
     def _opening_balance(cls, customer_id, start_dt):
         # We calculate the opening balance by summing all BalanceHistory records before start_dt
         # DEBT_ADD increases debt (negative balance)
         # PAYMENT and ORDER_PAYMENT decrease debt (positive balance)
         
+        cancelled_debt_add_ids = cls._get_cancelled_debt_add_ids(customer_id)
+        
         stats = BalanceHistory.objects.filter(
             customer_id=customer_id,
             created_at__lt=start_dt
-        ).aggregate(
+        ).exclude(id__in=cancelled_debt_add_ids).aggregate(
             total_payments=Coalesce(
                 Sum("amount", filter=Q(type__in=[BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT])), 
                 Value(Decimal("0")), 
@@ -79,6 +103,7 @@ class CustomerStatementService:
         customer = Customer.objects.get(pk=customer_id)
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
         running_balance = cls._opening_balance(customer_id, start_dt)
+        cancelled_debt_add_ids = cls._get_cancelled_debt_add_ids(customer_id)
 
         orders = (
             Order.objects
@@ -96,6 +121,7 @@ class CustomerStatementService:
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
             )
+            .exclude(id__in=cancelled_debt_add_ids)
             .order_by("created_at", "id")
         )
 
