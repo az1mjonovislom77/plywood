@@ -4,9 +4,9 @@ from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
-from customer.models import BalanceHistory, Customer
+from openpyxl.workbook import Workbook
+from customer.models import Customer, BalanceHistory
 from order.models import Order
 
 
@@ -51,14 +51,20 @@ class CustomerStatementService:
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
         previous_orders = (
-            Order.objects
-            .filter(customer_id=customer_id, created_at__lt=start_dt)
-            .aggregate(
+            Order.objects.filter(customer_id=customer_id, created_at__lt=start_dt).aggregate(
                 total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()),
                 paid=Coalesce(Sum("covered_amount"), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
-        return previous_orders["paid"] - previous_orders["total"]
+
+        manual_payments = BalanceHistory.objects.filter(
+            customer_id=customer_id, type=BalanceHistory.Type.PAYMENT, created_at__lt=start_dt
+        ).aggregate(total_paid=Coalesce(Sum("amount"), Value(Decimal("0"))))
+
+        total_paid = previous_orders["paid"] + manual_payments["total_paid"]
+        total_ordered = previous_orders["total"]
+
+        return total_paid - total_ordered
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
@@ -325,7 +331,8 @@ class CustomerStatementService:
         ws["C2"].font = bold_font
         ws["C3"].font = bold_font
         ws["K3"].font = bold_font
-        ws["L3"].font = bold_font if (ws["L3"].value or 0) >= 0 else Font(name="Arial", size=8, bold=True, color="00C00000")
+        ws["L3"].font = bold_font if (ws["L3"].value or 0) >= 0 else Font(name="Arial", size=8, bold=True,
+                                                                          color="00C00000")
         ws["L3"].number_format = "#,##0"
         ws["C3"].alignment = Alignment(horizontal="left", vertical="center")
         ws["K3"].alignment = center
