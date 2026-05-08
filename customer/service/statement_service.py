@@ -49,61 +49,43 @@ class CustomerStatementService:
         return start_date, end_date, start_dt, end_dt
 
     @classmethod
-    def _get_cancelled_debt_add_ids(cls, customer_id):
-        cancelled_orders = Order.objects.filter(
-            customer_id=customer_id, 
-            order_status=Order.OrderStatus.CANCEL,
-            payment_method=Order.PaymentMethod.NASIYA
-        )
-        cancelled_debt_add_ids = set()
-        for co in cancelled_orders:
-            remaining = co.total_price - co.covered_amount
-            if remaining > 0:
-                matching_debt = BalanceHistory.objects.filter(
-                    customer_id=customer_id,
-                    type=BalanceHistory.Type.DEBT_ADD,
-                    amount=remaining,
-                    created_at__gte=co.created_at - timezone.timedelta(seconds=5),
-                    created_at__lt=co.created_at + timezone.timedelta(seconds=5)
-                ).first()
-                if matching_debt:
-                    cancelled_debt_add_ids.add(matching_debt.id)
-        return cancelled_debt_add_ids
-
-    @classmethod
     def _opening_balance(cls, customer_id, start_dt):
-        # We calculate the opening balance by summing all BalanceHistory records before start_dt
-        # DEBT_ADD increases debt (negative balance)
-        # PAYMENT and ORDER_PAYMENT decrease debt (positive balance)
+        from order.models import Banding, Cutting
         
-        cancelled_debt_add_ids = cls._get_cancelled_debt_add_ids(customer_id)
+        active_orders = Order.objects.filter(
+            customer_id=customer_id, created_at__lt=start_dt
+        ).exclude(order_status=Order.OrderStatus.CANCEL)
         
-        stats = BalanceHistory.objects.filter(
-            customer_id=customer_id,
-            created_at__lt=start_dt
-        ).exclude(id__in=cancelled_debt_add_ids).aggregate(
-            total_payments=Coalesce(
-                Sum("amount", filter=Q(type__in=[BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT])), 
-                Value(Decimal("0")), 
-                output_field=DecimalField()
-            ),
-            total_debts=Coalesce(
-                Sum("amount", filter=Q(type=BalanceHistory.Type.DEBT_ADD)), 
-                Value(Decimal("0")), 
-                output_field=DecimalField()
-            )
+        cancelled_orders = Order.objects.filter(
+            customer_id=customer_id, created_at__lt=start_dt, order_status=Order.OrderStatus.CANCEL
         )
         
-        # Balance = Payments - Debts
-        # If result is negative, it's a debt.
-        return stats["total_payments"] - stats["total_debts"]
+        standalone_bandings = Banding.objects.filter(
+            customer_id=customer_id, created_at__lt=start_dt, orders__isnull=True, order_items__isnull=True
+        )
+        
+        standalone_cuttings = Cutting.objects.filter(
+            customer_id=customer_id, created_at__lt=start_dt, orders__isnull=True, order_items__isnull=True
+        )
+        
+        manual_payments = BalanceHistory.objects.filter(
+            customer_id=customer_id, type=BalanceHistory.Type.PAYMENT, created_at__lt=start_dt
+        )
+        
+        total_payments = sum(p.amount for p in manual_payments)
+        total_cancelled_covered = sum(o.covered_amount for o in cancelled_orders)
+        
+        active_order_balance = sum(o.covered_amount - o.total_price for o in active_orders)
+        banding_balance = sum(b.covered_amount - cls._service_total(b) for b in standalone_bandings)
+        cutting_balance = sum(c.covered_amount - cls._service_total(c) for c in standalone_cuttings)
+        
+        return total_payments + total_cancelled_covered + active_order_balance + banding_balance + cutting_balance
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
         customer = Customer.objects.get(pk=customer_id)
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
         running_balance = cls._opening_balance(customer_id, start_dt)
-        cancelled_debt_add_ids = cls._get_cancelled_debt_add_ids(customer_id)
 
         orders = (
             Order.objects
@@ -114,19 +96,33 @@ class CustomerStatementService:
             .order_by("created_at", "id")
         )
 
-        all_history = (
+        from order.models import Banding, Cutting
+        
+        standalone_bandings = (
+            Banding.objects
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True, order_items__isnull=True)
+            .select_related("thickness")
+            .order_by("created_at", "id")
+        )
+        
+        standalone_cuttings = (
+            Cutting.objects
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True, order_items__isnull=True)
+            .order_by("created_at", "id")
+        )
+
+        manual_payments = (
             BalanceHistory.objects
             .filter(
                 customer_id=customer_id,
+                type=BalanceHistory.Type.PAYMENT,
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
             )
-            .exclude(id__in=cancelled_debt_add_ids)
             .order_by("created_at", "id")
         )
 
         events = []
-        accounted_history_ids = set()
 
         for order in orders:
             rows = []
@@ -211,7 +207,6 @@ class CustomerStatementService:
                     }
                 )
 
-            # Calculate total expenses from items and services to identify discount
             total_items_services = sum(r["expense_amount"] for r in rows if r["expense_amount"])
             order_discount = total_items_services - order.total_price
 
@@ -244,66 +239,110 @@ class CustomerStatementService:
                         "expense_amount": None,
                     }
                 )
-                
-                # Mark corresponding BalanceHistory record as accounted
-                matching_history = all_history.filter(
-                    type=BalanceHistory.Type.ORDER_PAYMENT,
-                    amount=order.covered_amount,
-                    created_at__gte=order.created_at - timezone.timedelta(seconds=5),
-                    created_at__lt=order.created_at + timezone.timedelta(seconds=5)
-                ).first()
-                if matching_history:
-                    accounted_history_ids.add(matching_history.id)
 
             events.append((order.created_at, 0, rows))
 
-        for history in all_history:
-            if history.id in accounted_history_ids:
-                continue
-            
-            # If it's a DEBT_ADD not from an order, show it as expense
-            if history.type == BalanceHistory.Type.DEBT_ADD:
-                events.append(
-                    (
-                        history.created_at,
-                        1,
-                        [
-                            {
-                                "date": history.created_at.date(),
-                                "registrator": f"Қарз қўшилди {history.id} от {history.created_at:%d.%m.%Y %H:%M:%S}",
-                                "payment_type": None,
-                                "purpose": None,
-                                "product": "Standalone Service / Debt Add",
-                                "income_qty": None,
-                                "income_amount": None,
-                                "expense_qty": None,
-                                "expense_amount": history.amount,
-                            }
-                        ],
-                    )
+        for banding in standalone_bandings:
+            rows = []
+            thickness = banding.thickness.text if banding.thickness else ""
+            registrator = f"Хизмат {banding.id:09d} от {banding.created_at:%d.%m.%Y %H:%M:%S}"
+            rows.append({
+                "date": banding.created_at.date(),
+                "registrator": registrator,
+                "payment_type": None,
+                "purpose": None,
+                "product": f"Хизмат (Кромка) {thickness}".strip(),
+                "income_qty": None,
+                "income_amount": None,
+                "expense_qty": banding.length,
+                "expense_amount": cls._service_total(banding),
+            })
+            if banding.covered_amount > 0:
+                rows.append({
+                    "date": banding.created_at.date(),
+                    "registrator": registrator,
+                    "payment_type": cls.PAYMENT_LABELS.get(banding.payment_method, banding.payment_method),
+                    "purpose": None,
+                    "product": None,
+                    "income_qty": None,
+                    "income_amount": banding.covered_amount,
+                    "expense_qty": None,
+                    "expense_amount": None,
+                })
+            events.append((banding.created_at, 0, rows))
+
+        for cutting in standalone_cuttings:
+            rows = []
+            registrator = f"Хизмат {cutting.id:09d} от {cutting.created_at:%d.%m.%Y %H:%M:%S}"
+            rows.append({
+                "date": cutting.created_at.date(),
+                "registrator": registrator,
+                "payment_type": None,
+                "purpose": None,
+                "product": "Хизмат (Распил)",
+                "income_qty": None,
+                "income_amount": None,
+                "expense_qty": cutting.count,
+                "expense_amount": cls._service_total(cutting),
+            })
+            if cutting.covered_amount > 0:
+                rows.append({
+                    "date": cutting.created_at.date(),
+                    "registrator": registrator,
+                    "payment_type": cls.PAYMENT_LABELS.get(cutting.payment_method, cutting.payment_method),
+                    "purpose": None,
+                    "product": None,
+                    "income_qty": None,
+                    "income_amount": cutting.covered_amount,
+                    "expense_qty": None,
+                    "expense_amount": None,
+                })
+            events.append((cutting.created_at, 0, rows))
+
+        for payment in manual_payments:
+            events.append(
+                (
+                    payment.created_at,
+                    1,
+                    [
+                        {
+                            "date": payment.created_at.date(),
+                            "registrator": f"Касса {payment.id} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
+                            "payment_type": "Наличная",
+                            "purpose": None,
+                            "product": None,
+                            "income_qty": None,
+                            "income_amount": payment.amount,
+                            "expense_qty": None,
+                            "expense_amount": None,
+                        }
+                    ],
                 )
-            # If it's a PAYMENT or ORDER_PAYMENT not yet accounted
-            elif history.type in [BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT]:
-                label = "Касса" if history.type == BalanceHistory.Type.PAYMENT else "Оплата (Сервис)"
-                events.append(
-                    (
-                        history.created_at,
-                        2,
-                        [
-                            {
-                                "date": history.created_at.date(),
-                                "registrator": f"{label} {history.id} от {history.created_at:%d.%m.%Y %H:%M:%S}",
-                                "payment_type": "Наличная",
-                                "purpose": None,
-                                "product": None,
-                                "income_qty": None,
-                                "income_amount": history.amount,
-                                "expense_qty": None,
-                                "expense_amount": None,
-                            }
-                        ],
-                    )
-                )
+            )
+
+        cancelled_orders_current_period = (
+            Order.objects
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, order_status=Order.OrderStatus.CANCEL)
+            .order_by("created_at", "id")
+        )
+
+        for co in cancelled_orders_current_period:
+            if co.covered_amount > 0:
+                registrator = f"Бекор қилинган буюртма тўлови {co.id:09d} от {co.created_at:%d.%m.%Y %H:%M:%S}"
+                rows = [
+                    {
+                        "date": co.created_at.date(),
+                        "registrator": registrator,
+                        "payment_type": cls.PAYMENT_LABELS.get(co.payment_method, co.payment_method),
+                        "purpose": None,
+                        "product": "Возврат / Отмененный заказ",
+                        "income_qty": None,
+                        "income_amount": co.covered_amount,
+                        "expense_qty": None,
+                        "expense_amount": None,
+                    }
+                ]
+                events.append((co.created_at, 0, rows))
 
         events.sort(key=lambda event: (event[0], event[1]))
 
