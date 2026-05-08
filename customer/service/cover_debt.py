@@ -31,7 +31,9 @@ class DebtService:
         customer = Customer.objects.get(pk=customer_id)
 
         history_qs = BalanceHistory.objects.filter(customer_id=customer_id).order_by("-created_at")
-        total_orders = (Order.objects.filter(customer_id=customer_id).aggregate(total=Sum("total_price"))["total"] or 0)
+        total_orders = (Order.objects.filter(customer_id=customer_id)
+                        .exclude(order_status=Order.OrderStatus.CANCEL)
+                        .aggregate(total=Sum("total_price"))["total"] or 0)
         total_paid = (BalanceHistory.objects
                       .filter(customer_id=customer_id,
                               type__in=[BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT])

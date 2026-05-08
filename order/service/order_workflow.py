@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
+from customer.models import Customer
 from order.models import Order
 from product.models import Product
 from user.models import User
@@ -29,6 +30,9 @@ class OrderWorkflowService:
 
         order.order_status = Order.OrderStatus.CANCEL
         order.save(update_fields=["order_status"])
+
+        if order.customer:
+            Customer.objects.filter(id=order.customer_id).update(debt=F("debt") - order.total_price)
 
         for item in order.items.select_related("product"):
             Product.objects.filter(id=item.product_id).update(count=F("count") + item.quantity)
@@ -88,6 +92,9 @@ class OrderWorkflowService:
 
         order.order_status = Order.OrderStatus.CANCEL
         order.save(update_fields=["order_status"])
+
+        if order.customer:
+            Customer.objects.filter(id=order.customer_id).update(debt=F("debt") - order.total_price)
 
         for item in order.items.select_related("product"):
             Product.objects.filter(id=item.product_id).update(count=F("count") + item.quantity)

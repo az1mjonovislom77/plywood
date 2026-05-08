@@ -51,7 +51,9 @@ class CustomerStatementService:
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
         previous_orders = (
-            Order.objects.filter(customer_id=customer_id, created_at__lt=start_dt).aggregate(
+            Order.objects.filter(customer_id=customer_id, created_at__lt=start_dt)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
+            .aggregate(
                 total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()),
                 paid=Coalesce(Sum("covered_amount"), Value(Decimal("0")), output_field=DecimalField()),
             )
@@ -75,6 +77,7 @@ class CustomerStatementService:
         orders = (
             Order.objects
             .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
             .select_related("banding__thickness", "cutting")
             .prefetch_related("items__product", "items__banding__thickness", "items__cutting")
             .order_by("created_at", "id")
@@ -173,6 +176,25 @@ class CustomerStatementService:
                         "income_amount": None,
                         "expense_qty": order.banding.length,
                         "expense_amount": cls._service_total(order.banding),
+                    }
+                )
+
+            # Calculate total expenses from items and services to identify discount
+            total_items_services = sum(r["expense_amount"] for r in rows if r["expense_amount"])
+            order_discount = total_items_services - order.total_price
+
+            if order_discount > 0:
+                rows.append(
+                    {
+                        "date": order.created_at.date(),
+                        "registrator": registrator,
+                        "payment_type": None,
+                        "purpose": None,
+                        "product": "Chegirma",
+                        "income_qty": None,
+                        "income_amount": None,
+                        "expense_qty": None,
+                        "expense_amount": -order_discount,
                     }
                 )
 

@@ -14,7 +14,8 @@ class FinanceReportJsonService:
         end_date = parse_date(date_to) if date_to else today
 
         income_orders = Order.objects.select_related("customer").filter(
-            created_at__date__gte=start_date, created_at__date__lte=end_date)
+            created_at__date__gte=start_date, created_at__date__lte=end_date
+        ).exclude(order_status=Order.OrderStatus.CANCEL)
 
         expenses = Expenses.objects.filter(expense_status="accept", created_at__date__gte=start_date,
                                            created_at__date__lte=end_date).order_by("created_at")

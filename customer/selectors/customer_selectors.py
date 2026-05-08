@@ -23,7 +23,9 @@ class CustomerDebtSelector:
             debtor_customers=Coalesce(Count("id", filter=Q(debt__gt=0)), 0),
         )
 
-        nasiya_sales = Order.objects.filter(payment_method=Order.PaymentMethod.NASIYA).count()
+        nasiya_sales = Order.objects.filter(
+            payment_method=Order.PaymentMethod.NASIYA
+        ).exclude(order_status=Order.OrderStatus.CANCEL).count()
 
         return {
             "total_debt": customer_stats["total_debt"],

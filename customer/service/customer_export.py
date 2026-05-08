@@ -32,15 +32,24 @@ class CustomerStatementService:
 
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
-        orders = (
+        previous_orders = (
             Order.objects
             .filter(customer_id=customer_id, created_at__lt=start_dt)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
             .aggregate(
                 total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()),
                 paid=Coalesce(Sum("covered_amount"), Value(Decimal("0")), output_field=DecimalField()),
             )
         )
-        return orders["paid"] - orders["total"]
+        manual_payments = BalanceHistory.objects.filter(
+            customer_id=customer_id,
+            type=BalanceHistory.Type.PAYMENT,
+            created_at__lt=start_dt
+        ).aggregate(total_paid=Coalesce(Sum("amount"), Value(Decimal("0"))))
+
+        total_paid = previous_orders["paid"] + manual_payments["total_paid"]
+        total_ordered = previous_orders["total"]
+        return total_paid - total_ordered
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
@@ -51,6 +60,7 @@ class CustomerStatementService:
         orders = (
             Order.objects
             .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
             .order_by("created_at", "id")
         )
 
@@ -316,6 +326,7 @@ class SalesStatementService:
         qs = (
             Order.objects
             .filter(created_at__gte=start_dt, created_at__lt=end_dt)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
             .select_related("customer")
             .order_by("created_at", "id")
         )
