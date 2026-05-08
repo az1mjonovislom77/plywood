@@ -1,6 +1,6 @@
 from decimal import Decimal
 from io import BytesIO
-from django.db.models import Sum, Value, DecimalField
+from django.db.models import Sum, Value, DecimalField, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -50,23 +50,29 @@ class CustomerStatementService:
 
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
-        previous_orders = (
-            Order.objects.filter(customer_id=customer_id, created_at__lt=start_dt)
-            .exclude(order_status=Order.OrderStatus.CANCEL)
-            .aggregate(
-                total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()),
-                paid=Coalesce(Sum("covered_amount"), Value(Decimal("0")), output_field=DecimalField()),
+        # We calculate the opening balance by summing all BalanceHistory records before start_dt
+        # DEBT_ADD increases debt (negative balance)
+        # PAYMENT and ORDER_PAYMENT decrease debt (positive balance)
+        
+        stats = BalanceHistory.objects.filter(
+            customer_id=customer_id,
+            created_at__lt=start_dt
+        ).aggregate(
+            total_payments=Coalesce(
+                Sum("amount", filter=Q(type__in=[BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT])), 
+                Value(Decimal("0")), 
+                output_field=DecimalField()
+            ),
+            total_debts=Coalesce(
+                Sum("amount", filter=Q(type=BalanceHistory.Type.DEBT_ADD)), 
+                Value(Decimal("0")), 
+                output_field=DecimalField()
             )
         )
-
-        manual_payments = BalanceHistory.objects.filter(
-            customer_id=customer_id, type=BalanceHistory.Type.PAYMENT, created_at__lt=start_dt
-        ).aggregate(total_paid=Coalesce(Sum("amount"), Value(Decimal("0"))))
-
-        total_paid = previous_orders["paid"] + manual_payments["total_paid"]
-        total_ordered = previous_orders["total"]
-
-        return total_paid - total_ordered
+        
+        # Balance = Payments - Debts
+        # If result is negative, it's a debt.
+        return stats["total_payments"] - stats["total_debts"]
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
@@ -83,11 +89,10 @@ class CustomerStatementService:
             .order_by("created_at", "id")
         )
 
-        manual_payments = (
+        all_history = (
             BalanceHistory.objects
             .filter(
                 customer_id=customer_id,
-                type=BalanceHistory.Type.PAYMENT,
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
             )
@@ -95,6 +100,7 @@ class CustomerStatementService:
         )
 
         events = []
+        accounted_history_ids = set()
 
         for order in orders:
             rows = []
@@ -212,29 +218,66 @@ class CustomerStatementService:
                         "expense_amount": None,
                     }
                 )
+                
+                # Mark corresponding BalanceHistory record as accounted
+                matching_history = all_history.filter(
+                    type=BalanceHistory.Type.ORDER_PAYMENT,
+                    amount=order.covered_amount,
+                    created_at__gte=order.created_at - timezone.timedelta(seconds=5),
+                    created_at__lt=order.created_at + timezone.timedelta(seconds=5)
+                ).first()
+                if matching_history:
+                    accounted_history_ids.add(matching_history.id)
 
             events.append((order.created_at, 0, rows))
 
-        for payment in manual_payments:
-            events.append(
-                (
-                    payment.created_at,
-                    1,
-                    [
-                        {
-                            "date": payment.created_at.date(),
-                            "registrator": f"Касса {payment.id} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
-                            "payment_type": "Наличная",
-                            "purpose": None,
-                            "product": None,
-                            "income_qty": None,
-                            "income_amount": payment.amount,
-                            "expense_qty": None,
-                            "expense_amount": None,
-                        }
-                    ],
+        for history in all_history:
+            if history.id in accounted_history_ids:
+                continue
+            
+            # If it's a DEBT_ADD not from an order, show it as expense
+            if history.type == BalanceHistory.Type.DEBT_ADD:
+                events.append(
+                    (
+                        history.created_at,
+                        1,
+                        [
+                            {
+                                "date": history.created_at.date(),
+                                "registrator": f"Қарз қўшилди {history.id} от {history.created_at:%d.%m.%Y %H:%M:%S}",
+                                "payment_type": None,
+                                "purpose": None,
+                                "product": "Standalone Service / Debt Add",
+                                "income_qty": None,
+                                "income_amount": None,
+                                "expense_qty": None,
+                                "expense_amount": history.amount,
+                            }
+                        ],
+                    )
                 )
-            )
+            # If it's a PAYMENT or ORDER_PAYMENT not yet accounted
+            elif history.type in [BalanceHistory.Type.PAYMENT, BalanceHistory.Type.ORDER_PAYMENT]:
+                label = "Касса" if history.type == BalanceHistory.Type.PAYMENT else "Оплата (Сервис)"
+                events.append(
+                    (
+                        history.created_at,
+                        2,
+                        [
+                            {
+                                "date": history.created_at.date(),
+                                "registrator": f"{label} {history.id} от {history.created_at:%d.%m.%Y %H:%M:%S}",
+                                "payment_type": "Наличная",
+                                "purpose": None,
+                                "product": None,
+                                "income_qty": None,
+                                "income_amount": history.amount,
+                                "expense_qty": None,
+                                "expense_amount": None,
+                            }
+                        ],
+                    )
+                )
 
         events.sort(key=lambda event: (event[0], event[1]))
 
