@@ -133,7 +133,7 @@ class CustomerStatementService:
                     total_income_amount += row["income_amount"]
 
                 if row["expense_amount"]:
-                    running_balance += row["expense_amount"]
+                    running_balance -= row["expense_amount"]
                     total_expense_amount += row["expense_amount"]
 
                 row["no"] = no
