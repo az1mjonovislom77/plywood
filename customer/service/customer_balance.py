@@ -103,9 +103,6 @@ class CustomerBalanceService:
 
         remaining_debt = total_orders - total_paid
 
-        if remaining_debt < 0:
-            remaining_debt = Decimal("0")
-
         return {
             "total_orders": total_orders,
             "total_paid": total_paid,
