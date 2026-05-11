@@ -16,7 +16,7 @@ class CustomerDebtExcelService:
         thin = Side(style='thin', color='000000')
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
         header_font = Font(bold=True, size=12)
-        body_font = Font(size=11)
+        body_font = Font(size=12)
         center = Alignment(horizontal='center', vertical='center')
         right = Alignment(horizontal='right', vertical='center')
         left = Alignment(horizontal='left', vertical='center')
