@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import F
 
 
 class Customer(models.Model):
@@ -11,11 +10,13 @@ class Customer(models.Model):
     about = models.CharField(max_length=200, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
 
-    def increase_debt(self, amount):
-        if amount <= 0:
-            return
+    def sync_debt(self):
+        from customer.service.customer_balance import CustomerBalanceService
+        debt = CustomerBalanceService.sync_customer_debt(self.id)
 
-        Customer.objects.filter(id=self.id).update(debt=F("debt") + amount)
+        self.refresh_from_db(fields=["debt"])
+
+        return debt
 
     class Meta:
         ordering = ['-id']

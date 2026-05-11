@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.db.models import Sum
-from customer.models import BalanceHistory
+from customer.models import BalanceHistory, Customer
 from order.models import Order, Banding, Cutting
 
 
@@ -19,21 +19,34 @@ class CustomerBalanceService:
         return max(total, Decimal("0"))
 
     @classmethod
+    def sync_customer_debt(cls, customer_id):
+
+        stats = cls.calculate(customer_id)
+
+        Customer.objects.filter(pk=customer_id).update(
+            debt=stats["remaining_debt"]
+        )
+
+        return stats["remaining_debt"]
+
+    @classmethod
     def calculate(cls, customer_id):
-        active_orders = (Order.objects
-                         .filter(customer_id=customer_id)
-                         .exclude(order_status=Order.OrderStatus.CANCEL))
+
+        active_orders = (
+            Order.objects
+            .filter(customer_id=customer_id)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
+        )
 
         orders_total = sum(
-            o.total_price or Decimal("0")
+            (o.total_price or Decimal("0"))
             for o in active_orders
         )
 
         orders_paid = sum(
-            o.covered_amount or Decimal("0")
+            (o.covered_amount or Decimal("0"))
             for o in active_orders
         )
-
 
         cancelled_orders = (
             Order.objects
@@ -44,7 +57,7 @@ class CustomerBalanceService:
         )
 
         cancelled_refund = sum(
-            o.covered_amount or Decimal("0")
+            (o.covered_amount or Decimal("0"))
             for o in cancelled_orders
         )
 
@@ -57,17 +70,8 @@ class CustomerBalanceService:
             )
         )
 
-        banding_total = sum(
-            cls.service_total(b)
-            for b in standalone_bandings
-        )
-
-        banding_paid = sum(
-            b.covered_amount or Decimal("0")
-            for b in standalone_bandings
-        )
-
-
+        banding_total = sum(cls.service_total(b) for b in standalone_bandings)
+        banding_paid = sum((b.covered_amount or Decimal("0")) for b in standalone_bandings)
         standalone_cuttings = (
             Cutting.objects
             .filter(
@@ -82,11 +86,7 @@ class CustomerBalanceService:
             for c in standalone_cuttings
         )
 
-        cutting_paid = sum(
-            c.covered_amount or Decimal("0")
-            for c in standalone_cuttings
-        )
-
+        cutting_paid = sum((c.covered_amount or Decimal("0")) for c in standalone_cuttings)
 
         manual_paid = (
                 BalanceHistory.objects
@@ -113,6 +113,9 @@ class CustomerBalanceService:
         )
 
         remaining_debt = total_orders - total_paid
+
+        if remaining_debt < 0:
+            remaining_debt = Decimal("0")
 
         return {
             "total_orders": total_orders,
