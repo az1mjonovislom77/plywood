@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from customer.api.serializers import CustomerSerializer
@@ -28,12 +29,26 @@ class CustomerViewSet(BaseUserViewSet):
         return super().retrieve(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
-        customer_ids = self.filter_queryset(self.get_queryset()).values_list("id", flat=True)
+        date_from = request.GET.get("from")
+        date_to = request.GET.get("to")
+        customers = self.filter_queryset(self.get_queryset())
 
-        for customer_id in customer_ids:
-            CustomerBalanceService.sync_customer_debt(customer_id)
+        results = []
 
-        return super().list(request, *args, **kwargs)
+        for customer in customers:
+            if date_from and date_to:
+                debt = (CustomerBalanceService
+                        .calculate_customer_debt(customer=customer, date_from=date_from, date_to=date_to))
+
+            else:
+                CustomerBalanceService.sync_customer_debt(customer.id)
+                customer.refresh_from_db()
+                debt = customer.debt
+            data = CustomerSerializer(customer).data
+            data["debt"] = debt
+            results.append(data)
+
+        return Response(results)
 
 
 @extend_schema(
