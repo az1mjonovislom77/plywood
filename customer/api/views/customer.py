@@ -68,6 +68,7 @@ class CustomerStatementExcelViewSet(ViewSet):
         )
 
 
+@extend_schema(tags=["Customer"])
 class CustomerDebtExcelAPIView(APIView):
 
     def get(self, request):
