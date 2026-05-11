@@ -89,7 +89,10 @@ class CustomerStatementExcelViewSet(ViewSet):
         )
 
 
-@extend_schema(tags=["Customer"])
+@extend_schema(tags=["Customer"],
+               parameters=[
+                   OpenApiParameter(name="from", required=False, type=str),
+                   OpenApiParameter(name="to", required=False, type=str)])
 class CustomerDebtExcelAPIView(APIView):
 
     def get(self, request):
