@@ -28,10 +28,12 @@ class FinanceReportJsonService:
         )
 
         expenses = Expenses.objects.filter(
-            expense_status="accept",
             created_at__gte=start_dt,
             created_at__lt=end_dt,
-        ).order_by("created_at")
+            expense_status__in=[
+                Expenses.ExpensesStatus.ACCEPT,
+                Expenses.ExpensesStatus.CREATED,
+            ]).order_by("created_at")
 
         income_map = defaultdict(Decimal)
 
