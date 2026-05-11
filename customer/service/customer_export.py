@@ -71,52 +71,42 @@ class CustomerStatementService:
                 type=BalanceHistory.Type.PAYMENT,
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
-            )
-            .order_by("created_at", "id")
-        )
+            ).order_by("created_at", "id"))
 
         events = []
 
         for order in orders:
             events.append(
-                (
-                    order.created_at,
-                    0,
-                    [
-                        {
-                            "date": order.created_at.date(),
-                            "registrator": f"Продажа товара {order.id:09d} от {order.created_at:%d.%m.%Y %H:%M:%S}",
-                            "payment_type": order.get_payment_method_display(),
-                            "purpose": None,
-                            "product": f"Order {order.id}",
-                            "income_qty": None,
-                            "income_amount": None,
-                            "expense_qty": 1,
-                            "expense_amount": order.total_price,
-                        }
-                    ],
-                )
+                (order.created_at, 0,
+                 [{
+                     "date": order.created_at.date(),
+                     "registrator": f"Продажа товара {order.id:09d} от {order.created_at:%d.%m.%Y %H:%M:%S}",
+                     "payment_type": order.get_payment_method_display(),
+                     "purpose": None,
+                     "product": f"Order {order.id}",
+                     "income_qty": None,
+                     "income_amount": None,
+                     "expense_qty": 1,
+                     "expense_amount": order.total_price,
+                 }
+                 ],
+                 )
             )
 
         for payment in payments:
             events.append(
-                (
-                    payment.created_at,
-                    1,
-                    [
-                        {
-                            "date": payment.created_at.date(),
-                            "registrator": f"Оплата клиента {payment.id:09d} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
-                            "payment_type": "Наличная",
-                            "purpose": None,
-                            "product": None,
-                            "income_qty": None,
-                            "income_amount": payment.amount,
-                            "expense_qty": None,
-                            "expense_amount": None,
-                        }
-                    ],
-                )
+                (payment.created_at, 1,
+                 [{
+                     "date": payment.created_at.date(),
+                     "registrator": f"Оплата клиента {payment.id:09d} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
+                     "payment_type": "Наличная",
+                     "purpose": None,
+                     "product": None,
+                     "income_qty": None,
+                     "income_amount": payment.amount,
+                     "expense_qty": None,
+                     "expense_amount": None,
+                 }])
             )
 
         events.sort(key=lambda event: (event[0], event[1]))
@@ -233,7 +223,6 @@ class CustomerStatementService:
         ws["C3"].alignment = Alignment(horizontal="left", vertical="center")
         ws["K3"].alignment = center
         ws["L3"].alignment = right
-
         total_row = data_end_row
         ws.cell(row=total_row, column=2).font = bold_font
         ws.cell(row=total_row, column=2).alignment = right
@@ -249,13 +238,11 @@ class CustomerStatementService:
         wb = Workbook()
         ws = wb.active
         ws.title = "Sheet1"
-
         ws["C1"] = f"{data['from'].strftime('%d.%m.%Y')} 0:00:00"
         ws["C2"] = f"{data['to'].strftime('%d.%m.%Y')} 23:59:59"
         ws["C3"] = data["supplier"]["full_name"]
         ws["K3"] = "Остаток"
         ws["L3"] = cls._fmt_number(data["opening_balance"])
-
         ws["B4"] = "№"
         ws["C4"] = "Дата"
         ws["D4"] = "Регистратор"
@@ -290,9 +277,7 @@ class CustomerStatementService:
         ws.cell(row=row_idx, column=2, value="Жами:")
         ws.cell(row=row_idx, column=9, value=cls._fmt_number(data["totals"]["income_amount"]))
         ws.cell(row=row_idx, column=11, value=cls._fmt_number(data["totals"]["expense_amount"]))
-
         cls._apply_table_style(ws, data_start_row=data_start_row, data_end_row=row_idx)
-
         output = BytesIO()
         wb.save(output)
         output.seek(0)
@@ -311,9 +296,7 @@ class SalesStatementService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(start_date, timezone.datetime.min.time())
-        )
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
             timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
         )
@@ -425,7 +408,6 @@ class SalesStatementService:
         ws["C2"].font = bold_font
         ws["C3"].font = bold_font
         ws["C3"].alignment = left
-
         total_row = data_end_row
         ws.cell(row=total_row, column=2).font = bold_font
         ws.cell(row=total_row, column=2).alignment = right
@@ -435,15 +417,12 @@ class SalesStatementService:
     @classmethod
     def build_statement_excel(cls, customer_id=None, date_from=None, date_to=None):
         data = cls.build_statement(customer_id=customer_id, date_from=date_from, date_to=date_to)
-
         wb = Workbook()
         ws = wb.active
         ws.title = "Sheet1"
-
         ws["C1"] = f"{data['from'].strftime('%d.%m.%Y')} 0:00:00"
         ws["C2"] = f"{data['to'].strftime('%d.%m.%Y')} 23:59:59"
         ws["C3"] = data["supplier_name"]
-
         ws["B4"] = "№"
         ws["C4"] = "Дата"
         ws["D4"] = "Номер"
@@ -465,9 +444,7 @@ class SalesStatementService:
 
         ws.cell(row=row_idx, column=2, value="Жами:")
         ws.cell(row=row_idx, column=7, value=cls._fmt_number(data["total_amount"]))
-
         cls._apply_table_style(ws, data_start_row=data_start_row, data_end_row=row_idx)
-
         output = BytesIO()
         wb.save(output)
         output.seek(0)

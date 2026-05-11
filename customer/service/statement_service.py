@@ -1,12 +1,11 @@
 from decimal import Decimal
 from io import BytesIO
-from django.db.models import Sum, Value, DecimalField, Q
-from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.workbook import Workbook
 from customer.models import Customer, BalanceHistory
+from customer.service.customer_balance import CustomerBalanceService
 from order.models import Order
 
 
@@ -40,9 +39,7 @@ class CustomerStatementService:
         if end_date < start_date:
             raise ValueError("to date must be greater than or equal to from date")
 
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(start_date, timezone.datetime.min.time())
-        )
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
             timezone.datetime.combine(end_date + timezone.timedelta(days=1), timezone.datetime.min.time())
         )
@@ -51,34 +48,33 @@ class CustomerStatementService:
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
         from order.models import Banding, Cutting
-        
+
         active_orders = Order.objects.filter(
             customer_id=customer_id, created_at__lt=start_dt
         ).exclude(order_status=Order.OrderStatus.CANCEL)
-        
+
         cancelled_orders = Order.objects.filter(
             customer_id=customer_id, created_at__lt=start_dt, order_status=Order.OrderStatus.CANCEL
         )
-        
+
         standalone_bandings = Banding.objects.filter(
             customer_id=customer_id, created_at__lt=start_dt, orders__isnull=True, order_items__isnull=True
         )
-        
+
         standalone_cuttings = Cutting.objects.filter(
             customer_id=customer_id, created_at__lt=start_dt, orders__isnull=True, order_items__isnull=True
         )
-        
+
         manual_payments = BalanceHistory.objects.filter(
             customer_id=customer_id, type=BalanceHistory.Type.PAYMENT, created_at__lt=start_dt
         )
-        
+
         total_payments = sum(p.amount for p in manual_payments)
         total_cancelled_covered = sum(o.covered_amount for o in cancelled_orders)
-        
         active_order_balance = sum(o.covered_amount - o.total_price for o in active_orders)
         banding_balance = sum(b.covered_amount - cls._service_total(b) for b in standalone_bandings)
         cutting_balance = sum(c.covered_amount - cls._service_total(c) for c in standalone_cuttings)
-        
+
         return total_payments + total_cancelled_covered + active_order_balance + banding_balance + cutting_balance
 
     @classmethod
@@ -97,17 +93,19 @@ class CustomerStatementService:
         )
 
         from order.models import Banding, Cutting
-        
+
         standalone_bandings = (
             Banding.objects
-            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True, order_items__isnull=True)
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True,
+                    order_items__isnull=True)
             .select_related("thickness")
             .order_by("created_at", "id")
         )
-        
+
         standalone_cuttings = (
             Cutting.objects
-            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True, order_items__isnull=True)
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True,
+                    order_items__isnull=True)
             .order_by("created_at", "id")
         )
 
@@ -118,8 +116,7 @@ class CustomerStatementService:
                 type=BalanceHistory.Type.PAYMENT,
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
-            )
-            .order_by("created_at", "id")
+            ).order_by("created_at", "id")
         )
 
         events = []
@@ -130,7 +127,6 @@ class CustomerStatementService:
 
             for item in order.items.all():
                 product_amount = item.price * item.quantity
-
                 rows.append(
                     {
                         "date": order.created_at.date(),
@@ -222,8 +218,7 @@ class CustomerStatementService:
                         "income_amount": None,
                         "expense_qty": None,
                         "expense_amount": -order_discount,
-                    }
-                )
+                    })
 
             if order.covered_amount > 0:
                 rows.append(
@@ -301,28 +296,22 @@ class CustomerStatementService:
 
         for payment in manual_payments:
             events.append(
-                (
-                    payment.created_at,
-                    1,
-                    [
-                        {
-                            "date": payment.created_at.date(),
-                            "registrator": f"Касса {payment.id} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
-                            "payment_type": "Наличная",
-                            "purpose": None,
-                            "product": None,
-                            "income_qty": None,
-                            "income_amount": payment.amount,
-                            "expense_qty": None,
-                            "expense_amount": None,
-                        }
-                    ],
-                )
-            )
+                (payment.created_at, 1, [{
+                    "date": payment.created_at.date(),
+                    "registrator": f"Касса {payment.id} от {payment.created_at:%d.%m.%Y %H:%M:%S}",
+                    "payment_type": "Наличная",
+                    "purpose": None,
+                    "product": None,
+                    "income_qty": None,
+                    "income_amount": payment.amount,
+                    "expense_qty": None,
+                    "expense_amount": None
+                }]))
 
         cancelled_orders_current_period = (
             Order.objects
-            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, order_status=Order.OrderStatus.CANCEL)
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt,
+                    order_status=Order.OrderStatus.CANCEL)
             .order_by("created_at", "id")
         )
 
@@ -345,7 +334,6 @@ class CustomerStatementService:
                 events.append((co.created_at, 0, rows))
 
         events.sort(key=lambda event: (event[0], event[1]))
-
         rows = []
         total_income_amount = Decimal("0")
         total_expense_amount = Decimal("0")
@@ -366,6 +354,8 @@ class CustomerStatementService:
                 rows.append(row)
                 no += 1
 
+        balance_stats = CustomerBalanceService.calculate(customer_id)
+
         return {
             "customer": {
                 "id": customer.id,
@@ -378,7 +368,7 @@ class CustomerStatementService:
             "totals": {
                 "income_amount": total_income_amount,
                 "expense_amount": total_expense_amount,
-                "closing_balance": running_balance,
+                "closing_balance": balance_stats["remaining_debt"],
             },
         }
 
@@ -402,19 +392,8 @@ class CustomerStatementService:
         negative_font = Font(name="Arial", size=8, color="00C00000")
 
         widths = {
-            "A": 13,
-            "B": 5.28515625,
-            "C": 13,
-            "D": 35.42578125,
-            "E": 15.7109375,
-            "F": 14.7109375,
-            "G": 26,
-            "H": 13,
-            "I": 13,
-            "J": 13,
-            "K": 13,
-            "L": 13,
-        }
+            "A": 13, "B": 5.28515625, "C": 13, "D": 35.42578125, "E": 15.7109375, "F": 14.7109375, "G": 26,
+            "H": 13, "I": 13, "J": 13, "K": 13, "L": 13}
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
 
@@ -467,7 +446,6 @@ class CustomerStatementService:
         ws["C3"].alignment = Alignment(horizontal="left", vertical="center")
         ws["K3"].alignment = center
         ws["L3"].alignment = right
-
         total_row = data_end_row
         ws.cell(row=total_row, column=2).font = bold_font
         ws.cell(row=total_row, column=2).alignment = right
@@ -482,13 +460,11 @@ class CustomerStatementService:
         wb = Workbook()
         ws = wb.active
         ws.title = "Sheet1"
-
         ws["C1"] = f"{data['from'].strftime('%d.%m.%Y')} 0:00:00"
         ws["C2"] = f"{data['to'].strftime('%d.%m.%Y')} 23:59:59"
         ws["C3"] = data["customer"]["full_name"]
         ws["K3"] = "Остаток"
         ws["L3"] = cls._fmt_number(data["opening_balance"])
-
         ws["B4"] = "№"
         ws["C4"] = "Дата"
         ws["D4"] = "Регистратор"
@@ -523,9 +499,7 @@ class CustomerStatementService:
         ws.cell(row=row_idx, column=2, value="Жами:")
         ws.cell(row=row_idx, column=9, value=cls._fmt_number(data["totals"]["income_amount"]))
         ws.cell(row=row_idx, column=11, value=cls._fmt_number(data["totals"]["expense_amount"]))
-
         cls._apply_table_style(ws, data_start_row=data_start_row, data_end_row=row_idx)
-
         output = BytesIO()
         wb.save(output)
         output.seek(0)
