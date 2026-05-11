@@ -20,12 +20,8 @@ class CustomerBalanceService:
 
     @classmethod
     def sync_customer_debt(cls, customer_id):
-
         stats = cls.calculate(customer_id)
-
-        Customer.objects.filter(pk=customer_id).update(
-            debt=stats["remaining_debt"]
-        )
+        Customer.objects.filter(pk=customer_id).update(debt=stats["remaining_debt"])
 
         return stats["remaining_debt"]
 
@@ -38,15 +34,8 @@ class CustomerBalanceService:
             .exclude(order_status=Order.OrderStatus.CANCEL)
         )
 
-        orders_total = sum(
-            (o.total_price or Decimal("0"))
-            for o in active_orders
-        )
-
-        orders_paid = sum(
-            (o.covered_amount or Decimal("0"))
-            for o in active_orders
-        )
+        orders_total = sum((o.total_price or Decimal("0")) for o in active_orders)
+        orders_paid = sum((o.covered_amount or Decimal("0")) for o in active_orders)
 
         cancelled_orders = (
             Order.objects

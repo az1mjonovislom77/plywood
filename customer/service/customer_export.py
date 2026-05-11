@@ -88,9 +88,7 @@ class CustomerStatementService:
                      "income_amount": None,
                      "expense_qty": 1,
                      "expense_amount": order.total_price,
-                 }
-                 ],
-                 )
+                 }])
             )
 
         for payment in payments:

@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ViewSet
 from customer.api.serializers import CustomerSerializer
 from customer.models import Customer
+from customer.service.customer_balance import CustomerBalanceService
 from customer.service.customer_export import SalesStatementService
 from customer.service.statement_service import CustomerStatementService
 from utils.base.views_base import BaseUserViewSet
@@ -17,6 +18,20 @@ class CustomerViewSet(BaseUserViewSet):
     ordering = ['-id']
     filter_backends = [TransliteratedSearchFilter]
     search_fields = ['full_name', 'phone_number']
+
+    def retrieve(self, request, *args, **kwargs):
+        customer_id = kwargs.get("pk")
+        CustomerBalanceService.sync_customer_debt(customer_id)
+
+        return super().retrieve(request, *args, **kwargs)
+
+    def list(self, request, *args, **kwargs):
+        customer_ids = self.filter_queryset(self.get_queryset()).values_list("id", flat=True)
+
+        for customer_id in customer_ids:
+            CustomerBalanceService.sync_customer_debt(customer_id)
+
+        return super().list(request, *args, **kwargs)
 
 
 @extend_schema(
