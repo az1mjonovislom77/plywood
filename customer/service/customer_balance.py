@@ -34,21 +34,11 @@ class CustomerBalanceService:
             .filter(customer_id=customer_id)
             .exclude(order_status=Order.OrderStatus.CANCEL))
 
-        orders_total = sum((o.total_price or Decimal("0"))
-                           for o in active_orders)
-        orders_paid = sum((o.covered_amount or Decimal("0"))
-                          for o in active_orders)
+        orders_total = sum((o.total_price or Decimal("0")) for o in active_orders)
+        orders_paid = sum((o.covered_amount or Decimal("0")) for o in active_orders)
 
-        cancelled_orders = (
-            Order.objects
-            .filter(
-                customer_id=customer_id,
-                order_status=Order.OrderStatus.CANCEL
-            )
-        )
-
-        cancelled_refund = sum((o.covered_amount or Decimal("0"))
-                               for o in cancelled_orders)
+        cancelled_orders = (Order.objects.filter(customer_id=customer_id, order_status=Order.OrderStatus.CANCEL))
+        cancelled_refund = sum((o.covered_amount or Decimal("0")) for o in cancelled_orders)
 
         standalone_bandings = (
             Banding.objects
@@ -70,11 +60,7 @@ class CustomerBalanceService:
             )
         )
 
-        cutting_total = sum(
-            cls.service_total(c)
-            for c in standalone_cuttings
-        )
-
+        cutting_total = sum(cls.service_total(c) for c in standalone_cuttings)
         cutting_paid = sum((c.covered_amount or Decimal("0")) for c in standalone_cuttings)
         manual_paid = (
                 BalanceHistory.objects
@@ -106,42 +92,17 @@ class CustomerBalanceService:
     @classmethod
     def calculate_customer_debt(cls, customer, date_from=None, date_to=None):
         from django.utils.dateparse import parse_date
-        date_from = (
-            parse_date(date_from)
-            if isinstance(date_from, str)
-            else date_from
-        )
-
-        date_to = (
-            parse_date(date_to)
-            if isinstance(date_to, str)
-            else date_to
-        )
-
-        start_dt = timezone.make_aware(
-            timezone.datetime.combine(date_from, timezone.datetime.min.time()))
+        date_from = (parse_date(date_from) if isinstance(date_from, str) else date_from)
+        date_to = (parse_date(date_to) if isinstance(date_to, str) else date_to)
+        start_dt = timezone.make_aware(timezone.datetime.combine(date_from, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
             timezone.datetime.combine(date_to + timezone.timedelta(days=1), timezone.datetime.min.time()))
-        active_orders = (
-            Order.objects
-            .filter(customer=customer, created_at__gte=start_dt, created_at__lt=end_dt)
-            .exclude(order_status=Order.OrderStatus.CANCEL)
-        )
+        active_orders = (Order.objects
+                         .filter(customer=customer, created_at__gte=start_dt, created_at__lt=end_dt)
+                         .exclude(order_status=Order.OrderStatus.CANCEL))
 
-        orders_total = sum(
-            (
-                    o.total_price or Decimal("0")
-            )
-            for o in active_orders
-        )
-
-        orders_paid = sum(
-            (
-                    o.covered_amount or Decimal("0")
-            )
-            for o in active_orders
-        )
-
+        orders_total = sum((o.total_price or Decimal("0")) for o in active_orders)
+        orders_paid = sum((o.covered_amount or Decimal("0")) for o in active_orders)
         cancelled_orders = (
             Order.objects
             .filter(
@@ -152,13 +113,7 @@ class CustomerBalanceService:
             )
         )
 
-        cancelled_refund = sum(
-            (
-                    o.covered_amount or Decimal("0")
-            )
-            for o in cancelled_orders
-        )
-
+        cancelled_refund = sum((o.covered_amount or Decimal("0")) for o in cancelled_orders)
         standalone_bandings = (
             Banding.objects
             .filter(
@@ -170,18 +125,8 @@ class CustomerBalanceService:
             )
         )
 
-        banding_total = sum(
-            cls.service_total(b)
-            for b in standalone_bandings
-        )
-
-        banding_paid = sum(
-            (
-                    b.covered_amount or Decimal("0")
-            )
-            for b in standalone_bandings
-        )
-
+        banding_total = sum(cls.service_total(b) for b in standalone_bandings)
+        banding_paid = sum((b.covered_amount or Decimal("0")) for b in standalone_bandings)
         standalone_cuttings = (
             Cutting.objects
             .filter(
@@ -193,18 +138,8 @@ class CustomerBalanceService:
             )
         )
 
-        cutting_total = sum(
-            cls.service_total(c)
-            for c in standalone_cuttings
-        )
-
-        cutting_paid = sum(
-            (
-                    c.covered_amount or Decimal("0")
-            )
-            for c in standalone_cuttings
-        )
-
+        cutting_total = sum(cls.service_total(c) for c in standalone_cuttings)
+        cutting_paid = sum((c.covered_amount or Decimal("0")) for c in standalone_cuttings)
         manual_paid = (
                 BalanceHistory.objects
                 .filter(
@@ -212,11 +147,7 @@ class CustomerBalanceService:
                     created_at__gte=start_dt,
                     created_at__lt=end_dt,
                     type=BalanceHistory.Type.PAYMENT
-                )
-                .aggregate(
-                    total=Sum("amount")
-                )["total"]
-                or Decimal("0")
+                ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
         )
 
         total_orders = (
@@ -233,9 +164,6 @@ class CustomerBalanceService:
                 cancelled_refund
         )
 
-        remaining_debt = (
-                total_orders -
-                total_paid
-        )
+        remaining_debt = (total_orders - total_paid)
 
         return remaining_debt
