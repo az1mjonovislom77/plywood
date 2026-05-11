@@ -55,11 +55,11 @@ class CustomerDebtExcelService:
         ws = wb.active
         today = timezone.localdate()
         ws.merge_cells('A1:D1')
-        ws['A1'] = f'ДТ - КТ на {today.strftime("%d.%m.%Y")}'
+        ws['A1'] = f'{today.strftime("%d.%m.%Y")}'
         ws['A3'] = '№'
-        ws['B3'] = 'Контрагент'
-        ws['C3'] = 'ДТ'
-        ws['D3'] = 'КТ'
+        ws['B3'] = 'Mijozlar'
+        ws['C3'] = 'Ortiqcha to`lov qilganlar'
+        ws['D3'] = 'Qarzdorlar'
         row = 5
         total_dt = Decimal("0")
         total_kt = Decimal("0")
@@ -81,14 +81,14 @@ class CustomerDebtExcelService:
 
             ws.cell(row=row, column=1, value=index)
             ws.cell(row=row, column=2, value=customer.full_name)
-            ws.cell(row=row, column=3, value=float(dt) if dt else None)
-            ws.cell(row=row, column=4, value=float(kt) if kt else None)
+            ws.cell(row=row, column=3, value=float(kt) if kt else None)
+            ws.cell(row=row, column=4, value=float(dt) if dt else None)
 
             row += 1
 
         ws.cell(row=row, column=2, value='Жами:')
-        ws.cell(row=row, column=3, value=float(total_dt))
-        ws.cell(row=row, column=4, value=float(total_kt))
+        ws.cell(row=row, column=3, value=float(total_kt))
+        ws.cell(row=row, column=4, value=float(total_dt))
 
         cls._style(ws, row)
         output = BytesIO()
