@@ -1,17 +1,20 @@
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from customer.api.serializers import CustomerSerializer
-from customer.models import Customer
-from customer.service.customer_balance import CustomerBalanceService
 from customer.service.customer_export import SalesStatementService
 from customer.service.customers_debt_export import CustomerDebtExcelService
 from customer.service.statement_service import CustomerStatementService
 from utils.base.views_base import BaseUserViewSet
 from utils.search import TransliteratedSearchFilter
+from decimal import Decimal
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from customer.models import Customer
+from customer.service.customer_balance import CustomerBalanceService
 
 
 @extend_schema(tags=["Customer"],
@@ -91,3 +94,54 @@ class CustomerDebtExcelAPIView(APIView):
 
     def get(self, request):
         return CustomerDebtExcelService.response()
+
+
+@extend_schema(tags=["CustomerDebtJson"])
+class CustomerDebtReportJsonAPIView(APIView):
+
+    def get(self, request):
+        today = timezone.localdate()
+        start_date = (parse_date(request.GET.get("from"))
+                      if request.GET.get("from")
+                      else today)
+        end_date = (parse_date(request.GET.get("to"))
+                    if request.GET.get("to")
+                    else today)
+        customers = Customer.objects.all().order_by("full_name")
+        results = []
+        total_dt = Decimal("0")
+        total_kt = Decimal("0")
+
+        for customer in customers:
+
+            debt = (CustomerBalanceService
+                    .calculate_customer_debt(customer=customer, date_from=start_date, date_to=end_date))
+
+            debt = Decimal(str(debt or 0))
+            debt_value = None
+            overpaid_value = None
+
+            if debt < 0:
+                debt_value = abs(debt)
+                total_dt += abs(debt)
+
+            elif debt > 0:
+                overpaid_value = debt
+                total_kt += debt
+
+            results.append({
+                "customer_id": customer.id,
+                "customer": customer.full_name,
+                "overpaid": (float(overpaid_value) if overpaid_value
+                             else 0),
+                "debt": (float(debt_value) if debt_value
+                         else 0)
+            })
+
+        return Response({
+            "from": str(start_date),
+            "to": str(end_date),
+            "total_overpaid": float(total_kt),
+            "total_debt": float(total_dt),
+            "results": results
+        })

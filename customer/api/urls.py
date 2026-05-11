@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from customer.api.views.stats_views import CustomerStatsView, DashboardDebtStatsView
-from customer.api.views.customer import CustomerViewSet, CustomerStatementExcelViewSet, CustomerDebtExcelAPIView
+from customer.api.views.customer import CustomerViewSet, CustomerStatementExcelViewSet, CustomerDebtExcelAPIView, \
+    CustomerDebtReportJsonAPIView
 from customer.api.views.debt import CoverDebtAPIView, CustomerHistoryAPIView, CustomerStatementExcelAPIView
 
 router = DefaultRouter()
@@ -16,4 +17,5 @@ urlpatterns = [
     path("payment-history/<int:pk>/", CustomerHistoryAPIView.as_view()),
     path("statement-excel/<int:pk>/", CustomerStatementExcelAPIView.as_view()),
     path('debt/excel/', CustomerDebtExcelAPIView.as_view()),
+    path("debt/json/", CustomerDebtReportJsonAPIView.as_view(), name="customer-debt-report"),
 ]
