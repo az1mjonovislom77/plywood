@@ -1,9 +1,11 @@
+from decimal import Decimal
 from django.db.models import Sum
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from customer.models import Customer
 from order.models import Order
 from utils.models import Expenses
+from utils.service.comprehensive_stats import DashboardStatsService
 
 
 class FinanceReportJsonService:
@@ -12,6 +14,8 @@ class FinanceReportJsonService:
         today = timezone.localdate()
         start_date = parse_date(date_from) if date_from else today
         end_date = parse_date(date_to) if date_to else today
+        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+        end_dt = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time()))
 
         income_orders = Order.objects.select_related("customer").filter(
             created_at__date__gte=start_date, created_at__date__lte=end_date
@@ -51,4 +55,6 @@ class FinanceReportJsonService:
             "income_total": income_total,
             "expenses": expense_data,
             "expense_total": expense_total,
+            "opening_balance": Decimal(str(DashboardStatsService._cashbox_total(end_dt=start_dt))),
+            "closing_balance": Decimal(str(DashboardStatsService._cashbox_total(end_dt=end_dt)))
         }
