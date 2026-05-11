@@ -18,11 +18,11 @@ class FinanceReportJsonService:
         end_dt = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time()))
 
         income_orders = Order.objects.select_related("customer").filter(
-            created_at__date__gte=start_date, created_at__date__lte=end_date
-        ).exclude(order_status=Order.OrderStatus.CANCEL)
+            created_at__range=(start_dt, end_dt)).exclude(order_status=Order.OrderStatus.CANCEL)
 
-        expenses = Expenses.objects.filter(expense_status="accept", created_at__date__gte=start_date,
-                                           created_at__date__lte=end_date).order_by("created_at")
+        expenses = Expenses.objects.filter(
+            expense_status="accept",
+            created_at__range=(start_dt, end_dt)).order_by("created_at")
 
         income = []
         income_total = 0
