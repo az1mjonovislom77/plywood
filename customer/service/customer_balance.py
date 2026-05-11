@@ -105,20 +105,27 @@ class CustomerBalanceService:
 
     @classmethod
     def calculate_customer_debt(cls, customer, date_from=None, date_to=None):
-        start_dt = timezone.make_aware(timezone.datetime.combine(date_from, timezone.datetime.min.time()))
+        from django.utils.dateparse import parse_date
+        date_from = (
+            parse_date(date_from)
+            if isinstance(date_from, str)
+            else date_from
+        )
+
+        date_to = (
+            parse_date(date_to)
+            if isinstance(date_to, str)
+            else date_to
+        )
+
+        start_dt = timezone.make_aware(
+            timezone.datetime.combine(date_from, timezone.datetime.min.time()))
         end_dt = timezone.make_aware(
             timezone.datetime.combine(date_to + timezone.timedelta(days=1), timezone.datetime.min.time()))
-
         active_orders = (
             Order.objects
-            .filter(
-                customer=customer,
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-            )
-            .exclude(
-                order_status=Order.OrderStatus.CANCEL
-            )
+            .filter(customer=customer, created_at__gte=start_dt, created_at__lt=end_dt)
+            .exclude(order_status=Order.OrderStatus.CANCEL)
         )
 
         orders_total = sum(
