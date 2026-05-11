@@ -20,16 +20,32 @@ class CustomerBalanceService:
 
     @classmethod
     def calculate(cls, customer_id):
-
-        active_orders = (
-            Order.objects
-            .filter(customer_id=customer_id)
-            .exclude(order_status=Order.OrderStatus.CANCEL)
-        )
+        active_orders = (Order.objects
+                         .filter(customer_id=customer_id)
+                         .exclude(order_status=Order.OrderStatus.CANCEL))
 
         orders_total = sum(
             o.total_price or Decimal("0")
             for o in active_orders
+        )
+
+        orders_paid = sum(
+            o.covered_amount or Decimal("0")
+            for o in active_orders
+        )
+
+
+        cancelled_orders = (
+            Order.objects
+            .filter(
+                customer_id=customer_id,
+                order_status=Order.OrderStatus.CANCEL
+            )
+        )
+
+        cancelled_refund = sum(
+            o.covered_amount or Decimal("0")
+            for o in cancelled_orders
         )
 
         standalone_bandings = (
@@ -46,6 +62,12 @@ class CustomerBalanceService:
             for b in standalone_bandings
         )
 
+        banding_paid = sum(
+            b.covered_amount or Decimal("0")
+            for b in standalone_bandings
+        )
+
+
         standalone_cuttings = (
             Cutting.objects
             .filter(
@@ -60,23 +82,34 @@ class CustomerBalanceService:
             for c in standalone_cuttings
         )
 
+        cutting_paid = sum(
+            c.covered_amount or Decimal("0")
+            for c in standalone_cuttings
+        )
+
+
+        manual_paid = (
+                BalanceHistory.objects
+                .filter(
+                    customer_id=customer_id,
+                    type=BalanceHistory.Type.PAYMENT
+                )
+                .aggregate(total=Sum("amount"))["total"]
+                or Decimal("0")
+        )
+
         total_orders = (
-            orders_total +
-            banding_total +
-            cutting_total
+                orders_total +
+                banding_total +
+                cutting_total
         )
 
         total_paid = (
-            BalanceHistory.objects
-            .filter(
-                customer_id=customer_id,
-                type__in=[
-                    BalanceHistory.Type.PAYMENT,
-                    BalanceHistory.Type.ORDER_PAYMENT,
-                ]
-            )
-            .aggregate(total=Sum("amount"))["total"]
-            or Decimal("0")
+                orders_paid +
+                banding_paid +
+                cutting_paid +
+                manual_paid +
+                cancelled_refund
         )
 
         remaining_debt = total_orders - total_paid
