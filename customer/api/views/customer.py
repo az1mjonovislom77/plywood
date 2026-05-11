@@ -14,7 +14,10 @@ from utils.base.views_base import BaseUserViewSet
 from utils.search import TransliteratedSearchFilter
 
 
-@extend_schema(tags=["Customer"])
+@extend_schema(tags=["Customer"],
+               parameters=[
+                   OpenApiParameter(name="from", required=False, type=str),
+                   OpenApiParameter(name="to", required=False, type=str)])
 class CustomerViewSet(BaseUserViewSet):
     serializer_class = CustomerSerializer
     queryset = Customer.objects.all()
