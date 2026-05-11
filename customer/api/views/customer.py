@@ -93,7 +93,7 @@ class CustomerStatementExcelViewSet(ViewSet):
 class CustomerDebtExcelAPIView(APIView):
 
     def get(self, request):
-        return CustomerDebtExcelService.response()
+        return CustomerDebtExcelService.response(request)
 
 
 @extend_schema(tags=["CustomerDebtJson"],
