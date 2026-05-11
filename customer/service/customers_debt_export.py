@@ -58,8 +58,8 @@ class CustomerDebtExcelService:
         ws['A1'] = f'{today.strftime("%d.%m.%Y")}'
         ws['A3'] = '№'
         ws['B3'] = 'Mijozlar'
-        ws['C3'] = 'Ortiqcha to`lov qilganlar'
-        ws['D3'] = 'Qarzdorlar'
+        ws['C3'] = 'Qarzdorlar'
+        ws['D3'] = 'Ortiqcha to`lov qilganlar'
         row = 5
         total_dt = Decimal("0")
         total_kt = Decimal("0")
