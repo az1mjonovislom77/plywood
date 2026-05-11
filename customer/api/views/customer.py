@@ -96,7 +96,10 @@ class CustomerDebtExcelAPIView(APIView):
         return CustomerDebtExcelService.response()
 
 
-@extend_schema(tags=["CustomerDebtJson"])
+@extend_schema(tags=["CustomerDebtJson"],
+               parameters=[
+                   OpenApiParameter(name="from", required=False, type=str),
+                   OpenApiParameter(name="to", required=False, type=str)])
 class CustomerDebtReportJsonAPIView(APIView):
 
     def get(self, request):
