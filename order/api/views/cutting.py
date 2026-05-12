@@ -1,6 +1,7 @@
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -10,7 +11,11 @@ from order.service.order import OrderService
 from utils.base.views_base import BaseUserViewSet
 
 
-@extend_schema(tags=["Cutting"])
+@extend_schema(
+    tags=["Cutting"],
+    parameters=[
+        OpenApiParameter(name="from", required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name="to", required=False, type=OpenApiTypes.STR)])
 class CuttingViewSet(BaseUserViewSet):
     queryset = Cutting.objects.select_related("customer").all()
     serializer_class = CuttingSerializer
@@ -22,14 +27,24 @@ class CuttingViewSet(BaseUserViewSet):
         return CuttingSerializer
 
     def get_queryset(self):
-        date_param = self.request.query_params.get("date") or timezone.localdate()
-        parsed_date = parse_date(date_param) if isinstance(date_param, str) else date_param
-        if not parsed_date:
-            return self.queryset.filter(created_at__date=date_param)
+        queryset = self.queryset
+        from_date = self.request.query_params.get("from")
+        to_date = self.request.query_params.get("to")
 
-        start = timezone.make_aware(timezone.datetime.combine(parsed_date, timezone.datetime.min.time()))
-        end = start + timezone.timedelta(days=1)
-        return self.queryset.filter(created_at__gte=start, created_at__lt=end)
+        if from_date:
+            parsed_from = parse_date(from_date)
+            if parsed_from:
+                start = timezone.make_aware(timezone.datetime.combine(parsed_from, timezone.datetime.min.time()))
+                queryset = queryset.filter(created_at__gte=start)
+
+        if to_date:
+            parsed_to = parse_date(to_date)
+            if parsed_to:
+                end = timezone.make_aware(
+                    timezone.datetime.combine(parsed_to, timezone.datetime.min.time())) + timezone.timedelta(days=1)
+                queryset = queryset.filter(created_at__lt=end)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
