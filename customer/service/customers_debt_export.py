@@ -105,14 +105,12 @@ class CustomerDebtExcelService:
             ).number_format = '#,##0.00'
 
     @classmethod
-    def build(cls, date_from=None, date_to=None):
+    def build(cls, date_from='2024-01-01', date_to=None):
 
         today = timezone.localdate()
 
-        start_date = (
-            parse_date(date_from)
-            if date_from else today
-        )
+        start_date = (parse_date(date_from)
+                      if date_from else parse_date('2024-01-01'))
 
         end_date = (
             parse_date(date_to)
@@ -185,6 +183,10 @@ class CustomerDebtExcelService:
     def response(cls, request):
         date_from = request.GET.get("from")
         date_to = request.GET.get("to")
+
+        # Fallback to default if date_from is empty string from request
+        if not date_from:
+            date_from = '2024-01-01'
 
         output = cls.build(date_from=date_from, date_to=date_to)
 
