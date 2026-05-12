@@ -7,10 +7,8 @@ from decimal import Decimal
 def generate_order_ledger_excel(order):
     wb = Workbook()
     ws = wb.active
-
     bold = Font(bold=True, size=11)
     center = Alignment(horizontal="center", vertical="center")
-
     border = Border(
         left=Side(style="thin"),
         right=Side(style="thin"),
@@ -35,16 +33,13 @@ def generate_order_ledger_excel(order):
         previous_paid = Decimal("0")
 
     balance = previous_total - previous_paid
-
     ws.merge_cells("I4:J4")
     ws["I4"] = "Остаток"
     ws["I4"].font = bold
     ws["I4"].alignment = center
-
     ws.merge_cells("I5:J5")
     money(ws["I5"], balance)
     ws["I5"].alignment = center
-
     ws.merge_cells("A6:A7")
     ws.merge_cells("B6:B7")
     ws.merge_cells("C6:C7")
@@ -53,7 +48,6 @@ def generate_order_ledger_excel(order):
     ws.merge_cells("F6:G6")
     ws.merge_cells("H6:I6")
     ws.merge_cells("J6:J7")
-
     ws["A6"] = "№"
     ws["B6"] = "Дата"
     ws["C6"] = "Регистратор"
@@ -62,7 +56,6 @@ def generate_order_ledger_excel(order):
     ws["F6"] = "Приход"
     ws["H6"] = "Расход"
     ws["J6"] = "Остаток"
-
     ws["F7"] = "Кол"
     ws["G7"] = "Сумма"
     ws["H7"] = "Кол"
@@ -81,16 +74,13 @@ def generate_order_ledger_excel(order):
     for item in order.items.select_related("product", "banding__thickness", "cutting"):
         qty = item.quantity
         amount = item.price * qty
-
         ws.cell(row=row, column=1, value=i)
         ws.cell(row=row, column=2, value=str(order.created_at.date()))
         ws.cell(row=row, column=3, value=f"Order {order.id}")
         ws.cell(row=row, column=4, value=order.get_payment_method_display())
         ws.cell(row=row, column=5, value=item.product.name)
-
         ws.cell(row=row, column=8, value=float(qty))
         money(ws.cell(row=row, column=9), amount)
-
         balance += amount
         money(ws.cell(row=row, column=10), balance)
 
@@ -103,16 +93,13 @@ def generate_order_ledger_excel(order):
         if item.banding:
             b = item.banding
             total = b.length * (b.thickness.price if b.thickness else Decimal("0"))
-
             ws.cell(row=row, column=1, value=i)
             ws.cell(row=row, column=2, value=str(order.created_at.date()))
             ws.cell(row=row, column=3, value=f"Order {order.id}")
             ws.cell(row=row, column=4, value=order.get_payment_method_display())
             ws.cell(row=row, column=5, value=f"Kromka {b.length}m")
-
             ws.cell(row=row, column=8, value=float(b.length))
             money(ws.cell(row=row, column=9), total)
-
             balance += total
             money(ws.cell(row=row, column=10), balance)
 
@@ -125,16 +112,13 @@ def generate_order_ledger_excel(order):
         if item.cutting:
             c = item.cutting
             total = c.count * c.price
-
             ws.cell(row=row, column=1, value=i)
             ws.cell(row=row, column=2, value=str(order.created_at.date()))
             ws.cell(row=row, column=3, value=f"Order {order.id}")
             ws.cell(row=row, column=4, value=order.get_payment_method_display())
             ws.cell(row=row, column=5, value="Kesish")
-
             ws.cell(row=row, column=8, value=float(c.count))
             money(ws.cell(row=row, column=9), total)
-
             balance += total
             money(ws.cell(row=row, column=10), balance)
 

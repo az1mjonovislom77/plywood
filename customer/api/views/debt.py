@@ -64,3 +64,31 @@ class CustomerStatementExcelAPIView(APIView):
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = f'attachment; filename="customer_{pk}_statement.xlsx"'
         return response
+
+
+@extend_schema(
+    tags=["CustomerDebt"],
+    parameters=[
+        OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY)])
+class CustomerStatementJsonAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+
+        try:
+            data = CustomerStatementService.build_statement(pk, date_from=date_from, date_to=date_to)
+            data["from"] = str(data["from"])
+            data["to"] = str(data["to"])
+
+            for row in data["rows"]:
+                row["date"] = str(row["date"])
+
+        except Customer.DoesNotExist:
+            return Response({"detail": "Customer not found"}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(data)

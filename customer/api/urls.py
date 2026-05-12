@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from customer.api.views.stats_views import CustomerStatsView, DashboardDebtStatsView
 from customer.api.views.customer import CustomerViewSet, CustomerStatementExcelViewSet, CustomerDebtExcelAPIView, \
     CustomerDebtReportJsonAPIView
-from customer.api.views.debt import CoverDebtAPIView, CustomerHistoryAPIView, CustomerStatementExcelAPIView
+from customer.api.views.debt import CoverDebtAPIView, CustomerHistoryAPIView, CustomerStatementExcelAPIView, \
+    CustomerStatementJsonAPIView
 
 router = DefaultRouter()
 router.register('customer', CustomerViewSet, basename='customer')
@@ -16,6 +17,7 @@ urlpatterns = [
     path("cover-debt/<int:pk>/", CoverDebtAPIView.as_view()),
     path("payment-history/<int:pk>/", CustomerHistoryAPIView.as_view()),
     path("statement-excel/<int:pk>/", CustomerStatementExcelAPIView.as_view()),
+    path("statement-json/<int:pk>/", CustomerStatementJsonAPIView.as_view()),
     path('debt/excel/', CustomerDebtExcelAPIView.as_view()),
     path("debt/json/", CustomerDebtReportJsonAPIView.as_view(), name="customer-debt-report"),
 ]
