@@ -1,6 +1,5 @@
 from drf_spectacular.utils import extend_schema
 from category.models import Category
-from rest_framework import filters
 from category.api.serializers import CategorySerializer
 from utils.base.views_base import BaseUserViewSet
 from django.db.models import Count, Q

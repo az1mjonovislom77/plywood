@@ -44,9 +44,7 @@ class CustomerHistoryAPIView(APIView):
     tags=["CustomerDebt"],
     parameters=[
         OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
-        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
-    ],
-)
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY)])
 class CustomerStatementExcelAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -63,7 +61,6 @@ class CustomerStatementExcelAPIView(APIView):
 
         response = HttpResponse(
             content.getvalue(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = f'attachment; filename="customer_{pk}_statement.xlsx"'
         return response
