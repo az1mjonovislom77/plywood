@@ -101,15 +101,17 @@ class CustomerDebtExcelAPIView(APIView):
 
 @extend_schema(tags=["CustomerDebtJson"],
                parameters=[
-                   OpenApiParameter(name="from", required=False, type=str),
+                   OpenApiParameter(name="from", required=False, default='2024-01-01', type=str),
                    OpenApiParameter(name="to", required=False, type=str)])
 class CustomerDebtReportJsonAPIView(APIView):
 
     def get(self, request):
         today = timezone.localdate()
-        start_date = (parse_date(request.GET.get("from"))
-                      if request.GET.get("from")
-                      else today)
+        date_from_str = request.GET.get("from")
+        if not date_from_str:
+            date_from_str = '2024-01-01'
+
+        start_date = parse_date(date_from_str)
         end_date = (parse_date(request.GET.get("to"))
                     if request.GET.get("to")
                     else today)
