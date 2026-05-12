@@ -30,10 +30,18 @@ class AcceptanceSelector:
         )
 
     @staticmethod
-    def grouped_supplier_stats_queryset(date_field="created_at"):
+    def grouped_supplier_stats_queryset(date_field="created_at", from_date=None, to_date=None, supplier_id=None):
+        qs = Acceptance.objects.filter(acceptance_status=Acceptance.AcceptanceStatus.ACCEPT, supplier__isnull=False)
+        
+        if from_date:
+            qs = qs.filter(**{f"{date_field}__gte": from_date})
+        if to_date:
+            qs = qs.filter(**{f"{date_field}__lte": to_date})
+        if supplier_id:
+            qs = qs.filter(supplier_id=supplier_id)
+            
         return (
-            Acceptance.objects
-            .filter(acceptance_status=Acceptance.AcceptanceStatus.ACCEPT, supplier__isnull=False)
+            qs
             .annotate(date=TruncDate(date_field))
             .values("date", "supplier_id", "supplier__full_name")
             .annotate(
@@ -44,10 +52,18 @@ class AcceptanceSelector:
                         output_field=DecimalField(max_digits=18, decimal_places=2)))).order_by("-date", "supplier_id"))
 
     @staticmethod
-    def grouped_supplier_stats(date_field="created_at"):
+    def grouped_supplier_stats(date_field="created_at", from_date=None, to_date=None, supplier_id=None):
+        qs = Acceptance.objects.filter(supplier__isnull=False)
+        
+        if from_date:
+            qs = qs.filter(**{f"{date_field}__gte": from_date})
+        if to_date:
+            qs = qs.filter(**{f"{date_field}__lte": to_date})
+        if supplier_id:
+            qs = qs.filter(supplier_id=supplier_id)
+            
         return (
-            Acceptance.objects
-            .filter(supplier__isnull=False)
+            qs
             .annotate(date=TruncDate(date_field))
             .values("date", "supplier_id", "supplier__full_name")
             .annotate(

@@ -93,6 +93,9 @@ class AcceptanceViewSet(BaseUserViewSet):
     parameters=[
         OpenApiParameter(name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
         OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, description="Format: YYYY-MM-DD"),
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, description="Format: YYYY-MM-DD"),
+        OpenApiParameter(name="supplier_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Filter by Supplier ID"),
     ],
 )
 class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
@@ -100,11 +103,29 @@ class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
     pagination_class = AnalyticsPagination
 
     def list(self, request):
-        data = AcceptanceAnalyticsService.get_grouped_supplier_stats(date_field="arrival_date")
+        from_date = request.query_params.get("from")
+        to_date = request.query_params.get("to")
+        supplier_id = request.query_params.get("supplier_id")
+        
+        if from_date:
+            from_date = parse_date(from_date)
+            if not from_date:
+                return Response({"detail": "Invalid from date format. Use YYYY-MM-DD"}, status=400)
+        
+        if to_date:
+            to_date = parse_date(to_date)
+            if not to_date:
+                return Response({"detail": "Invalid to date format. Use YYYY-MM-DD"}, status=400)
+
+        data = AcceptanceAnalyticsService.get_grouped_supplier_stats(
+            date_field="arrival_date", 
+            from_date=from_date, 
+            to_date=to_date,
+            supplier_id=supplier_id
+        )
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(data, request)
-
         serializer = AcceptanceGroupedSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
@@ -115,6 +136,9 @@ class AcceptanceAnalyticsViewSet(viewsets.ViewSet):
     parameters=[
         OpenApiParameter(name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
         OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, description="Format: YYYY-MM-DD"),
+        OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, description="Format: YYYY-MM-DD"),
+        OpenApiParameter(name="supplier_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Filter by Supplier ID"),
     ],
 )
 class AcceptanceSuppliersViewSet(viewsets.ViewSet):
@@ -122,11 +146,29 @@ class AcceptanceSuppliersViewSet(viewsets.ViewSet):
     pagination_class = AnalyticsPagination
 
     def list(self, request):
-        data = AcceptanceAnalyticsService.get_grouped_suppliers(date_field="arrival_date")
+        from_date = request.query_params.get("from")
+        to_date = request.query_params.get("to")
+        supplier_id = request.query_params.get("supplier_id")
+        
+        if from_date:
+            from_date = parse_date(from_date)
+            if not from_date:
+                return Response({"detail": "Invalid from date format. Use YYYY-MM-DD"}, status=400)
+        
+        if to_date:
+            to_date = parse_date(to_date)
+            if not to_date:
+                return Response({"detail": "Invalid to date format. Use YYYY-MM-DD"}, status=400)
+                
+        data = AcceptanceAnalyticsService.get_grouped_suppliers(
+            date_field="arrival_date", 
+            from_date=from_date, 
+            to_date=to_date,
+            supplier_id=supplier_id
+        )
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(data, request)
-
         serializer = AcceptanceGroupedSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
