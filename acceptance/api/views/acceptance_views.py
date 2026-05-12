@@ -11,7 +11,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
-
 from acceptance.api.serializers import AcceptanceCancelSerializer, AcceptanceSerializer, SupplierAcceptanceSerializer, \
     AcceptanceGroupedSerializer
 from acceptance.selectors.acceptance_selectors import AcceptanceSelector
@@ -33,6 +32,7 @@ class AnalyticsPagination(PageNumberPagination):
             "previous": self.get_previous_link(),
             "results": data
         })
+
 
 @extend_schema(tags=["Acceptance"],
                parameters=[

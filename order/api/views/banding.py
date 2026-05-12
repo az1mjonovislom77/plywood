@@ -16,14 +16,23 @@ class BandingViewSet(BaseUserViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        date_param = self.request.query_params.get("date") or timezone.localdate()
-        parsed_date = parse_date(date_param) if isinstance(date_param, str) else date_param
-        if not parsed_date:
-            return self.queryset.filter(created_at__date=date_param)
+        queryset = self.queryset
+        from_date = self.request.query_params.get("from")
+        to_date = self.request.query_params.get("to")
 
-        start = timezone.make_aware(timezone.datetime.combine(parsed_date, timezone.datetime.min.time()))
-        end = start + timezone.timedelta(days=1)
-        return self.queryset.filter(created_at__gte=start, created_at__lt=end)
+        if from_date:
+            parsed_from = parse_date(from_date)
+            if parsed_from:
+                start = timezone.make_aware(timezone.datetime.combine(parsed_from, timezone.datetime.min.time()))
+                queryset = queryset.filter(created_at__gte=start)
+        
+        if to_date:
+            parsed_to = parse_date(to_date)
+            if parsed_to:
+                end = timezone.make_aware(timezone.datetime.combine(parsed_to, timezone.datetime.min.time())) + timezone.timedelta(days=1)
+                queryset = queryset.filter(created_at__lt=end)
+        
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "create":
