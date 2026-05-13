@@ -233,6 +233,7 @@ class OrderItem(models.Model):
     sell_price_difference = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     exchange_rate = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     price_in_dollar = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    new_price_in_dollar = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
 
     class Meta:
         unique_together = ("order", "product")

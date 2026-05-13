@@ -126,7 +126,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = [
             "id", "product", "banding", "cutting", "price", "quantity", "original_sell_price", "new_sell_price",
-            "sell_price_difference", "exchange_rate", "price_in_dollar",
+            "sell_price_difference", "exchange_rate", "price_in_dollar", "new_price_in_dollar",
         ]
 
 

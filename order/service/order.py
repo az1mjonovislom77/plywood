@@ -175,8 +175,17 @@ class OrderService:
                 )
 
             price_in_dollar = None
+            new_price_in_dollar = None
             if rate_value is not None and rate_value != Decimal("0"):
-                price_in_dollar = (actual_sell_price / rate_value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+                price_in_dollar = (original_sell_price / rate_value).quantize(
+                    Decimal("0.0001"),
+                    rounding=ROUND_HALF_UP,
+                )
+                if new_sell_price is not None:
+                    new_price_in_dollar = (new_sell_price / rate_value).quantize(
+                        Decimal("0.0001"),
+                        rounding=ROUND_HALF_UP,
+                    )
 
             order_items.append(OrderItem(
                 order=order,
@@ -190,6 +199,7 @@ class OrderService:
                 sell_price_difference=sell_price_difference,
                 exchange_rate=rate_value,
                 price_in_dollar=price_in_dollar,
+                new_price_in_dollar=new_price_in_dollar,
             ))
             created_product_ids.append(product.id)
 

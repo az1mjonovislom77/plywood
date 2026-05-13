@@ -2,6 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import requests
 
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 from acceptance.models import CurrencyRate
 from order.models import OrderItem
 
@@ -21,17 +22,26 @@ class Command(BaseCommand):
         return rate
 
     def handle(self, *args, **kwargs):
-        items = OrderItem.objects.filter(exchange_rate__isnull=True)
+        items = OrderItem.objects.filter(
+            Q(exchange_rate__isnull=True) |
+            Q(new_sell_price__isnull=False, new_price_in_dollar__isnull=True)
+        )
 
         for item in items:
             d = item.order.created_at.date()
             rate = self.get_rate(d)
 
             item.exchange_rate = rate
-            item.price_in_dollar = (item.price / rate).quantize(
+            base_price = item.original_sell_price or item.price
+            item.price_in_dollar = (base_price / rate).quantize(
                 Decimal("0.0001"),
                 rounding=ROUND_HALF_UP
             )
-            item.save(update_fields=["exchange_rate", "price_in_dollar"])
+            if item.new_sell_price is not None:
+                item.new_price_in_dollar = (item.new_sell_price / rate).quantize(
+                    Decimal("0.0001"),
+                    rounding=ROUND_HALF_UP
+                )
+            item.save(update_fields=["exchange_rate", "price_in_dollar", "new_price_in_dollar"])
 
         self.stdout.write("done")
