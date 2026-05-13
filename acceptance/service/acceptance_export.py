@@ -74,7 +74,7 @@ class AcceptanceExportService:
         ws = wb.active
         ws.title = "Analytics"
 
-        title = "Qabul analytics"
+        title = "Qabul qilish tahlili"
         if from_date and to_date:
             title = f"{title} ({from_date.strftime('%d.%m.%Y')} - {to_date.strftime('%d.%m.%Y')})"
         elif from_date:
