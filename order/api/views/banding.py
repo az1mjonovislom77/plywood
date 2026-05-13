@@ -12,7 +12,7 @@ from utils.base.views_base import BaseUserViewSet
 
 @extend_schema(tags=["Banding"])
 class BandingViewSet(BaseUserViewSet):
-    queryset = Banding.objects.select_related("thickness", "customer").all()
+    queryset = Banding.objects.select_related("customer").all()
     ordering = ["-created_at"]
 
     def get_queryset(self):

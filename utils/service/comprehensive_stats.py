@@ -62,7 +62,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
 
     @classmethod
     def _service_sales_expr(cls, prefix: str = ""):
-        gross = cls.mul(f"{prefix}length", f"{prefix}thickness__price")
+        gross = cls.mul(f"{prefix}length", f"{prefix}thickness")
         discount = cls.nullable(f"{prefix}discount")
         return cls.sub(gross, discount)
 

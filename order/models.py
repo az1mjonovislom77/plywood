@@ -43,8 +43,7 @@ class Banding(models.Model):
         CARD = "card", "Kart"
         NASIYA = "nasiya", "Nasiya"
 
-    thickness = models.ForeignKey("Thickness", on_delete=models.SET_NULL, null=True, blank=True,
-                                  related_name="bandings")
+    thickness = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     length = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_at = models.DateTimeField(default=timezone.now)
     customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="bandings", null=True,
@@ -55,9 +54,7 @@ class Banding(models.Model):
     covered_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     def calculate_price(self):
-        if self.thickness:
-            return self.length * self.thickness.price
-        return Decimal("0")
+        return self.length * self.thickness
 
     def clean(self):
         if self.covered_amount < 0:

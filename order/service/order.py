@@ -67,8 +67,8 @@ class OrderService:
     def get_by_id(order_id):
         return (
             Order.objects.filter(id=order_id)
-            .select_related("customer", "banding", "banding__thickness", "cutting", "accepted_by", "user")
-            .prefetch_related("items__product", "items__banding", "items__banding__thickness", "items__cutting",
+            .select_related("customer", "banding", "cutting", "accepted_by", "user")
+            .prefetch_related("items__product", "items__banding", "items__cutting",
                               "history__user")
             .first()
         )
@@ -165,7 +165,7 @@ class OrderService:
             banding_data = item_data.get("banding")
             if banding_data:
                 banding_instance = Banding.objects.create(
-                    thickness=banding_data.get("thickness"),
+                    thickness=banding_data.get("thickness", Decimal("0")),
                     length=banding_data["length"],
                     customer=customer,
                     discount=banding_data.get("discount", 0),
@@ -233,7 +233,7 @@ class OrderService:
             basket.save(update_fields=["is_active"])
 
         return (Order.objects.select_related("customer", "banding", "cutting")
-                .prefetch_related("items__product", "items__banding__thickness", "items__cutting").get(id=order.id))
+                .prefetch_related("items__product", "items__banding", "items__cutting").get(id=order.id))
 
     @staticmethod
     @transaction.atomic
@@ -256,7 +256,7 @@ class OrderService:
     def create_banding(data):
         customer = OrderService._get_customer(data.get("customer_id"))
         banding = Banding.objects.create(
-            thickness=data.get("thickness"),
+            thickness=data.get("thickness", Decimal("0")),
             length=data["length"],
             customer=customer,
             discount=data.get("discount", 0),
@@ -265,4 +265,4 @@ class OrderService:
             covered_amount=data.get("covered_amount", 0),
         )
         OrderService._apply_customer_balance(banding)
-        return Banding.objects.select_related("customer", "thickness").get(id=banding.id)
+        return Banding.objects.select_related("customer").get(id=banding.id)

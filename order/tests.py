@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 from acceptance.models import CurrencyRate
 from order.api.serializers import OrderSerializer
-from order.models import Basket, BasketItem, Order, OrderHistory, OrderItem, Thickness
+from order.models import Basket, BasketItem, Order, OrderHistory, OrderItem
 from order.service.order import OrderService
 from product.models import Product
 from user.models import User
@@ -96,7 +96,6 @@ class OrderSerializerTest(TestCase):
 
     def test_checkout_creates_cutting_and_banding_for_each_product(self):
         product = Product.objects.create(name="Plywood", sale_price=Decimal("400000.00"), count=Decimal("2.000"))
-        thickness = Thickness.objects.create(text="1 mm", price=Decimal("10000.00"))
         basket = Basket.objects.create(user=self.seller)
         BasketItem.objects.create(basket=basket, product=product)
 
@@ -107,7 +106,7 @@ class OrderSerializerTest(TestCase):
                 "product_id": product.id,
                 "quantity": Decimal("1.000"),
                 "cutting": {"count": Decimal("2.000"), "price": Decimal("15000.00")},
-                "banding": {"thickness": thickness, "length": Decimal("3.000")},
+                "banding": {"thickness": Decimal("10000.00"), "length": Decimal("3.000")},
             }],
         )
 

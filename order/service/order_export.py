@@ -71,7 +71,7 @@ def generate_order_ledger_excel(order):
     row = 8
     i = 1
 
-    for item in order.items.select_related("product", "banding__thickness", "cutting"):
+    for item in order.items.select_related("product", "banding", "cutting"):
         qty = item.quantity
         amount = item.price * qty
         ws.cell(row=row, column=1, value=i)
@@ -92,7 +92,7 @@ def generate_order_ledger_excel(order):
 
         if item.banding:
             b = item.banding
-            total = b.length * (b.thickness.price if b.thickness else Decimal("0"))
+            total = b.length * b.thickness
             ws.cell(row=row, column=1, value=i)
             ws.cell(row=row, column=2, value=str(order.created_at.date()))
             ws.cell(row=row, column=3, value=f"Order {order.id}")

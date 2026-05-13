@@ -87,8 +87,8 @@ class CustomerStatementService:
             Order.objects
             .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt)
             .exclude(order_status=Order.OrderStatus.CANCEL)
-            .select_related("banding__thickness", "cutting")
-            .prefetch_related("items__product", "items__banding__thickness", "items__cutting")
+            .select_related("banding", "cutting")
+            .prefetch_related("items__product", "items__banding", "items__cutting")
             .order_by("created_at", "id")
         )
 
@@ -98,7 +98,6 @@ class CustomerStatementService:
             Banding.objects
             .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True,
                     order_items__isnull=True)
-            .select_related("thickness")
             .order_by("created_at", "id")
         )
 
@@ -157,7 +156,7 @@ class CustomerStatementService:
                     )
 
                 if item.banding:
-                    thickness = item.banding.thickness.text if item.banding.thickness else ""
+                    thickness = item.banding.thickness
                     rows.append(
                         {
                             "date": order.created_at.date(),
@@ -188,7 +187,7 @@ class CustomerStatementService:
                 )
 
             if order.banding:
-                thickness = order.banding.thickness.text if order.banding.thickness else ""
+                thickness = order.banding.thickness
                 rows.append(
                     {
                         "date": order.created_at.date(),
@@ -239,7 +238,7 @@ class CustomerStatementService:
 
         for banding in standalone_bandings:
             rows = []
-            thickness = banding.thickness.text if banding.thickness else ""
+            thickness = banding.thickness
             registrator = f"Хизмат {banding.id:09d} от {banding.created_at:%d.%m.%Y %H:%M:%S}"
             rows.append({
                 "date": banding.created_at.date(),

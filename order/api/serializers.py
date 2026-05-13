@@ -71,7 +71,6 @@ class ThicknessSerializer(BaseReadSerializer):
 
 
 class BandingGetSerializer(serializers.ModelSerializer):
-    thickness = ThicknessSerializer(read_only=True)
     total_price = serializers.SerializerMethodField()
     customer_fullname = serializers.CharField(source="customer.full_name", read_only=True)
 

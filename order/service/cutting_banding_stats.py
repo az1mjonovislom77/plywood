@@ -17,7 +17,7 @@ class DashboardStatsService:
         )
 
         banding_expr = ExpressionWrapper(
-            F("length") * F("thickness__price"),
+            F("length") * F("thickness"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
