@@ -6,6 +6,12 @@ from acceptance.models import Acceptance, AcceptanceHistory
 
 class AcceptanceSelector:
     @staticmethod
+    def _date_annotation(date_field):
+        if date_field == "arrival_date":
+            return F(date_field)
+        return TruncDate(date_field)
+
+    @staticmethod
     def acceptance_queryset():
         history_queryset = AcceptanceHistory.objects.select_related("user", "supplier", "product")
         return (
@@ -42,7 +48,7 @@ class AcceptanceSelector:
             
         return (
             qs
-            .annotate(date=TruncDate(date_field))
+            .annotate(date=AcceptanceSelector._date_annotation(date_field))
             .values("date", "supplier_id", "supplier__full_name")
             .annotate(
                 total_quantity=Sum("count"),
@@ -64,7 +70,7 @@ class AcceptanceSelector:
             
         return (
             qs
-            .annotate(date=TruncDate(date_field))
+            .annotate(date=AcceptanceSelector._date_annotation(date_field))
             .values("date", "supplier_id", "supplier__full_name")
             .annotate(
                 total_quantity=Sum("count"),

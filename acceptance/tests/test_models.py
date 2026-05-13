@@ -11,8 +11,9 @@ from django.db import IntegrityError
 from django.db.models import ProtectedError
 from django.core.exceptions import ValidationError
 from acceptance.api.serializers import AcceptanceSerializer
-from acceptance.api.views.acceptance_views import AcceptanceViewSet
+from acceptance.api.views.acceptance_views import AcceptanceExportViewSet, AcceptanceViewSet
 from acceptance.models import CurrencyRate, Acceptance
+from acceptance.service.acceptance_export import AcceptanceExportService
 from acceptance.service.acceptance_workflow import AcceptanceWorkflowService
 
 
@@ -144,3 +145,55 @@ class SupplierAcceptanceAPIViewTest(TestCase):
         response = view(request, supplier_id=self.supplier.id)
 
         self.assertEqual(response.status_code, 400)
+
+    def test_analytics_excel_endpoint_returns_xlsx(self):
+        Acceptance.objects.create(
+            product=self.product,
+            supplier=self.supplier,
+            arrival_price=Decimal("1000.00"),
+            count=Decimal("2.000"),
+            acceptance_status=Acceptance.AcceptanceStatus.ACCEPT,
+            arrival_date=date(2026, 4, 20),
+        )
+        request = self.factory.get(
+            "/acceptance/acceptance-export/analytics/",
+            {"from": "2026-04-20", "to": "2026-04-20"},
+        )
+        force_authenticate(request, user=self.user)
+        view = AcceptanceExportViewSet.as_view({"get": "analytics_excel"})
+
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Disposition"], 'attachment; filename="acceptance_analytics.xlsx"')
+        self.assertEqual(response.get("Content-Type"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+class AcceptanceAnalyticsExportServiceTest(TestCase):
+    def test_build_analytics_excel_groups_suppliers_by_date(self):
+        report_date = date(2026, 4, 20)
+        data = [
+            {
+                "date": report_date,
+                "suppliers": [
+                    {
+                        "supplier_id": 1,
+                        "supplier_name": "Mirmuhsin",
+                        "total_quantity": Decimal("570"),
+                        "total_investment": Decimal("157538850"),
+                    }
+                ],
+            }
+        ]
+
+        wb = AcceptanceExportService.build_analytics_excel(data)
+        ws = wb.active
+
+        self.assertEqual(ws.title, "Analytics")
+        self.assertEqual([ws["A3"].value, ws["B3"].value, ws["C3"].value, ws["D3"].value],
+                         ["Sana", "Yetkazib beruvchi", "Miqdor", "Investitsiya"])
+        self.assertEqual(ws["A4"].value, "20.04.2026")
+        self.assertEqual(ws["B4"].value, "1 ta yetkazib beruvchi")
+        self.assertEqual(ws["B5"].value, "Mirmuhsin")
+        self.assertEqual(ws["C5"].value, 570.0)
+        self.assertEqual(ws["D5"].value, 157538850.0)

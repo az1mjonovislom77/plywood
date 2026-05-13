@@ -177,6 +177,52 @@ class AcceptanceSuppliersViewSet(viewsets.ViewSet):
 class AcceptanceExportViewSet(ViewSet):
     permission_classes = [IsAuthenticated]
 
+    @staticmethod
+    def _parse_analytics_filters(request):
+        from_date = request.query_params.get("from")
+        to_date = request.query_params.get("to")
+        supplier_id = request.query_params.get("supplier_id")
+
+        if from_date:
+            from_date = parse_date(from_date)
+            if not from_date:
+                return None, None, None, Response({"detail": "Invalid from date format. Use YYYY-MM-DD"}, status=400)
+
+        if to_date:
+            to_date = parse_date(to_date)
+            if not to_date:
+                return None, None, None, Response({"detail": "Invalid to date format. Use YYYY-MM-DD"}, status=400)
+
+        return from_date, to_date, supplier_id, None
+
+    @extend_schema(tags=["AcceptanceExport"],
+                   parameters=[
+                       OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
+                                        description="Format: YYYY-MM-DD"),
+                       OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
+                                        description="Format: YYYY-MM-DD"),
+                       OpenApiParameter(name="supplier_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                                        description="Filter by Supplier ID")])
+    @action(detail=False, methods=["get"], url_path="analytics")
+    def analytics_excel(self, request):
+        from_date, to_date, supplier_id, error_response = self._parse_analytics_filters(request)
+        if error_response:
+            return error_response
+
+        data = AcceptanceAnalyticsService.get_grouped_supplier_stats(
+            date_field="arrival_date",
+            from_date=from_date,
+            to_date=to_date,
+            supplier_id=supplier_id,
+        )
+        wb = AcceptanceExportService.build_analytics_excel(data=data, from_date=from_date, to_date=to_date)
+
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = 'attachment; filename="acceptance_analytics.xlsx"'
+
+        wb.save(response)
+        return response
+
     @extend_schema(tags=["AcceptanceExport"],
                    parameters=[
                        OpenApiParameter(name="date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
