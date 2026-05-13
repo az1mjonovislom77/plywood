@@ -12,13 +12,11 @@ class AcceptanceExportService:
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Acceptance"
-
         title = f"{supplier_name} - {date.strftime('%d.%m.%Y')}"
         ws.merge_cells("A1:D1")
         ws["A1"] = title
         ws["A1"].font = Font(bold=True, size=14)
         ws["A1"].alignment = Alignment(horizontal="center")
-
         headers = ["Mahsulot", "Miqdor", "Kelish narxi", "Investitsiya"]
         ws.append([])
         ws.append(headers)
@@ -31,7 +29,6 @@ class AcceptanceExportService:
 
         for obj in queryset:
             investment = obj.arrival_price * obj.count
-
             ws.append([
                 obj.product.name,
                 float(obj.count),
@@ -86,7 +83,6 @@ class AcceptanceExportService:
         ws["A1"] = title
         ws["A1"].font = Font(bold=True, size=14)
         ws["A1"].alignment = Alignment(horizontal="center")
-
         ws.append([])
         ws.append(["Sana", "Yetkazib beruvchi", "Miqdor", "Investitsiya"])
         for cell in ws[3]:
@@ -139,7 +135,6 @@ class AcceptanceExportService:
             cell.border = cls.THIN_BORDER
         ws.cell(row=total_row, column=3).number_format = '#,##0.### "dona"'
         ws.cell(row=total_row, column=4).number_format = '#,##0.## "UZS"'
-
         ws.column_dimensions["A"].width = 18
         ws.column_dimensions["B"].width = 34
         ws.column_dimensions["C"].width = 18
