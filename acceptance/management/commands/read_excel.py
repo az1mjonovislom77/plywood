@@ -53,36 +53,49 @@ class Command(BaseCommand):
             
         self.stdout.write(f"Found {len(df)} rows in the Excel file.")
 
-        if len(df.columns) < 2:
-            self.stdout.write(self.style.ERROR("Excel file must have at least two columns: Product Name and Count"))
-            return
-
         success_count = 0
         error_count = 0
         skipped_count = 0
 
+        # We will try to find which column is the product name and which is the count
+        # In this specific case, it seems the count is 'nan' in column 1 (index 1)
+        # Let's inspect all columns to find the count.
+        
         for index, row in df.iterrows():
             product_name_raw = row[0]
-            count_val = row[1]
             
             product_name = str(product_name_raw).strip() if pd.notna(product_name_raw) else ""
+            
+            # Find the first column that has a valid number for count, starting from column 1
+            count_val = None
+            for col_idx in range(1, len(df.columns)):
+                if pd.notna(row[col_idx]):
+                    try:
+                        # Try to cast to float to check if it's a number
+                        float(row[col_idx])
+                        count_val = row[col_idx]
+                        break
+                    except ValueError:
+                        pass
+            
+            if not product_name or count_val is None:
+                 # If we couldn't find a valid count in any other column, let's just log what we found in col 1
+                 original_count = row[1] if len(df.columns) > 1 else 'N/A'
+                 self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because count is empty. (Name: '{product_name}', Count Col 1: '{original_count}')"))
+                 skipped_count += 1
+                 continue
 
-            if not product_name or pd.isna(count_val):
-                self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because product name or count is empty. (Name: '{product_name}', Count: '{count_val}')"))
-                skipped_count += 1
-                continue
-                
             try:
                 count = Decimal(str(count_val))
             except Exception:
-                self.stdout.write(self.style.WARNING(f"Row {index + 1}: Invalid count format for product '{product_name}'"))
+                self.stdout.write(self.style.WARNING(f"Row {index + 1}: Invalid count format for product '{product_name}'. Count found: {count_val}"))
                 error_count += 1
                 continue
 
             try:
                 product = Product.objects.get(name__iexact=product_name)
             except Product.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f"Row {index + 1}: Product '{product_name}' not found"))
+                self.stdout.write(self.style.ERROR(f"Row {index + 1}: Product '{product_name}' not found in database."))
                 error_count += 1
                 continue
             except Product.MultipleObjectsReturned:
