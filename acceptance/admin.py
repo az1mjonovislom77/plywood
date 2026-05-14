@@ -3,7 +3,7 @@ from django.contrib import admin
 
 
 class AcceptanceAdmin(admin.ModelAdmin):
-    list_display = ("id",)
+    list_display = ("id", "supplier", "product")
 
 
 class AcceptanceHistoryAdmin(admin.ModelAdmin):
