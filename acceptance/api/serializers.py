@@ -11,11 +11,13 @@ class AcceptanceSerializer(serializers.ModelSerializer):
     history = serializers.SerializerMethodField()
     count = TrimmedDecimalField(max_digits=10, decimal_places=3)
     arrival_price_in_dollar = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    investment = serializers.SerializerMethodField()
+    investment_in_dollar = serializers.SerializerMethodField()
 
     class Meta:
         model = Acceptance
         fields = ["id", "supplier", "product", "price_type", "product_name", "arrival_price", "arrival_price_in_dollar", "sale_price", "count",
-                  "arrival_date", "description", "acceptance_status", "accepted_by_name", "accepted_at", "history"]
+                  "arrival_date", "description", "acceptance_status", "accepted_by_name", "accepted_at", "history", "investment", "investment_in_dollar"]
 
     def get_history(self, obj):
         request = self.context.get("request")
@@ -30,6 +32,12 @@ class AcceptanceSerializer(serializers.ModelSerializer):
             return []
 
         return AcceptanceHistorySerializer(history, many=True, context=self.context).data
+
+    def get_investment(self, obj):
+        return obj.count * obj.arrival_price
+
+    def get_investment_in_dollar(self, obj):
+        return obj.count * obj.arrival_price_in_dollar
 
 
 class AcceptanceHistorySerializer(serializers.ModelSerializer):

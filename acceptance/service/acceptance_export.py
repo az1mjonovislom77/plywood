@@ -28,11 +28,11 @@ class AcceptanceExportService:
         total_investment = 0
 
         for obj in queryset:
-            investment = obj.arrival_price * obj.count
+            investment = obj.arrival_price_in_dollar * obj.count
             ws.append([
                 obj.product.name,
                 float(obj.count),
-                float(obj.arrival_price),
+                float(obj.arrival_price_in_dollar),
                 float(investment),
             ])
 
@@ -41,7 +41,7 @@ class AcceptanceExportService:
 
         for row in ws.iter_rows(min_row=4, min_col=2, max_col=4):
             for cell in row:
-                cell.number_format = '#,##0'
+                cell.number_format = '#,##0.00'
 
         ws.append([])
         ws.append([
@@ -56,7 +56,7 @@ class AcceptanceExportService:
         for cell in ws[last_row]:
             cell.font = Font(bold=True)
             if cell.column in [2, 4]:
-                cell.number_format = '#,##0'
+                cell.number_format = '#,##0.00'
 
         ws.column_dimensions["A"].width = 40
         ws.column_dimensions["B"].width = 15
@@ -84,7 +84,7 @@ class AcceptanceExportService:
         ws["A1"].font = Font(bold=True, size=14)
         ws["A1"].alignment = Alignment(horizontal="center")
         ws.append([])
-        ws.append(["Sana", "Yetkazib beruvchi", "Miqdor", "Investitsiya"])
+        ws.append(["Sana", "Yetkazib beruvchi", "Miqdor", "Investitsiya ($)"])
         for cell in ws[3]:
             cell.font = Font(bold=True)
             cell.fill = cls.HEADER_FILL
@@ -119,7 +119,7 @@ class AcceptanceExportService:
                 ])
                 row = ws.max_row
                 ws.cell(row=row, column=3).number_format = '#,##0.### "dona"'
-                ws.cell(row=row, column=4).number_format = '#,##0.## "UZS"'
+                ws.cell(row=row, column=4).number_format = '#,##0.00 "$"'
                 for cell in ws[row]:
                     cell.border = cls.THIN_BORDER
 
@@ -134,7 +134,7 @@ class AcceptanceExportService:
             cell.fill = cls.HEADER_FILL
             cell.border = cls.THIN_BORDER
         ws.cell(row=total_row, column=3).number_format = '#,##0.### "dona"'
-        ws.cell(row=total_row, column=4).number_format = '#,##0.## "UZS"'
+        ws.cell(row=total_row, column=4).number_format = '#,##0.00 "$"'
         ws.column_dimensions["A"].width = 18
         ws.column_dimensions["B"].width = 34
         ws.column_dimensions["C"].width = 18
