@@ -47,18 +47,29 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Failed to read Excel file: {str(e)}"))
             return
 
+        if df.empty:
+            self.stdout.write(self.style.WARNING("The Excel file is empty or could not be read properly."))
+            return
+            
+        self.stdout.write(f"Found {len(df)} rows in the Excel file.")
+
         if len(df.columns) < 2:
             self.stdout.write(self.style.ERROR("Excel file must have at least two columns: Product Name and Count"))
             return
 
         success_count = 0
         error_count = 0
+        skipped_count = 0
 
         for index, row in df.iterrows():
-            product_name = str(row[0]).strip()
+            product_name_raw = row[0]
             count_val = row[1]
             
-            if pd.isna(product_name) or not product_name or pd.isna(count_val):
+            product_name = str(product_name_raw).strip() if pd.notna(product_name_raw) else ""
+
+            if not product_name or pd.isna(count_val):
+                self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because product name or count is empty. (Name: '{product_name}', Count: '{count_val}')"))
+                skipped_count += 1
                 continue
                 
             try:
@@ -98,4 +109,4 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"Row {index + 1}: Failed to create acceptance for '{product_name}'. Error: {str(e)}"))
                 error_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f"\\nImport finished! Successful: {success_count}, Errors: {error_count}"))
+        self.stdout.write(self.style.SUCCESS(f"\\nImport finished! Successful: {success_count}, Errors: {error_count}, Skipped: {skipped_count}"))
