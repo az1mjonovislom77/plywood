@@ -26,6 +26,7 @@ class Acceptance(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="acceptances")
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, related_name="acceptances", null=True, blank=True)
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    arrival_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     price_type = models.CharField(max_length=10, choices=PriceType.choices, default=PriceType.SUM)
     count = models.DecimalField(max_digits=10, decimal_places=3, default=0)
@@ -37,6 +38,20 @@ class Acceptance(models.Model):
     arrival_date = models.DateField(default=timezone.localdate)
     description = models.TextField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    def save(self, *args, **kwargs):
+        if self.price_type == self.PriceType.DOLLAR:
+            self.arrival_price_in_dollar = self.arrival_price
+        else:
+            try:
+                rate = CurrencyRate.objects.get(date=self.arrival_date).rate
+                if rate and rate > 0:
+                    self.arrival_price_in_dollar = self.arrival_price / rate
+                else:
+                    self.arrival_price_in_dollar = 0
+            except CurrencyRate.DoesNotExist:
+                self.arrival_price_in_dollar = 0
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["-created_at"]

@@ -10,10 +10,11 @@ class AcceptanceSerializer(serializers.ModelSerializer):
     accepted_at = serializers.DateTimeField(read_only=True)
     history = serializers.SerializerMethodField()
     count = TrimmedDecimalField(max_digits=10, decimal_places=3)
+    arrival_price_in_dollar = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Acceptance
-        fields = ["id", "supplier", "product", "price_type", "product_name", "arrival_price", "sale_price", "count",
+        fields = ["id", "supplier", "product", "price_type", "product_name", "arrival_price", "arrival_price_in_dollar", "sale_price", "count",
                   "arrival_date", "description", "acceptance_status", "accepted_by_name", "accepted_at", "history"]
 
     def get_history(self, obj):
