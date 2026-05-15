@@ -14,7 +14,7 @@ from product.models import Product
 from product.services.export_json import MaterialReportJsonService
 from product.services.product_export import MaterialReportService
 from utils.search import build_transliterated_search_q
-from django.db.models import Q
+from django.db.models import Q, Sum, F
 
 
 class ProductPagination(PageNumberPagination):
@@ -25,12 +25,20 @@ class ProductPagination(PageNumberPagination):
         total = self.page.paginator.count
         limit = self.get_page_size(self.request)
         total_pages = math.ceil(total / limit)
+        
+        # Calculate total investment
+        all_investment_in_dollar = 0
+        if hasattr(self.page.paginator, "object_list"):
+            all_investment_in_dollar = self.page.paginator.object_list.aggregate(
+                total_investment=Sum(F('count') * F('arrival_price_in_dollar'))
+            ).get('total_investment') or 0
 
         return Response({
             "page": self.page.number,
             "limit": limit,
             "total": total,
             "total_pages": total_pages,
+            "all_investment_in_dollar": all_investment_in_dollar,
             "data": data,
         })
 

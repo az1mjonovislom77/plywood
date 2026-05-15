@@ -40,6 +40,12 @@ class Product(models.Model):
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
+    @property
+    def investment_in_dollar(self):
+        if self.count and self.arrival_price_in_dollar:
+            return self.count * self.arrival_price_in_dollar
+        return 0
+
     def save(self, *args, **kwargs):
         from acceptance.models import CurrencyRate
         try:

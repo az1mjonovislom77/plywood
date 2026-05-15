@@ -9,11 +9,12 @@ from utils.base.serializers_base import TrimmedDecimalField
 class ProductSerializer(serializers.ModelSerializer):
     count = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
     sale_price_in_dollar = serializers.SerializerMethodField()
+    investment_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
 
     class Meta:
         model = Product
         fields = "__all__"
-        read_only_fields = ["arrival_price", "arrival_price_in_dollar", "sale_price", "count", "is_active"]
+        read_only_fields = ["arrival_price", "arrival_price_in_dollar", "sale_price", "count", "is_active", "investment_in_dollar"]
 
     def _get_rate(self):
         if not hasattr(self, "_rate_cache"):
@@ -35,6 +36,7 @@ class ProductSerializer(serializers.ModelSerializer):
         if not request or request.user.role != request.user.UserRoles.MANAGER:
             data.pop("arrival_price", None)
             data.pop("arrival_price_in_dollar", None)
+            data.pop("investment_in_dollar", None)
 
         return data
 
