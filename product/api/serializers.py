@@ -13,7 +13,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
-        read_only_fields = ["arrival_price", "sale_price", "count", "is_active"]
+        read_only_fields = ["arrival_price", "arrival_price_in_dollar", "sale_price", "count", "is_active"]
 
     def _get_rate(self):
         if not hasattr(self, "_rate_cache"):
@@ -34,6 +34,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
         if not request or request.user.role != request.user.UserRoles.MANAGER:
             data.pop("arrival_price", None)
+            data.pop("arrival_price_in_dollar", None)
 
         return data
 

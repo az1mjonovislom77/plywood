@@ -33,11 +33,24 @@ class Product(models.Model):
     height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     thick = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    arrival_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     count = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     arrival_date = models.DateField(default=timezone.localdate)
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+
+    def save(self, *args, **kwargs):
+        from acceptance.models import CurrencyRate
+        try:
+            rate = CurrencyRate.objects.get(date=self.arrival_date).rate
+            if rate and rate > 0:
+                self.arrival_price_in_dollar = self.arrival_price / rate
+            else:
+                self.arrival_price_in_dollar = 0
+        except CurrencyRate.DoesNotExist:
+            self.arrival_price_in_dollar = 0
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-id']
