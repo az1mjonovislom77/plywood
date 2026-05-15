@@ -87,7 +87,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             OpenApiParameter(name="quality", description="Filter by quality", required=False, type=OpenApiTypes.STR)
         ]
     )
-    @action(detail=False, methods=["get"], url_path="export-excel")
+    @action(detail=False, methods=["get"], url_path="export_all")
     def export_excel(self, request):
         queryset = self.filter_queryset(self.get_queryset())
         
