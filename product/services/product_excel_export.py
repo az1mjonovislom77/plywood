@@ -38,8 +38,7 @@ class ProductExcelExportService:
             "Сотиш нархи ($)",
             "Омбордаги қолдиқ (count)",
             "Қабул қилинган сана",
-            "Изоҳ",
-            "Фаолми"
+            "Изоҳ"
         ]
 
         ws.append(headers)
@@ -67,6 +66,14 @@ class ProductExcelExportService:
             sale_price_in_dollar = 0
             if rate and product.sale_price:
                 sale_price_in_dollar = float((product.sale_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
+
+            # Kelish narxi va investitsiya qiymatlarini ishonchli olish
+            arrival_price = float(product.arrival_price) if product.arrival_price else 0
+            arrival_price_in_dollar = float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0
+            count = float(product.count) if product.count else 0
+            
+            # Agar modelda investment_in_dollar propertysi kutilgandek ishlamasa, shu yerda hisoblab yuboramiz
+            investment_in_dollar = float(product.investment_in_dollar) if getattr(product, 'investment_in_dollar', 0) else (count * arrival_price_in_dollar)
             
             row = [
                 product.id,
@@ -77,15 +84,14 @@ class ProductExcelExportService:
                 float(product.width) if product.width else 0,
                 float(product.height) if product.height else 0,
                 float(product.thick) if product.thick else 0,
-                float(product.arrival_price) if product.arrival_price else 0,
-                float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0,
-                float(product.investment_in_dollar) if hasattr(product, 'investment_in_dollar') and product.investment_in_dollar else 0,
+                arrival_price,
+                arrival_price_in_dollar,
+                investment_in_dollar,
                 float(product.sale_price) if product.sale_price else 0,
                 sale_price_in_dollar,
-                float(product.count) if product.count else 0,
+                count,
                 product.arrival_date.strftime('%Y-%m-%d') if product.arrival_date else "",
-                product.description if product.description else "",
-                "Ҳа" if product.is_active else "Йўқ"
+                product.description if product.description else ""
             ]
             
             ws.append(row)
@@ -114,7 +120,6 @@ class ProductExcelExportService:
         ws.column_dimensions["N"].width = 20
         ws.column_dimensions["O"].width = 15
         ws.column_dimensions["P"].width = 30
-        ws.column_dimensions["Q"].width = 10
 
         output = BytesIO()
         wb.save(output)
