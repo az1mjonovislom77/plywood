@@ -35,8 +35,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
         if not request or request.user.role != request.user.UserRoles.MANAGER:
             data.pop("arrival_price", None)
-            data.pop("arrival_price_in_dollar", None)
-            data.pop("investment_in_dollar", None)
 
         return data
 
