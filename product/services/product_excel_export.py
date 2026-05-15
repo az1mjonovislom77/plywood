@@ -70,10 +70,15 @@ class ProductExcelExportService:
             # Kelish narxi va investitsiya qiymatlarini ishonchli olish
             arrival_price = float(product.arrival_price) if product.arrival_price else 0
             arrival_price_in_dollar = float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0
+            
+            # Agar bazadagi arrival_price_in_dollar 0 bo'lsa (yoki saqlanmay qolgan bo'lsa), joriy kurs bo'yicha hisoblaymiz:
+            if arrival_price_in_dollar == 0 and rate and product.arrival_price:
+                arrival_price_in_dollar = float((product.arrival_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
+
             count = float(product.count) if product.count else 0
             
-            # Agar modelda investment_in_dollar propertysi kutilgandek ishlamasa, shu yerda hisoblab yuboramiz
-            investment_in_dollar = float(product.investment_in_dollar) if getattr(product, 'investment_in_dollar', 0) else (count * arrival_price_in_dollar)
+            # Investitsiya har doim aniq hisoblanishi uchun:
+            investment_in_dollar = count * arrival_price_in_dollar
             
             row = [
                 product.id,
