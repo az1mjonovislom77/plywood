@@ -26,29 +26,35 @@ class Command(BaseCommand):
             
         self.stdout.write(f"Found {len(df)} rows in the Excel file.")
 
-        if len(df.columns) < 2:
-            self.stdout.write(self.style.ERROR("Excel file must have at least two columns: Product Name and Count"))
-            return
-
         success_count = 0
         error_count = 0
         skipped_count = 0
 
         for index, row in df.iterrows():
             product_name_raw = row[0]
-            count_val = row[1]
             
             product_name = str(product_name_raw).strip() if pd.notna(product_name_raw) else ""
 
-            if not product_name or pd.isna(count_val):
-                self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because product name or count is empty."))
+            # Miqdorni avtomatik topish (huddi oldingisidek barcha ustunlarni aylanib chiqamiz)
+            count_val = None
+            for col_idx in range(1, len(df.columns)):
+                if pd.notna(row[col_idx]):
+                    try:
+                        float(row[col_idx])
+                        count_val = row[col_idx]
+                        break
+                    except ValueError:
+                        pass
+
+            if not product_name or count_val is None:
+                self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because count is empty for '{product_name}'"))
                 skipped_count += 1
                 continue
                 
             try:
                 count = Decimal(str(count_val))
             except Exception:
-                self.stdout.write(self.style.WARNING(f"Row {index + 1}: Invalid count format for product '{product_name}'"))
+                self.stdout.write(self.style.WARNING(f"Row {index + 1}: Invalid count format for product '{product_name}'. Found: {count_val}"))
                 error_count += 1
                 continue
 
