@@ -9,10 +9,12 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
+from rest_framework.decorators import action
 from product.api.serializers import ProductSerializer
 from product.models import Product
 from product.services.export_json import MaterialReportJsonService
 from product.services.product_export import MaterialReportService
+from product.services.product_excel_export import ProductExcelExportService
 from utils.search import build_transliterated_search_q
 from django.db.models import Q, Sum, F
 
@@ -76,6 +78,26 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    @extend_schema(
+        tags=["ProductExport"],
+        parameters=[
+            OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR),
+            OpenApiParameter(name="category", description="Filter by category id", required=False, type=OpenApiTypes.INT),
+            OpenApiParameter(name="quality", description="Filter by quality", required=False, type=OpenApiTypes.STR)
+        ]
+    )
+    @action(detail=False, methods=["get"], url_path="export-excel")
+    def export_excel(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        file = ProductExcelExportService.build_excel(queryset, user=request.user)
+
+        return HttpResponse(
+            file.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="products_export.xlsx"'},
+        )
 
 
 @extend_schema(
