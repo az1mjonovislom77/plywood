@@ -38,7 +38,8 @@ class AnalyticsPagination(PageNumberPagination):
 @extend_schema(tags=["Acceptance"],
                parameters=[
                    OpenApiParameter(name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
-                   OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY)])
+                   OpenApiParameter(name="page_size", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+                   OpenApiParameter(name="search", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY)])
 class AcceptanceViewSet(BaseUserViewSet):
     queryset = AcceptanceSelector.acceptance_queryset()
     serializer_class = AcceptanceSerializer
