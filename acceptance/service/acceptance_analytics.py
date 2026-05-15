@@ -7,7 +7,8 @@ class AcceptanceAnalyticsService:
 
     @staticmethod
     def get_grouped_supplier_stats(date_field="created_at", from_date=None, to_date=None, supplier_id=None):
-        qs = AcceptanceSelector.grouped_supplier_stats_queryset(date_field=date_field, from_date=from_date, to_date=to_date, supplier_id=supplier_id)
+        qs = AcceptanceSelector.grouped_supplier_stats_queryset(date_field=date_field, from_date=from_date,
+                                                                to_date=to_date, supplier_id=supplier_id)
 
         grouped = OrderedDict()
 
@@ -34,7 +35,8 @@ class AcceptanceAnalyticsService:
 
     @staticmethod
     def get_grouped_suppliers(date_field="created_at", from_date=None, to_date=None, supplier_id=None):
-        qs = AcceptanceSelector.grouped_supplier_stats(date_field=date_field, from_date=from_date, to_date=to_date, supplier_id=supplier_id)
+        qs = AcceptanceSelector.grouped_supplier_stats(date_field=date_field, from_date=from_date, to_date=to_date,
+                                                       supplier_id=supplier_id)
 
         grouped = OrderedDict()
 
@@ -55,6 +57,5 @@ class AcceptanceAnalyticsService:
             {
                 "date": date,
                 "suppliers": suppliers
-            }
-            for date, suppliers in grouped.items()
+            } for date, suppliers in grouped.items()
         ]
