@@ -58,6 +58,9 @@ class ProductExcelExportService:
             cell.alignment = center_alignment
             cell.border = thin_border
 
+        total_investment = 0
+        total_count = 0
+
         # Data rows
         for product in queryset:
             category_name = product.category.name if product.category else ""
@@ -80,6 +83,9 @@ class ProductExcelExportService:
             # Investitsiya har doim aniq hisoblanishi uchun:
             investment_in_dollar = count * arrival_price_in_dollar
             
+            total_investment += investment_in_dollar
+            total_count += count
+
             row = [
                 product.id,
                 category_name,
@@ -101,8 +107,23 @@ class ProductExcelExportService:
             
             ws.append(row)
 
+        # Add total row
+        total_row = [
+            "", "", "ЖАМИ", "", "", "", "", "", "", "", total_investment, "", "", total_count, "", ""
+        ]
+        ws.append(total_row)
+        
+        last_row_idx = ws.max_row
+        for cell in ws[last_row_idx]:
+            cell.font = bold_font
+            cell.border = thin_border
+            if isinstance(cell.value, (int, float)):
+                cell.number_format = '#,##0.00'
+        ws.merge_cells(start_row=last_row_idx, start_column=1, end_row=last_row_idx, end_column=3)
+        ws.cell(row=last_row_idx, column=1).alignment = Alignment(horizontal="right", vertical="center")
+
         # Data styles
-        for row in ws.iter_rows(min_row=2):
+        for row in ws.iter_rows(min_row=2, max_row=last_row_idx - 1):
             for cell in row:
                 cell.border = thin_border
                 if isinstance(cell.value, (int, float)) and cell.column not in [1]: # Don't format ID
