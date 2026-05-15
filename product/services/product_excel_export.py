@@ -3,7 +3,6 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
-from product.models import Product
 from acceptance.models import CurrencyRate
 
 
@@ -18,10 +17,8 @@ class ProductExcelExportService:
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Products"
-
         rate = cls._get_rate()
 
-        # Headers
         headers = [
             "ID",
             "Категория",
@@ -43,7 +40,6 @@ class ProductExcelExportService:
 
         ws.append(headers)
 
-        # Header styles
         bold_font = Font(bold=True)
         center_alignment = Alignment(horizontal="center", vertical="center")
         thin_border = Border(
@@ -61,28 +57,20 @@ class ProductExcelExportService:
         total_investment = 0
         total_count = 0
 
-        # Data rows
         for product in queryset:
             category_name = product.category.name if product.category else ""
-            
-            # Calculate sale price in dollar
             sale_price_in_dollar = 0
             if rate and product.sale_price:
                 sale_price_in_dollar = float((product.sale_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
 
-            # Kelish narxi va investitsiya qiymatlarini ishonchli olish
             arrival_price = float(product.arrival_price) if product.arrival_price else 0
             arrival_price_in_dollar = float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0
-            
-            # Agar bazadagi arrival_price_in_dollar 0 bo'lsa (yoki saqlanmay qolgan bo'lsa), joriy kurs bo'yicha hisoblaymiz:
             if arrival_price_in_dollar == 0 and rate and product.arrival_price:
                 arrival_price_in_dollar = float((product.arrival_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
 
             count = float(product.count) if product.count else 0
-            
-            # Investitsiya har doim aniq hisoblanishi uchun:
+
             investment_in_dollar = count * arrival_price_in_dollar
-            
             total_investment += investment_in_dollar
             total_count += count
 
@@ -107,7 +95,6 @@ class ProductExcelExportService:
             
             ws.append(row)
 
-        # Add total row
         total_row = [
             "", "", "ЖАМИ", "", "", "", "", "", "", "", total_investment, "", "", total_count, "", ""
         ]
@@ -122,14 +109,12 @@ class ProductExcelExportService:
         ws.merge_cells(start_row=last_row_idx, start_column=1, end_row=last_row_idx, end_column=3)
         ws.cell(row=last_row_idx, column=1).alignment = Alignment(horizontal="right", vertical="center")
 
-        # Data styles
         for row in ws.iter_rows(min_row=2, max_row=last_row_idx - 1):
             for cell in row:
                 cell.border = thin_border
                 if isinstance(cell.value, (int, float)) and cell.column not in [1]: # Don't format ID
                     cell.number_format = '#,##0.00'
 
-        # Set column widths
         ws.column_dimensions["A"].width = 10
         ws.column_dimensions["B"].width = 25
         ws.column_dimensions["C"].width = 50
