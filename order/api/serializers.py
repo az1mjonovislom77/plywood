@@ -52,7 +52,7 @@ class BasketAddItemSerializer(serializers.Serializer):
 class CuttingSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
     customer_fullname = serializers.CharField(source="customer.full_name", read_only=True)
-    count = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
+    count = TrimmedDecimalField(max_digits=20, decimal_places=3, read_only=True)
 
     class Meta:
         model = Cutting
@@ -119,7 +119,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     banding = BandingGetSerializer(read_only=True)
     cutting = CuttingSerializer(read_only=True)
-    quantity = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
+    quantity = TrimmedDecimalField(max_digits=20, decimal_places=3, read_only=True)
 
     class Meta:
         model = OrderItem
