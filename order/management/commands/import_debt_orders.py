@@ -93,7 +93,7 @@ class Command(BaseCommand):
                 if not customer:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"Customer topilmadi: {customer_name}"
+                            f"CUSTOMER TOPILMADI row={index + 1} name={customer_name}"
                         )
                     )
                     continue
