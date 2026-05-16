@@ -7,8 +7,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from acceptance.models import Acceptance
 from customer.models import Customer, BalanceHistory
-from customer.service.cover_debt import DebtService
 from order.models import Order, OrderItem
 from product.models import Product
 from user.models import User
@@ -37,16 +37,43 @@ class Command(BaseCommand):
         product, _ = Product.objects.get_or_create(
             name="TEST_DEBT_PRODUCT",
             defaults={
-                "sale_price": Decimal("1.00"),
-                "arrival_price": Decimal("1.00"),
-                "count": Decimal("940145322.270"),
+                "sale_price": Decimal("0"),
+                "arrival_price": Decimal("0"),
+                "count": Decimal("0"),
             }
         )
 
-        product.sale_price = Decimal("1.00")
-        product.arrival_price = Decimal("1.00")
-        product.count = Decimal("940145322.270")
-        product.save()
+        # =========================
+        # ACCEPTANCE CREATE
+        # =========================
+
+        acceptance, created = Acceptance.objects.get_or_create(
+            product=product,
+            acceptance_status=Acceptance.AcceptanceStatus.ACCEPT,
+
+            defaults={
+                "arrival_price": Decimal("1.00"),
+                "sale_price": Decimal("1.00"),
+                "count": Decimal("940145322.270"),
+                "price_type": Acceptance.PriceType.SUM,
+                "accepted_by": user,
+                "accepted_at": timezone.now(),
+            }
+        )
+
+        if created:
+
+            product.count += Decimal("940145322.270")
+            product.sale_price = Decimal("1.00")
+            product.arrival_price = Decimal("1.00")
+
+            product.save()
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "Acceptance yaratildi"
+                )
+            )
 
         # =========================
         # EXCEL
@@ -240,8 +267,6 @@ class Command(BaseCommand):
                         accepted_by=user,
                         accepted_at=timezone.now(),
                         payment_method=Order.PaymentMethod.NASIYA,
-
-                        # MUHIM
                         covered_amount=Decimal("0"),
                     )
 
@@ -275,6 +300,7 @@ class Command(BaseCommand):
                 # =========================
 
                 if covered_amount > 0:
+
                     customer.covered_debt += covered_amount
 
                     customer.save(
