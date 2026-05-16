@@ -238,8 +238,7 @@ class Command(BaseCommand):
                         )
                     )
 
-                elif covered_amount > 0:
-
+                if debt <= 0 and covered_amount > 0:
                     customer.debt = Decimal("0") - covered_amount
 
                     customer.save(
