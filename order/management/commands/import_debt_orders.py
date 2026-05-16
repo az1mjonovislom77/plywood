@@ -8,14 +8,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from acceptance.models import Acceptance
-from customer.models import Customer, BalanceHistory
+from customer.models import Customer
 from order.models import Order, OrderItem
 from product.models import Product
 from user.models import User
 
 
 class Command(BaseCommand):
-    help = "Exceldan debt va covered payment import qiladi"
+    help = "Exceldan debt import"
 
     @transaction.atomic
     def handle(self, *args, **kwargs):
@@ -30,10 +30,6 @@ class Command(BaseCommand):
             )
             return
 
-        # =========================
-        # TEST PRODUCT
-        # =========================
-
         product, _ = Product.objects.get_or_create(
             name="TEST_DEBT_PRODUCT",
             defaults={
@@ -42,10 +38,6 @@ class Command(BaseCommand):
                 "count": Decimal("0"),
             }
         )
-
-        # =========================
-        # ACCEPTANCE CREATE
-        # =========================
 
         acceptance, created = Acceptance.objects.get_or_create(
             product=product,
@@ -69,35 +61,14 @@ class Command(BaseCommand):
 
             product.save()
 
-            self.stdout.write(
-                self.style.SUCCESS(
-                    "Acceptance yaratildi"
-                )
-            )
-
-        # =========================
-        # EXCEL
-        # =========================
-
         df = pd.read_excel(file_path, header=None)
 
         created_orders = 0
         covered_payments = 0
 
-        total_excel_debt = Decimal("0")
-        total_imported_debt = Decimal("0")
-
-        # =========================
-        # LOOP
-        # =========================
-
         for index, row in df.iterrows():
 
             try:
-
-                # =========================
-                # CUSTOMER NAME
-                # =========================
 
                 customer_name = str(row[0]).strip().lower()
 
@@ -112,10 +83,6 @@ class Command(BaseCommand):
 
                 if not customer_name or customer_name == "nan":
                     continue
-
-                # =========================
-                # CUSTOMER FIND
-                # =========================
 
                 customers = Customer.objects.all()
 
@@ -149,10 +116,6 @@ class Command(BaseCommand):
                     )
 
                     continue
-
-                # =========================
-                # DEBT PARSE
-                # =========================
 
                 debt = Decimal("0")
 
@@ -192,10 +155,6 @@ class Command(BaseCommand):
                             )
                         )
 
-                # =========================
-                # COVERED PARSE
-                # =========================
-
                 covered_amount = Decimal("0")
 
                 if len(row) > 2 and not pd.isna(row[2]):
@@ -232,23 +191,8 @@ class Command(BaseCommand):
                             )
                         )
 
-                # =========================
-                # TOTAL EXCEL DEBT
-                # =========================
-
-                if debt > 0:
-                    total_excel_debt += debt
-
-                # =========================
-                # SKIP
-                # =========================
-
                 if debt <= 0 and covered_amount <= 0:
                     continue
-
-                # =========================
-                # CREATE ORDER
-                # =========================
 
                 if debt > 0:
 
@@ -286,7 +230,6 @@ class Command(BaseCommand):
                     order.save()
 
                     created_orders += 1
-                    total_imported_debt += debt
 
                     self.stdout.write(
                         self.style.SUCCESS(
@@ -295,10 +238,9 @@ class Command(BaseCommand):
                         )
                     )
 
+                elif covered_amount > 0:
 
-
-                if covered_amount > 0:
-                    customer.debt -= covered_amount
+                    customer.debt = Decimal("0") - covered_amount
 
                     customer.save(
                         update_fields=["debt"]
@@ -309,7 +251,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"{customer.full_name} -> "
-                            f"{covered_amount} so'm payment ayirildi"
+                            f"-{covered_amount} so'm debt yozildi"
                         )
                     )
 
@@ -323,28 +265,10 @@ class Command(BaseCommand):
                     )
                 )
 
-        # =========================
-        # FINAL
-        # =========================
-
         self.stdout.write(
             self.style.SUCCESS(
                 f"FINISHED | "
                 f"Orders: {created_orders} | "
                 f"Covered payments: {covered_payments}"
-            )
-        )
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"TOTAL EXCEL DEBT: "
-                f"{total_excel_debt}"
-            )
-        )
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"TOTAL IMPORTED DEBT: "
-                f"{total_imported_debt}"
             )
         )
