@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 import pandas as pd
 from django.core.management.base import BaseCommand
@@ -53,8 +54,10 @@ class Command(BaseCommand):
                 # CUSTOMER NAME
                 # =========================
 
-                customer_name = str(row[0]).strip()
-                customer_name = " ".join(customer_name.split())
+                customer_name = str(row[0]).strip().lower()
+                customer_name = re.sub(r"\s+", " ", customer_name)
+                customer_name = customer_name.replace(".", "")
+                customer_name = customer_name.replace(",", "")
 
                 if not customer_name or customer_name == "nan":
                     continue
