@@ -198,9 +198,9 @@ class OrderCreateSerializer(serializers.Serializer):
     items = OrderItemCreateSerializer(many=True)
     customer_id = serializers.IntegerField(required=False)
     payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
-    discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    discount = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=0)
     discount_type = serializers.ChoiceField(choices=Order.DiscountType.choices, default=Order.DiscountType.CASH)
-    covered_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    covered_amount = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=0)
 
     def validate(self, attrs):
         validate_percentage_discount(
