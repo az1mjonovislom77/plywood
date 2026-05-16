@@ -55,14 +55,33 @@ class Command(BaseCommand):
                 if pd.isna(debt_value):
                     continue
 
-                # EXCELDA MANFIY CHIQYAPTI
-                debt = abs(
-                    Decimal(
+
+                try:
+                    debt_str = (
                         str(debt_value)
+                        .strip()
                         .replace(" ", "")
                         .replace(",", ".")
                     )
-                )
+
+                    cleaned = ""
+
+                    for char in debt_str:
+                        if char.isdigit() or char in [".", "-"]:
+                            cleaned += char
+
+                    if cleaned in ["", "-", ".", "-."]:
+                        continue
+
+                    debt = abs(Decimal(cleaned))
+
+                except Exception:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"INVALID DEBT row {index + 1}: {debt_value}"
+                        )
+                    )
+                    continue
 
                 if debt <= 0:
                     continue
