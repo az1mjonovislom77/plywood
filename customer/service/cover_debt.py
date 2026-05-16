@@ -17,7 +17,7 @@ class DebtService:
         customer = Customer.objects.select_for_update().get(pk=customer_id)
 
         Customer.objects.filter(pk=customer_id).update(
-            debt=F("debt") - amount,
+            # debt=F("debt") - amount,
             covered_debt=F("covered_debt") + amount
         )
 
