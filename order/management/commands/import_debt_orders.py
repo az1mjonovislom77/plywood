@@ -66,10 +66,22 @@ class Command(BaseCommand):
                 # CUSTOMER FIND
                 # =========================
 
-                customer = Customer.objects.filter(
-                    full_name__icontains=customer_name
-                ).first()
+                customers = Customer.objects.all()
 
+                customer = None
+
+                for c in customers:
+
+                    db_name = c.full_name.strip().lower()
+
+                    db_name = re.sub(r"\s+", " ", db_name)
+
+                    db_name = db_name.replace(".", "")
+                    db_name = db_name.replace(",", "")
+
+                    if db_name == customer_name:
+                        customer = c
+                        break
                 if not customer:
                     customer = Customer.objects.filter(
                         full_name__istartswith=customer_name
