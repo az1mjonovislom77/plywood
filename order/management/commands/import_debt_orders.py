@@ -87,8 +87,13 @@ class Command(BaseCommand):
                     continue
 
                 customer = Customer.objects.filter(
-                    full_name__iexact=customer_name
+                    full_name__icontains=customer_name
                 ).first()
+
+                if not customer:
+                    customer = Customer.objects.filter(
+                        full_name__istartswith=customer_name
+                    ).first()
 
                 if not customer:
                     self.stdout.write(
