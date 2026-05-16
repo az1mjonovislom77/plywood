@@ -26,13 +26,12 @@ class Command(BaseCommand):
             )
             return
 
-        # TEST PRODUCT
         product, _ = Product.objects.get_or_create(
             name="TEST_DEBT_PRODUCT",
             defaults={
                 "sale_price": Decimal("1.00"),
+                "arrival_price": Decimal("1.00"),
                 "count": Decimal("940145322.270"),
-                "arrival_price": Decimal("0"),
             }
         )
 
