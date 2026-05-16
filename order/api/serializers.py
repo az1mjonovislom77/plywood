@@ -177,31 +177,6 @@ class OrderSerializer(serializers.ModelSerializer):
 
         read_only_fields = ["source", "order_status"]
 
-    def to_representation(self, instance):
-
-        try:
-            return super().to_representation(instance)
-
-        except Exception as e:
-
-            print("BROKEN ORDER:", instance.id)
-            print("TOTAL:", instance.total_price)
-            print("COVERED:", instance.covered_amount)
-            print("DISCOUNT:", instance.discount)
-
-            for item in instance.items.all():
-                print("ITEM:", item.id)
-                print("QTY:", item.quantity)
-                print("PRICE:", item.price)
-                print("ORIGINAL:", item.original_sell_price)
-                print("NEW:", item.new_sell_price)
-                print("DIFF:", item.sell_price_difference)
-                print("RATE:", item.exchange_rate)
-                print("USD:", item.price_in_dollar)
-                print("NEW USD:", item.new_price_in_dollar)
-
-            raise e
-
     def get_history(self, obj):
         request = self.context.get("request")
         if not request:
