@@ -1,9 +1,12 @@
 import re
 from decimal import Decimal
+
 import pandas as pd
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+
 from customer.models import Customer
 from customer.service.cover_debt import DebtService
 from order.models import Order, OrderItem
@@ -27,6 +30,10 @@ class Command(BaseCommand):
             )
             return
 
+        # =========================
+        # TEST PRODUCT
+        # =========================
+
         product, _ = Product.objects.get_or_create(
             name="TEST_DEBT_PRODUCT",
             defaults={
@@ -37,25 +44,51 @@ class Command(BaseCommand):
         )
 
         product.sale_price = Decimal("1.00")
+        product.arrival_price = Decimal("1.00")
         product.count = Decimal("940145322.270")
         product.save()
+
+        # =========================
+        # EXCEL
+        # =========================
 
         df = pd.read_excel(file_path, header=None)
 
         created_orders = 0
         covered_payments = 0
 
+        total_excel_debt = Decimal("0")
+        total_imported_debt = Decimal("0")
+
+        # =========================
+        # LOOP
+        # =========================
+
         for index, row in df.iterrows():
 
             try:
 
+                # =========================
+                # CUSTOMER NAME
+                # =========================
+
                 customer_name = str(row[0]).strip().lower()
-                customer_name = re.sub(r"\s+", " ", customer_name)
+
+                customer_name = re.sub(
+                    r"\s+",
+                    " ",
+                    customer_name
+                )
+
                 customer_name = customer_name.replace(".", "")
                 customer_name = customer_name.replace(",", "")
 
                 if not customer_name or customer_name == "nan":
                     continue
+
+                # =========================
+                # CUSTOMER FIND
+                # =========================
 
                 customers = Customer.objects.all()
 
@@ -65,7 +98,11 @@ class Command(BaseCommand):
 
                     db_name = c.full_name.strip().lower()
 
-                    db_name = re.sub(r"\s+", " ", db_name)
+                    db_name = re.sub(
+                        r"\s+",
+                        " ",
+                        db_name
+                    )
 
                     db_name = db_name.replace(".", "")
                     db_name = db_name.replace(",", "")
@@ -73,18 +110,22 @@ class Command(BaseCommand):
                     if db_name == customer_name:
                         customer = c
                         break
-                if not customer:
-                    customer = Customer.objects.filter(
-                        full_name__istartswith=customer_name
-                    ).first()
 
                 if not customer:
+
                     self.stdout.write(
                         self.style.WARNING(
-                            f"CUSTOMER TOPILMADI row={index + 1} name={customer_name}"
+                            f"CUSTOMER TOPILMADI "
+                            f"row={index + 1} "
+                            f"name={customer_name}"
                         )
                     )
+
                     continue
+
+                # =========================
+                # DEBT PARSE
+                # =========================
 
                 debt = Decimal("0")
 
@@ -104,18 +145,29 @@ class Command(BaseCommand):
                         cleaned = ""
 
                         for char in debt_str:
+
                             if char.isdigit() or char in [".", "-"]:
                                 cleaned += char
 
                         if cleaned not in ["", "-", ".", "-."]:
-                            debt = abs(Decimal(cleaned))
+
+                            debt = abs(
+                                Decimal(cleaned)
+                            )
 
                     except Exception:
+
                         self.stdout.write(
                             self.style.WARNING(
-                                f"INVALID DEBT row {index + 1}: {debt_value}"
+                                f"INVALID DEBT "
+                                f"row={index + 1}: "
+                                f"{debt_value}"
                             )
                         )
+
+                # =========================
+                # COVERED PARSE
+                # =========================
 
                 covered_amount = Decimal("0")
 
@@ -133,27 +185,49 @@ class Command(BaseCommand):
                         cleaned_covered = ""
 
                         for char in covered_str:
+
                             if char.isdigit() or char in [".", "-"]:
                                 cleaned_covered += char
 
                         if cleaned_covered not in ["", "-", ".", "-."]:
+
                             covered_amount = abs(
                                 Decimal(cleaned_covered)
                             )
 
                     except Exception:
+
                         self.stdout.write(
                             self.style.WARNING(
-                                f"INVALID COVERED row {index + 1}: {row[2]}"
+                                f"INVALID COVERED "
+                                f"row {index + 1}: "
+                                f"{row[2]}"
                             )
                         )
+
+                # =========================
+                # TOTAL EXCEL DEBT
+                # =========================
+
+                if debt > 0:
+                    total_excel_debt += debt
+
+                # =========================
+                # SKIP
+                # =========================
 
                 if debt <= 0 and covered_amount <= 0:
                     continue
 
+                # =========================
+                # CREATE ORDER
+                # =========================
+
                 if debt > 0:
 
-                    quantity = Decimal(str(debt)).quantize(
+                    quantity = Decimal(
+                        str(debt)
+                    ).quantize(
                         Decimal("0.001")
                     )
 
@@ -166,6 +240,8 @@ class Command(BaseCommand):
                         accepted_by=user,
                         accepted_at=timezone.now(),
                         payment_method=Order.PaymentMethod.NASIYA,
+
+                        # MUHIM
                         covered_amount=Decimal("0"),
                     )
 
@@ -182,14 +258,10 @@ class Command(BaseCommand):
                     )
 
                     order.calculate_total()
-
-                    order.total_price = Decimal(
-                        str(order.total_price).replace(",", ".")
-                    )
-
                     order.save()
 
                     created_orders += 1
+                    total_imported_debt += debt
 
                     self.stdout.write(
                         self.style.SUCCESS(
@@ -197,6 +269,10 @@ class Command(BaseCommand):
                             f"{debt} so'm debt order yaratildi"
                         )
                     )
+
+                # =========================
+                # COVERED PAYMENT
+                # =========================
 
                 if covered_amount > 0:
 
@@ -224,10 +300,28 @@ class Command(BaseCommand):
                     )
                 )
 
+        # =========================
+        # FINAL
+        # =========================
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"FINISHED | "
                 f"Orders: {created_orders} | "
                 f"Covered payments: {covered_payments}"
+            )
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"TOTAL EXCEL DEBT: "
+                f"{total_excel_debt}"
+            )
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"TOTAL IMPORTED DEBT: "
+                f"{total_imported_debt}"
             )
         )
