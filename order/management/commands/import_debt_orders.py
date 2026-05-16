@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from customer.models import Customer
+from customer.models import Customer, BalanceHistory
 from customer.service.cover_debt import DebtService
 from order.models import Order, OrderItem
 from product.models import Product
@@ -275,9 +275,15 @@ class Command(BaseCommand):
                 # =========================
 
                 if covered_amount > 0:
+                    customer.covered_debt += covered_amount
 
-                    DebtService.cover_debt(
-                        customer_id=customer.id,
+                    customer.save(
+                        update_fields=["covered_debt"]
+                    )
+
+                    BalanceHistory.objects.create(
+                        customer=customer,
+                        type=BalanceHistory.Type.PAYMENT,
                         amount=covered_amount
                     )
 
