@@ -139,7 +139,7 @@ class Order(models.Model):
     covered_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     banding = models.ForeignKey("Banding", on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
     cutting = models.ForeignKey("Cutting", on_delete=models.SET_NULL, related_name="orders", null=True, blank=True)
-    total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_price = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -223,7 +223,7 @@ class OrderItem(models.Model):
     product = models.ForeignKey("product.Product", on_delete=models.PROTECT, related_name="order_items")
     banding = models.ForeignKey("Banding", on_delete=models.SET_NULL, related_name="order_items", null=True, blank=True)
     cutting = models.ForeignKey("Cutting", on_delete=models.SET_NULL, related_name="order_items", null=True, blank=True)
-    quantity = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    quantity = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=12, decimal_places=2)
     original_sell_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     new_sell_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
