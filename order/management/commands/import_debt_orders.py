@@ -40,7 +40,6 @@ class Command(BaseCommand):
         product.count = Decimal("940145322.270")
         product.save()
 
-        # EXCEL
         df = pd.read_excel(file_path, header=None)
 
         created_orders = 0
@@ -50,10 +49,6 @@ class Command(BaseCommand):
 
             try:
 
-                # =========================
-                # CUSTOMER NAME
-                # =========================
-
                 customer_name = str(row[0]).strip().lower()
                 customer_name = re.sub(r"\s+", " ", customer_name)
                 customer_name = customer_name.replace(".", "")
@@ -61,10 +56,6 @@ class Command(BaseCommand):
 
                 if not customer_name or customer_name == "nan":
                     continue
-
-                # =========================
-                # CUSTOMER FIND
-                # =========================
 
                 customers = Customer.objects.all()
 
@@ -94,10 +85,6 @@ class Command(BaseCommand):
                         )
                     )
                     continue
-
-                # =========================
-                # DEBT PARSE
-                # =========================
 
                 debt = Decimal("0")
 
@@ -130,10 +117,6 @@ class Command(BaseCommand):
                             )
                         )
 
-                # =========================
-                # COVERED PARSE
-                # =========================
-
                 covered_amount = Decimal("0")
 
                 if len(row) > 2 and not pd.isna(row[2]):
@@ -165,16 +148,8 @@ class Command(BaseCommand):
                             )
                         )
 
-                # =========================
-                # AGAR HECH NARSA BO'LMASA
-                # =========================
-
                 if debt <= 0 and covered_amount <= 0:
                     continue
-
-                # =========================
-                # ORDER CREATE
-                # =========================
 
                 if debt > 0:
 
@@ -222,10 +197,6 @@ class Command(BaseCommand):
                             f"{debt} so'm debt order yaratildi"
                         )
                     )
-
-                # =========================
-                # COVER PAYMENT
-                # =========================
 
                 if covered_amount > 0:
 
