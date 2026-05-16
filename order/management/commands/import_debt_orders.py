@@ -295,22 +295,13 @@ class Command(BaseCommand):
                         )
                     )
 
-                # =========================
-                # COVERED PAYMENT
-                # =========================
+
 
                 if covered_amount > 0:
-
-                    customer.covered_debt += covered_amount
+                    customer.debt -= covered_amount
 
                     customer.save(
-                        update_fields=["covered_debt"]
-                    )
-
-                    BalanceHistory.objects.create(
-                        customer=customer,
-                        type=BalanceHistory.Type.PAYMENT,
-                        amount=covered_amount
+                        update_fields=["debt"]
                     )
 
                     covered_payments += 1
@@ -318,7 +309,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"{customer.full_name} -> "
-                            f"{covered_amount} so'm covered payment"
+                            f"{covered_amount} so'm payment ayirildi"
                         )
                     )
 
