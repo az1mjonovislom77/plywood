@@ -35,3 +35,19 @@ class DebtServiceTest(TestCase):
                 amount=Decimal("40.00"),
             ).exists()
         )
+
+    def test_cover_debt_stores_amount_over_debt_as_overpayment(self):
+        DebtService.cover_debt(self.customer.id, Decimal("150.00"))
+
+        self.customer.refresh_from_db()
+
+        self.assertEqual(self.customer.debt, Decimal("0.00"))
+        self.assertEqual(self.customer.covered_debt, Decimal("100.00"))
+        self.assertEqual(self.customer.overpayment, Decimal("50.00"))
+        self.assertTrue(
+            BalanceHistory.objects.filter(
+                customer=self.customer,
+                type=BalanceHistory.Type.PAYMENT,
+                amount=Decimal("150.00"),
+            ).exists()
+        )

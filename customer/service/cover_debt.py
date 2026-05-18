@@ -16,9 +16,13 @@ class DebtService:
 
         customer = Customer.objects.select_for_update().get(pk=customer_id)
 
+        paid_to_debt = min(amount, max(customer.debt, 0))
+        overpayment = amount - paid_to_debt
+
         Customer.objects.filter(pk=customer_id).update(
-            debt=F("debt") - amount,
-            covered_debt=F("covered_debt") + amount
+            debt=F("debt") - paid_to_debt,
+            covered_debt=F("covered_debt") + paid_to_debt,
+            overpayment=F("overpayment") + overpayment,
         )
 
         BalanceHistory.objects.create(

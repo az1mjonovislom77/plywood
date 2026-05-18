@@ -11,7 +11,14 @@ class CustomerStatsSelector:
         return Customer.objects.aggregate(
             total_customers=Count("id"),
             debtor_customers=Count("id", filter=Q(debt__gt=0)),
-            total_debt=Coalesce(Sum("debt"), Value(Decimal("0.00")), output_field=DecimalField()),
+            total_debt=Coalesce(
+                Sum("debt", filter=Q(debt__gt=0)), Value(Decimal("0.00")),
+                output_field=DecimalField(),
+            ),
+            total_overpayment=Coalesce(
+                Sum("overpayment", filter=Q(overpayment__gt=0)), Value(Decimal("0.00")),
+                output_field=DecimalField(),
+            ),
         )
 
 
@@ -19,8 +26,15 @@ class CustomerDebtSelector:
     @staticmethod
     def dashboard_debt_stats():
         customer_stats = Customer.objects.aggregate(
-            total_debt=Coalesce(Sum("debt"), Decimal("0.00")),
+            total_debt=Coalesce(
+                Sum("debt", filter=Q(debt__gt=0)),
+                Decimal("0.00"),
+            ),
             debtor_customers=Coalesce(Count("id", filter=Q(debt__gt=0)), 0),
+            total_overpayment=Coalesce(
+                Sum("overpayment", filter=Q(overpayment__gt=0)),
+                Decimal("0.00"),
+            ),
         )
 
         nasiya_sales = Order.objects.filter(
@@ -30,5 +44,6 @@ class CustomerDebtSelector:
         return {
             "total_debt": customer_stats["total_debt"],
             "debtor_customers": customer_stats["debtor_customers"],
+            "total_overpayment": customer_stats["total_overpayment"],
             "nasiya_sales": nasiya_sales,
         }

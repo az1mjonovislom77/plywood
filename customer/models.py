@@ -7,6 +7,7 @@ class Customer(models.Model):
     location = models.CharField(max_length=100, null=True, blank=True)
     debt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     covered_debt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    overpayment = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     about = models.CharField(max_length=200, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
 

@@ -22,7 +22,11 @@ class CustomerBalanceService:
     @classmethod
     def sync_customer_debt(cls, customer_id):
         stats = cls.calculate(customer_id)
-        Customer.objects.filter(pk=customer_id).update(debt=stats["remaining_debt"])
+        remaining_debt = stats["remaining_debt"]
+        Customer.objects.filter(pk=customer_id).update(
+            debt=max(remaining_debt, Decimal("0")),
+            overpayment=max(-remaining_debt, Decimal("0")),
+        )
 
         return stats["remaining_debt"]
 

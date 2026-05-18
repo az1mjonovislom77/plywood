@@ -1,12 +1,9 @@
 import re
 from decimal import Decimal
-
 import pandas as pd
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-
 from acceptance.models import Acceptance
 from customer.models import Customer
 from order.models import Order, OrderItem
@@ -21,13 +18,10 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
 
         file_path = "debt.xlsx"
-
         user = User.objects.first()
 
         if not user:
-            self.stdout.write(
-                self.style.ERROR("User topilmadi")
-            )
+            self.stdout.write(self.style.ERROR("User topilmadi"))
             return
 
         product, _ = Product.objects.get_or_create(
@@ -54,7 +48,6 @@ class Command(BaseCommand):
         )
 
         if created:
-
             product.count += Decimal("940145322.270")
             product.sale_price = Decimal("1.00")
             product.arrival_price = Decimal("1.00")
@@ -62,16 +55,12 @@ class Command(BaseCommand):
             product.save()
 
         df = pd.read_excel(file_path, header=None)
-
         created_orders = 0
         covered_payments = 0
 
         for index, row in df.iterrows():
-
             try:
-
                 customer_name = str(row[0]).strip().lower()
-
                 customer_name = re.sub(
                     r"\s+",
                     " ",
@@ -85,13 +74,10 @@ class Command(BaseCommand):
                     continue
 
                 customers = Customer.objects.all()
-
                 customer = None
 
                 for c in customers:
-
                     db_name = c.full_name.strip().lower()
-
                     db_name = re.sub(
                         r"\s+",
                         " ",
@@ -106,7 +92,6 @@ class Command(BaseCommand):
                         break
 
                 if not customer:
-
                     self.stdout.write(
                         self.style.WARNING(
                             f"CUSTOMER TOPILMADI "
@@ -114,17 +99,12 @@ class Command(BaseCommand):
                             f"name={customer_name}"
                         )
                     )
-
                     continue
-
                 debt = Decimal("0")
-
                 debt_value = row[1]
 
                 if not pd.isna(debt_value):
-
                     try:
-
                         debt_str = (
                             str(debt_value)
                             .strip()
@@ -135,18 +115,13 @@ class Command(BaseCommand):
                         cleaned = ""
 
                         for char in debt_str:
-
                             if char.isdigit() or char in [".", "-"]:
                                 cleaned += char
 
                         if cleaned not in ["", "-", ".", "-."]:
-
-                            debt = abs(
-                                Decimal(cleaned)
-                            )
+                            debt = abs(Decimal(cleaned))
 
                     except Exception:
-
                         self.stdout.write(
                             self.style.WARNING(
                                 f"INVALID DEBT "
@@ -158,9 +133,7 @@ class Command(BaseCommand):
                 covered_amount = Decimal("0")
 
                 if len(row) > 2 and not pd.isna(row[2]):
-
                     try:
-
                         covered_str = (
                             str(row[2])
                             .strip()
@@ -171,12 +144,10 @@ class Command(BaseCommand):
                         cleaned_covered = ""
 
                         for char in covered_str:
-
                             if char.isdigit() or char in [".", "-"]:
                                 cleaned_covered += char
 
                         if cleaned_covered not in ["", "-", ".", "-."]:
-
                             covered_amount = abs(
                                 Decimal(cleaned_covered)
                             )
@@ -195,13 +166,7 @@ class Command(BaseCommand):
                     continue
 
                 if debt > 0:
-
-                    quantity = Decimal(
-                        str(debt)
-                    ).quantize(
-                        Decimal("0.001")
-                    )
-
+                    quantity = Decimal(str(debt)).quantize(Decimal("0.001"))
                     order = Order.objects.create(
                         user=user,
                         customer=customer,
@@ -228,7 +193,6 @@ class Command(BaseCommand):
 
                     order.calculate_total()
                     order.save()
-
                     created_orders += 1
 
                     self.stdout.write(
@@ -240,11 +204,7 @@ class Command(BaseCommand):
 
                 if debt <= 0 and covered_amount > 0:
                     customer.debt = Decimal("0") - covered_amount
-
-                    customer.save(
-                        update_fields=["debt"]
-                    )
-
+                    customer.save(update_fields=["debt"])
                     covered_payments += 1
 
                     self.stdout.write(
@@ -255,7 +215,6 @@ class Command(BaseCommand):
                     )
 
             except Exception as e:
-
                 self.stdout.write(
                     self.style.ERROR(
                         f"ERROR row={index + 1} "

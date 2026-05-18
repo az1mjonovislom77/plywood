@@ -9,6 +9,7 @@ from order.models import Basket, BasketItem, Order, OrderHistory, OrderItem
 from order.service.order import OrderService
 from product.models import Product
 from user.models import User
+from customer.models import Customer
 
 
 class OrderSerializerTest(TestCase):
@@ -123,3 +124,25 @@ class OrderSerializerTest(TestCase):
         self.assertEqual(data["items"][0]["cutting"]["count"], "2")
         self.assertEqual(data["items"][0]["cutting"]["total_price"], Decimal("30000.00000"))
         self.assertEqual(data["items"][0]["banding"]["total_price"], Decimal("30000.0000"))
+
+    def test_checkout_uses_customer_overpayment_before_adding_debt(self):
+        customer = Customer.objects.create(full_name="Credit Customer", overpayment=Decimal("50.00"))
+        product = Product.objects.create(name="Plywood", sale_price=Decimal("120.00"), count=Decimal("2.000"))
+        basket = Basket.objects.create(user=self.seller)
+        BasketItem.objects.create(basket=basket, product=product)
+
+        OrderService.checkout(
+            user=self.seller,
+            payment_method=Order.PaymentMethod.NASIYA,
+            customer_id=customer.id,
+            covered_amount=Decimal("0.00"),
+            items=[{
+                "product_id": product.id,
+                "quantity": Decimal("1.000"),
+            }],
+        )
+
+        customer.refresh_from_db()
+
+        self.assertEqual(customer.overpayment, Decimal("0.00"))
+        self.assertEqual(customer.debt, Decimal("70.00"))

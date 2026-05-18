@@ -12,6 +12,32 @@ from user.models import User
 
 class OrderService:
     @staticmethod
+    def _add_customer_debt(customer, amount):
+        amount = max(amount, Decimal("0"))
+
+        if amount <= 0:
+            return
+
+        credit_used = min(customer.overpayment, amount)
+        debt_to_add = amount - credit_used
+
+        update_fields = {}
+        if credit_used > 0:
+            update_fields["overpayment"] = F("overpayment") - credit_used
+        if debt_to_add > 0:
+            update_fields["debt"] = F("debt") + debt_to_add
+
+        if update_fields:
+            Customer.objects.filter(id=customer.id).update(**update_fields)
+
+        if debt_to_add > 0:
+            BalanceHistory.objects.create(
+                customer=customer,
+                type=BalanceHistory.Type.DEBT_ADD,
+                amount=debt_to_add,
+            )
+
+    @staticmethod
     def _get_customer(customer_id):
         if not customer_id:
             return None
@@ -58,8 +84,7 @@ class OrderService:
             )
 
         if instance.payment_method == instance.PaymentMethod.NASIYA and remaining > 0:
-            Customer.objects.filter(id=customer.id).update(debt=F("debt") + remaining)
-            BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.DEBT_ADD, amount=remaining)
+            OrderService._add_customer_debt(customer, remaining)
 
         return instance
 
@@ -225,8 +250,7 @@ class OrderService:
                                               amount=order.covered_amount)
 
             if order.payment_method == Order.PaymentMethod.NASIYA and remaining > 0:
-                Customer.objects.filter(id=customer.id).update(debt=F("debt") + remaining)
-                BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.DEBT_ADD, amount=remaining, )
+                OrderService._add_customer_debt(customer, remaining)
 
         if not basket.items.exists():
             basket.is_active = False
