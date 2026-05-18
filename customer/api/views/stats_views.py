@@ -4,7 +4,6 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from customer.service.customer_stats import CustomerStatsService
 from rest_framework.response import Response
-from customer.service.debt_stats import DashboardStatsService
 
 
 @extend_schema(tags=["CustomerStats"])
