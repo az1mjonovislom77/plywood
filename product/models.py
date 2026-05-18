@@ -32,10 +32,15 @@ class Product(models.Model):
     width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     thick = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    arrival_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    arrival_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    sale_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Narxlar endi dollarda saqlanadi
+    arrival_price = models.DecimalField(verbose_name="Arrival Price in USD", max_digits=10, decimal_places=2, default=0)
+    sale_price = models.DecimalField(verbose_name="Sale Price in USD", max_digits=10, decimal_places=2, default=0)
+
+    # So'mdagi narxlar uchun alohida maydonlar
+    arrival_price_in_sum = models.DecimalField(verbose_name="Arrival Price in UZS", max_digits=15, decimal_places=2, default=0, editable=False)
+    sale_price_in_sum = models.DecimalField(verbose_name="Sale Price in UZS", max_digits=15, decimal_places=2, default=0, editable=False)
+
     count = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     arrival_date = models.DateField(default=timezone.localdate)
     description = models.TextField(null=True, blank=True)
@@ -43,8 +48,8 @@ class Product(models.Model):
 
     @property
     def investment_in_dollar(self):
-        if self.count and self.arrival_price_in_dollar:
-            return self.count * self.arrival_price_in_dollar
+        if self.count and self.arrival_price: # Endi arrival_price o'zi dollar
+            return self.count * self.arrival_price
         return 0
 
     class Meta:

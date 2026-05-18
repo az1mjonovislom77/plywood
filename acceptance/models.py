@@ -25,12 +25,17 @@ class Acceptance(models.Model):
 
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="acceptances")
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, related_name="acceptances", null=True, blank=True)
+    
+    # Bu maydonlar endi DOLLAR yoki SUM bo'lishi mumkin (price_type ga qarab)
     arrival_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    arrival_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    arrival_price_in_sum = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    sale_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    sale_price_in_sum = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    
+    # Hisoblangan narxlar uchun maydonlar
+    arrival_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0, editable=False)
+    sale_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0, editable=False)
+    arrival_price_in_sum = models.DecimalField(max_digits=15, decimal_places=2, default=0, editable=False)
+    sale_price_in_sum = models.DecimalField(max_digits=15, decimal_places=2, default=0, editable=False)
+
     price_type = models.CharField(max_length=10, choices=PriceType.choices, default=PriceType.SUM)
     count = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     acceptance_status = models.CharField(max_length=10, choices=AcceptanceStatus.choices,
