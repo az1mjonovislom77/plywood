@@ -1,40 +1,27 @@
 from rest_framework import serializers
-from user.models import User
+
 from acceptance.models import Acceptance, AcceptanceHistory
+from user.api.serializers import UserSerializer
 from utils.base.serializers_base import TrimmedDecimalField
 
-
 class AcceptanceSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    accepted_by_name = serializers.CharField(source="accepted_by.full_name", read_only=True)
-    accepted_at = serializers.DateTimeField(read_only=True)
-    history = serializers.SerializerMethodField()
     count = TrimmedDecimalField(max_digits=20, decimal_places=3)
-    arrival_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    arrival_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    sale_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    accepted_by_name = serializers.CharField(source="accepted_by.username", read_only=True)
+    history = serializers.SerializerMethodField()
     investment = serializers.SerializerMethodField()
     investment_in_dollar = serializers.SerializerMethodField()
+    arrival_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
+    arrival_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
+    sale_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
+    sale_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
 
     class Meta:
         model = Acceptance
         fields = ["id", "supplier", "product", "price_type", "product_name", "arrival_price", "arrival_price_in_dollar", 
-                  "arrival_price_in_sum", "sale_price", "sale_price_in_sum", "count",
+                  "arrival_price_in_sum", "sale_price", "sale_price_in_dollar", "sale_price_in_sum", "count",
                   "arrival_date", "description", "acceptance_status", "accepted_by_name", "accepted_at", "history", "investment", "investment_in_dollar"]
-
-    def get_history(self, obj):
-        request = self.context.get("request")
-        if not request:
-            return []
-
-        user = request.user
-
-        if user.role in [User.UserRoles.MANAGER, User.UserRoles.WAREHOUSEMAN]:
-            history = obj.histories.all()
-        else:
-            return []
-
-        return AcceptanceHistorySerializer(history, many=True, context=self.context).data
+        read_only_fields = ["acceptance_status"]
 
     def get_investment(self, obj):
         return obj.count * obj.arrival_price
@@ -42,8 +29,27 @@ class AcceptanceSerializer(serializers.ModelSerializer):
     def get_investment_in_dollar(self, obj):
         return obj.count * obj.arrival_price_in_dollar
 
+    def get_history(self, obj):
+        history = obj.histories.order_by("-created_at")
+        return AcceptanceHistorySerializer(history, many=True, context=self.context).data
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        
+        request = self.context.get("request")
+        
+        if not request or getattr(request.user, 'role', None) != getattr(request.user, 'UserRoles', type('roles', (), {'MANAGER': 'manager'})).MANAGER:
+            data.pop("arrival_price", None)
+            data.pop("arrival_price_in_dollar", None)
+            data.pop("arrival_price_in_sum", None)
+            data.pop("investment", None)
+            data.pop("investment_in_dollar", None)
+
+        return data
 
 class AcceptanceHistorySerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    count = TrimmedDecimalField(max_digits=20, decimal_places=3)
     product_name = serializers.CharField(source="product.name", read_only=True)
 
     class Meta:
@@ -53,23 +59,14 @@ class AcceptanceHistorySerializer(serializers.ModelSerializer):
 
 
 class AcceptanceCancelSerializer(serializers.Serializer):
-    description = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=True)
 
 
 class SupplierAcceptanceSerializer(AcceptanceSerializer):
-    history = serializers.SerializerMethodField()
-
     def get_history(self, obj):
         return AcceptanceHistorySerializer(obj.histories.all(), many=True, context=self.context).data
 
 
-class SupplierStatsSerializer(serializers.Serializer):
-    supplier_id = serializers.IntegerField()
-    supplier_name = serializers.CharField()
-    total_quantity = serializers.FloatField()
-    total_investment = serializers.FloatField()
-
-
 class AcceptanceGroupedSerializer(serializers.Serializer):
     date = serializers.DateField()
-    suppliers = SupplierStatsSerializer(many=True)
+    suppliers = serializers.ListField()

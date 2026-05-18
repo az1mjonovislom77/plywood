@@ -72,9 +72,9 @@ class AcceptanceWorkflowService:
 
         Product.objects.filter(pk=acceptance.product_id).update(
             count=F("count") + acceptance.count,
-            arrival_price=acceptance.arrival_price_in_sum,
+            arrival_price=acceptance.arrival_price, # arrival_price to'g'ridan to'g'ri yangilandi
             arrival_price_in_dollar=acceptance.arrival_price_in_dollar,
-            sale_price=acceptance.sale_price_in_sum,
+            sale_price=acceptance.sale_price, # sale_price to'g'ridan to'g'ri yangilandi
             sale_price_in_dollar=acceptance.sale_price_in_dollar
         )
 

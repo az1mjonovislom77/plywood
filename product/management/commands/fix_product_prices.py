@@ -15,10 +15,10 @@ def are_decimals_equal(d1, d2, precision='0.01'):
     return d1.quantize(quantizer, rounding=ROUND_HALF_UP) == d2.quantize(quantizer, rounding=ROUND_HALF_UP)
 
 class Command(BaseCommand):
-    help = "Fixes the arrival and sale prices (in UZS and USD) for all products based on the last acceptance"
+    help = "Fixes the arrival and sale prices for all products based on the last acceptance"
 
     def handle(self, *args, **options):
-        self.stdout.write("Starting to fix product prices with enhanced comparison...")
+        self.stdout.write("Starting to fix product prices with new logic...")
 
         products = Product.objects.all()
         updated_count = 0
@@ -32,35 +32,35 @@ class Command(BaseCommand):
             ).order_by('-accepted_at').first()
 
             if not last_acceptance:
-                # self.stdout.write(self.style.WARNING(f"No 'ACCEPT' status acceptance found for '{product.name}' (ID: {product.id}). Skipping."))
                 continue
 
             self.stdout.write(f"--- Checking '{product.name}' (ID: {product.id}) ---")
-            self.stdout.write(f"  Product prices: Arrival($)={product.arrival_price_in_dollar}, Sale($)={product.sale_price_in_dollar}, Arrival(UZS)={product.arrival_price}, Sale(UZS)={product.sale_price}")
-            self.stdout.write(f"  Acceptance prices: Arrival($)={last_acceptance.arrival_price_in_dollar}, Sale($)={last_acceptance.sale_price_in_dollar}, Arrival(UZS)={last_acceptance.arrival_price_in_sum}, Sale(UZS)={last_acceptance.sale_price_in_sum}")
+            self.stdout.write(f"  Product prices: Arrival={product.arrival_price}, Sale={product.sale_price}, Arrival($)={product.arrival_price_in_dollar}, Sale($)={product.sale_price_in_dollar}")
+            self.stdout.write(f"  Acceptance prices: Arrival={last_acceptance.arrival_price}, Sale={last_acceptance.sale_price}, Arrival($)={last_acceptance.arrival_price_in_dollar}, Sale($)={last_acceptance.sale_price_in_dollar}")
 
             update_fields = []
             
-            # Narxlarni yangi funksiya orqali solishtirish
+            # Valyuta turidan qat'iy nazar to'g'ridan-to'g'ri solishtirish
+            if not are_decimals_equal(product.arrival_price, last_acceptance.arrival_price):
+                self.stdout.write(f"  [CHANGE] Arrival price is different.")
+                product.arrival_price = last_acceptance.arrival_price
+                update_fields.append('arrival_price')
+
+            if not are_decimals_equal(product.sale_price, last_acceptance.sale_price):
+                self.stdout.write(f"  [CHANGE] Sale price is different.")
+                product.sale_price = last_acceptance.sale_price
+                update_fields.append('sale_price')
+
+            # Dollar narxlarini ham solishtirishda davom etamiz
             if not are_decimals_equal(product.arrival_price_in_dollar, last_acceptance.arrival_price_in_dollar):
                 self.stdout.write(f"  [CHANGE] Arrival price in dollar is different.")
                 product.arrival_price_in_dollar = last_acceptance.arrival_price_in_dollar
                 update_fields.append('arrival_price_in_dollar')
-            
-            if not are_decimals_equal(product.arrival_price, last_acceptance.arrival_price_in_sum):
-                self.stdout.write(f"  [CHANGE] Arrival price in UZS is different.")
-                product.arrival_price = last_acceptance.arrival_price_in_sum
-                update_fields.append('arrival_price')
 
             if not are_decimals_equal(product.sale_price_in_dollar, last_acceptance.sale_price_in_dollar):
                 self.stdout.write(f"  [CHANGE] Sale price in dollar is different.")
                 product.sale_price_in_dollar = last_acceptance.sale_price_in_dollar
                 update_fields.append('sale_price_in_dollar')
-
-            if not are_decimals_equal(product.sale_price, last_acceptance.sale_price_in_sum):
-                self.stdout.write(f"  [CHANGE] Sale price in UZS is different.")
-                product.sale_price = last_acceptance.sale_price_in_sum
-                update_fields.append('sale_price')
 
             if update_fields:
                 product.save(update_fields=update_fields)
