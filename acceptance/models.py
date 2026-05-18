@@ -29,6 +29,7 @@ class Acceptance(models.Model):
     arrival_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     arrival_price_in_sum = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sale_price_in_dollar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_price_in_sum = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     price_type = models.CharField(max_length=10, choices=PriceType.choices, default=PriceType.SUM)
     count = models.DecimalField(max_digits=20, decimal_places=3, default=0)

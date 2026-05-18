@@ -18,9 +18,13 @@ class AcceptanceWorkflowService:
         arrival_date = data.get("arrival_date", timezone.localdate())
 
         arrival_price_in_dollar = 0
+        sale_price_in_dollar = 0
+        arrival_price_in_sum = 0
+        sale_price_in_sum = 0
 
         if price_type == Acceptance.PriceType.DOLLAR:
             arrival_price_in_dollar = arrival_price
+            sale_price_in_dollar = sale_price
             rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
             if not rate:
                 raise ValueError("Dollar rate not found")
@@ -33,9 +37,11 @@ class AcceptanceWorkflowService:
             rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
             if rate and rate.rate > 0:
                 arrival_price_in_dollar = arrival_price / rate.rate
+                sale_price_in_dollar = sale_price / rate.rate
                 rate_value = rate.rate
 
         data["arrival_price_in_dollar"] = arrival_price_in_dollar
+        data["sale_price_in_dollar"] = sale_price_in_dollar
         data["arrival_price_in_sum"] = arrival_price_in_sum
         data["sale_price_in_sum"] = sale_price_in_sum
 
@@ -64,26 +70,15 @@ class AcceptanceWorkflowService:
         if acceptance.acceptance_status != Acceptance.AcceptanceStatus.WAITING:
             raise ValueError("Acceptance already processed")
 
-        arrival_price = acceptance.arrival_price
-        sale_price = acceptance.sale_price
-
-        if acceptance.price_type == Acceptance.PriceType.DOLLAR:
-            rate = CurrencyRate.objects.filter(date__lte=acceptance.arrival_date).order_by("-date").first()
-
-            if not rate:
-                raise ValueError("Dollar rate not found")
-
-            arrival_price = (arrival_price * rate.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            sale_price = (sale_price * rate.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
         Product.objects.filter(pk=acceptance.product_id).update(
             count=F("count") + acceptance.count,
-            arrival_price=arrival_price,
+            arrival_price=acceptance.arrival_price_in_sum,
             arrival_price_in_dollar=acceptance.arrival_price_in_dollar,
-            sale_price=sale_price
+            sale_price=acceptance.sale_price_in_sum,
+            sale_price_in_dollar=acceptance.sale_price_in_dollar
         )
 
-        total_amount = arrival_price * acceptance.count
+        total_amount = acceptance.arrival_price_in_sum * acceptance.count
 
         if acceptance.supplier_id:
             Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + total_amount)
