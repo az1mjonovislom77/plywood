@@ -7,17 +7,11 @@ from acceptance.models import CurrencyRate
 
 
 class ProductExcelExportService:
-    @staticmethod
-    def _get_rate():
-        rate_obj = CurrencyRate.objects.filter(date__lte=timezone.localdate()).order_by("-date").first()
-        return rate_obj.rate if rate_obj else None
-
     @classmethod
     def build_excel(cls, queryset, user=None):
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Products"
-        rate = cls._get_rate()
 
         headers = [
             "ID",
@@ -59,15 +53,12 @@ class ProductExcelExportService:
 
         for product in queryset:
             category_name = product.category.name if product.category else ""
-            sale_price_in_dollar = 0
-            if rate and product.sale_price:
-                sale_price_in_dollar = float((product.sale_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
-
+            
             arrival_price = float(product.arrival_price) if product.arrival_price else 0
             arrival_price_in_dollar = float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0
-            if arrival_price_in_dollar == 0 and rate and product.arrival_price:
-                arrival_price_in_dollar = float((product.arrival_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
-
+            sale_price = float(product.sale_price) if product.sale_price else 0
+            sale_price_in_dollar = float(product.sale_price_in_dollar) if product.sale_price_in_dollar else 0
+            
             count = float(product.count) if product.count else 0
 
             investment_in_dollar = count * arrival_price_in_dollar
@@ -86,7 +77,7 @@ class ProductExcelExportService:
                 arrival_price,
                 arrival_price_in_dollar,
                 investment_in_dollar,
-                float(product.sale_price) if product.sale_price else 0,
+                sale_price,
                 sale_price_in_dollar,
                 count,
                 product.arrival_date.strftime('%Y-%m-%d') if product.arrival_date else "",
