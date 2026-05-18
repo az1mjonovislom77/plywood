@@ -13,38 +13,39 @@ class AcceptanceWorkflowService:
     def create(data, user):
         rate_value = None
         price_type = data.get("price_type")
-        arrival_price = data.get("arrival_price", 0)
-        sale_price = data.get("sale_price", 0)
+        arrival_price_input = data.get("arrival_price", 0)
+        sale_price_input = data.get("sale_price", 0)
         arrival_date = data.get("arrival_date", timezone.localdate())
 
+        # Hisoblangan qiymatlarni saqlash uchun o'zgaruvchilar
         arrival_price_in_dollar = 0
         sale_price_in_dollar = 0
         arrival_price_in_sum = 0
         sale_price_in_sum = 0
 
-        if price_type == Acceptance.PriceType.DOLLAR:
-            arrival_price_in_dollar = arrival_price
-            sale_price_in_dollar = sale_price
-            rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
-            if not rate:
-                raise ValueError("Dollar rate not found")
-            rate_value = rate.rate
-            arrival_price_in_sum = arrival_price * rate_value
-            sale_price_in_sum = sale_price * rate_value
-        else:
-            arrival_price_in_sum = arrival_price
-            sale_price_in_sum = sale_price
-            rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
-            if rate and rate.rate > 0:
-                arrival_price_in_dollar = arrival_price / rate.rate
-                sale_price_in_dollar = sale_price / rate.rate
-                rate_value = rate.rate
+        rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
+        if not rate:
+            raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
+        rate_value = rate.rate
 
+        if price_type == Acceptance.PriceType.DOLLAR:
+            arrival_price_in_dollar = arrival_price_input
+            sale_price_in_dollar = sale_price_input
+            arrival_price_in_sum = (arrival_price_input * rate_value).quantize(Decimal("0.01"))
+            sale_price_in_sum = (sale_price_input * rate_value).quantize(Decimal("0.01"))
+        else: # Narx so'mda kiritilgan
+            arrival_price_in_sum = arrival_price_input
+            sale_price_in_sum = sale_price_input
+            if rate_value > 0:
+                arrival_price_in_dollar = (arrival_price_input / rate_value).quantize(Decimal("0.01"))
+                sale_price_in_dollar = (sale_price_input / rate_value).quantize(Decimal("0.01"))
+
+        # data obyektini to'ldirish
         data["arrival_price_in_dollar"] = arrival_price_in_dollar
         data["sale_price_in_dollar"] = sale_price_in_dollar
         data["arrival_price_in_sum"] = arrival_price_in_sum
         data["sale_price_in_sum"] = sale_price_in_sum
-
+        
         acceptance = Acceptance.objects.create(**data)
 
         AcceptanceHistory.objects.create(
@@ -53,8 +54,8 @@ class AcceptanceWorkflowService:
             action=AcceptanceHistory.Action.CREATE,
             supplier=acceptance.supplier,
             product=acceptance.product,
-            arrival_price=acceptance.arrival_price,
-            sale_price=acceptance.sale_price,
+            arrival_price=acceptance.arrival_price, # Kiritilgan asl narx
+            sale_price=acceptance.sale_price,       # Kiritilgan asl narx
             exchange_rate=rate_value,
             price_type=acceptance.price_type,
             count=acceptance.count,
@@ -70,14 +71,16 @@ class AcceptanceWorkflowService:
         if acceptance.acceptance_status != Acceptance.AcceptanceStatus.WAITING:
             raise ValueError("Acceptance already processed")
 
+        # Product modelidagi narxlarni yangilash
         Product.objects.filter(pk=acceptance.product_id).update(
             count=F("count") + acceptance.count,
-            arrival_price=acceptance.arrival_price, # arrival_price to'g'ridan to'g'ri yangilandi
-            arrival_price_in_dollar=acceptance.arrival_price_in_dollar,
-            sale_price=acceptance.sale_price, # sale_price to'g'ridan to'g'ri yangilandi
-            sale_price_in_dollar=acceptance.sale_price_in_dollar
+            arrival_price=acceptance.arrival_price_in_dollar,  # Product.arrival_price endi dollarda
+            sale_price=acceptance.sale_price_in_dollar,        # Product.sale_price endi dollarda
+            arrival_price_in_sum=acceptance.arrival_price_in_sum,
+            sale_price_in_sum=acceptance.sale_price_in_sum
         )
 
+        # Supplier qarzi so'mda hisoblanadi
         total_amount = acceptance.arrival_price_in_sum * acceptance.count
 
         if acceptance.supplier_id:
