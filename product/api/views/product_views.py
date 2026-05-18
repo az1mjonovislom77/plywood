@@ -31,33 +31,17 @@ class ProductPagination(PageNumberPagination):
         limit = self.get_page_size(self.request)
         total_pages = math.ceil(total / limit)
         
-        # Jami investitsiyani hisoblash (dinamik rate bilan, agar bazada arrival_price_in_dollar = 0 bo'lsa)
         all_investment_in_dollar = Decimal('0')
         
         if hasattr(self.page.paginator, "object_list"):
             queryset = self.page.paginator.object_list
             
-            # Bazadan mavjud bo'lgan to'g'ri arrival_price_in_dollar'lar yig'indisi
-            valid_investments = queryset.filter(arrival_price_in_dollar__gt=0).aggregate(
-                total=Sum(ExpressionWrapper(F('count') * F('arrival_price_in_dollar'), output_field=DecimalField()))
+            # Jami investitsiyani hisoblash (Product.arrival_price endi dollarda)
+            total_investment = queryset.aggregate(
+                total=Sum(ExpressionWrapper(F('count') * F('arrival_price'), output_field=DecimalField()))
             )['total'] or Decimal('0')
             
-            # Agar arrival_price_in_dollar bazada saqlanmagan (0 bo'lgan) productlar bo'lsa, ularni kurs orqali hisoblash
-            missing_investments = Decimal('0')
-            products_missing_dollar_price = queryset.filter(arrival_price_in_dollar=0, arrival_price__gt=0)
-            
-            if products_missing_dollar_price.exists():
-                rate_obj = CurrencyRate.objects.filter(date__lte=timezone.localdate()).order_by("-date").first()
-                rate = rate_obj.rate if rate_obj else None
-                
-                if rate:
-                    sum_in_som = products_missing_dollar_price.aggregate(
-                        total=Sum(ExpressionWrapper(F('count') * F('arrival_price'), output_field=DecimalField()))
-                    )['total'] or Decimal('0')
-                    
-                    missing_investments = sum_in_som / rate
-
-            all_investment_in_dollar = float(valid_investments + missing_investments)
+            all_investment_in_dollar = float(total_investment)
 
         return Response({
             "page": self.page.number,
