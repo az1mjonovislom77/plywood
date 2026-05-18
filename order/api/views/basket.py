@@ -1,4 +1,4 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -39,6 +39,11 @@ class BasketViewSet(viewsets.GenericViewSet):
         basket = BasketService.add_product(user=request.user, product_id=serializer.validated_data["product_id"])
         return Response(BasketSerializer(basket).data)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name="product_id", required=False, type=int),
+        ]
+    )
     def destroy(self, request, pk=None):
         product_id = request.query_params.get("product_id") or pk
         if not product_id:
