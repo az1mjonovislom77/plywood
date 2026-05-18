@@ -168,6 +168,27 @@ class SupplierAcceptanceAPIViewTest(TestCase):
         self.assertEqual(response["Content-Disposition"], 'attachment; filename="acceptance_analytics.xlsx"')
         self.assertEqual(response.get("Content-Type"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+    def test_acceptance_keeps_product_arrival_price_in_original_dollar(self):
+        CurrencyRate.objects.create(date=date(2026, 4, 20), rate=Decimal("12500.00"))
+        acceptance = AcceptanceWorkflowService.create(
+            data={
+                "product": self.product,
+                "supplier": self.supplier,
+                "arrival_price": Decimal("20.00"),
+                "sale_price": Decimal("25.00"),
+                "price_type": Acceptance.PriceType.DOLLAR,
+                "count": Decimal("1.000"),
+                "arrival_date": date(2026, 4, 20),
+            },
+            user=self.user,
+        )
+
+        AcceptanceWorkflowService.accept(acceptance.id, self.user)
+        self.product.refresh_from_db()
+
+        self.assertEqual(self.product.arrival_price, Decimal("250000.00"))
+        self.assertEqual(self.product.arrival_price_in_dollar, Decimal("20.00"))
+
 
 class AcceptanceAnalyticsExportServiceTest(TestCase):
     def test_build_analytics_excel_groups_suppliers_by_date(self):

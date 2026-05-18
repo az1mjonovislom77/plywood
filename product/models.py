@@ -46,18 +46,6 @@ class Product(models.Model):
             return self.count * self.arrival_price_in_dollar
         return 0
 
-    def save(self, *args, **kwargs):
-        from acceptance.models import CurrencyRate
-        try:
-            rate = CurrencyRate.objects.get(date=self.arrival_date).rate
-            if rate and rate > 0:
-                self.arrival_price_in_dollar = self.arrival_price / rate
-            else:
-                self.arrival_price_in_dollar = 0
-        except CurrencyRate.DoesNotExist:
-            self.arrival_price_in_dollar = 0
-        super().save(*args, **kwargs)
-
     class Meta:
         ordering = ['-id']
 

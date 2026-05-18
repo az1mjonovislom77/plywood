@@ -11,17 +11,35 @@ class AcceptanceWorkflowService:
     @staticmethod
     @transaction.atomic
     def create(data, user):
-        acceptance = Acceptance.objects.create(**data)
-
         rate_value = None
+        price_type = data.get("price_type")
+        arrival_price = data.get("arrival_price", 0)
+        sale_price = data.get("sale_price", 0)
+        arrival_date = data.get("arrival_date", timezone.localdate())
 
-        if acceptance.price_type == Acceptance.PriceType.DOLLAR:
-            rate = CurrencyRate.objects.filter(date__lte=acceptance.arrival_date).order_by("-date").first()
+        arrival_price_in_dollar = 0
 
+        if price_type == Acceptance.PriceType.DOLLAR:
+            arrival_price_in_dollar = arrival_price
+            rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
             if not rate:
                 raise ValueError("Dollar rate not found")
-
             rate_value = rate.rate
+            arrival_price_in_sum = arrival_price * rate_value
+            sale_price_in_sum = sale_price * rate_value
+        else:
+            arrival_price_in_sum = arrival_price
+            sale_price_in_sum = sale_price
+            rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
+            if rate and rate.rate > 0:
+                arrival_price_in_dollar = arrival_price / rate.rate
+                rate_value = rate.rate
+
+        data["arrival_price_in_dollar"] = arrival_price_in_dollar
+        data["arrival_price_in_sum"] = arrival_price_in_sum
+        data["sale_price_in_sum"] = sale_price_in_sum
+
+        acceptance = Acceptance.objects.create(**data)
 
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
@@ -61,6 +79,7 @@ class AcceptanceWorkflowService:
         Product.objects.filter(pk=acceptance.product_id).update(
             count=F("count") + acceptance.count,
             arrival_price=arrival_price,
+            arrival_price_in_dollar=acceptance.arrival_price_in_dollar,
             sale_price=sale_price
         )
 

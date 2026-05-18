@@ -41,35 +41,6 @@ class Acceptance(models.Model):
     description = models.TextField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    def save(self, *args, **kwargs):
-        if self.price_type == self.PriceType.DOLLAR:
-            self.arrival_price_in_dollar = self.arrival_price
-            
-            try:
-                rate = CurrencyRate.objects.get(date=self.arrival_date).rate
-                if rate and rate > 0:
-                    self.arrival_price_in_sum = self.arrival_price * rate
-                    self.sale_price_in_sum = self.sale_price * rate
-                else:
-                    self.arrival_price_in_sum = 0
-                    self.sale_price_in_sum = 0
-            except CurrencyRate.DoesNotExist:
-                self.arrival_price_in_sum = 0
-                self.sale_price_in_sum = 0
-        else:
-            self.arrival_price_in_sum = self.arrival_price
-            self.sale_price_in_sum = self.sale_price
-
-            try:
-                rate = CurrencyRate.objects.get(date=self.arrival_date).rate
-                if rate and rate > 0:
-                    self.arrival_price_in_dollar = self.arrival_price / rate
-                else:
-                    self.arrival_price_in_dollar = 0
-            except CurrencyRate.DoesNotExist:
-                self.arrival_price_in_dollar = 0
-        super().save(*args, **kwargs)
-
     class Meta:
         ordering = ["-created_at"]
 
