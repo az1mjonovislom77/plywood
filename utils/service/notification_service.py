@@ -10,11 +10,9 @@ class ProductNotificationService:
         return settings.low_stock_threshold if settings else 20
 
     @staticmethod
-    def get_low_stock_info():
+    def get_low_stock_queryset():
         threshold = ProductNotificationService.get_low_stock_threshold()
-        queryset = Product.objects.filter(count__lt=threshold, is_active=True).values("id", "name", "count").order_by("count")
-
-        return {
-            "low_stock_products": queryset.count(),
-            "products": list(queryset)
-        }
+        return Product.objects.filter(
+            count__lt=threshold,
+            is_active=True,
+        ).values("id", "name", "count").order_by("count")
