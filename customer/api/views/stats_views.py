@@ -15,12 +15,3 @@ class CustomerStatsView(APIView):
         stats = CustomerStatsService.dashboard()
 
         return Response(stats, status=status.HTTP_200_OK)
-
-
-@extend_schema(tags=["CustomerStats"])
-class DashboardDebtStatsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        data = DashboardStatsService.get_debt_stats()
-        return Response(data)

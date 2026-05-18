@@ -13,7 +13,6 @@ router.register('export', CustomerStatementExcelViewSet, basename='export')
 urlpatterns = [
     path('', include(router.urls)),
     path('stats/customers/', CustomerStatsView.as_view(), name='customers_stats'),
-    path('stats/debt/', DashboardDebtStatsView.as_view(), name='debt_stats'),
     path("cover-debt/<int:pk>/", CoverDebtAPIView.as_view()),
     path("payment-history/<int:pk>/", CustomerHistoryAPIView.as_view()),
     path("statement-excel/<int:pk>/", CustomerStatementExcelAPIView.as_view()),
