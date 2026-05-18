@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from order.api.views.stats import CuttingBandingIncomeStatsView, Last7DaysIncomeView, OrderStatsView
+from order.api.views.stats import CuttingBandingIncomeStatsView, Last7DaysIncomeView
 from order.api.views.banding import BandingViewSet
 from order.api.views.basket import BasketViewSet
 from order.api.views.cutting import CuttingViewSet
@@ -19,7 +19,6 @@ router.register("order-excel", OrderExcelViewSet, basename="order-excel")
 
 urlpatterns = [
     path('', include(router.urls)),
-    path("stats/order/", OrderStatsView.as_view()),
     path("income/cutting-banding/", CuttingBandingIncomeStatsView.as_view(), name="cutting-banding-income"),
     path("last7days/", Last7DaysIncomeView.as_view()),
 ]

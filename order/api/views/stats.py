@@ -3,17 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from order.service.cutting_banding_stats import DashboardStatsService
-from order.service.dashboard_stats import OrderStatsService
 from order.service.last7day_stats import Last7dayStatsService
-
-
-@extend_schema(tags=['OrderStats'])
-class OrderStatsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        data = OrderStatsService.get_stats()
-        return Response(data)
 
 
 @extend_schema(tags=["CuttingBandingStats"])

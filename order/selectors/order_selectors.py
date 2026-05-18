@@ -1,7 +1,5 @@
-from django.db.models import Prefetch, Q
-
+from django.db.models import Prefetch
 from order.models import Order, OrderHistory
-from user.models import User
 
 
 class OrderSelector:
