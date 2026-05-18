@@ -1,7 +1,5 @@
 from rest_framework import serializers
-
 from acceptance.models import Acceptance, AcceptanceHistory
-from user.api.serializers import UserSerializer
 from utils.base.serializers_base import TrimmedDecimalField
 
 class AcceptanceSerializer(serializers.ModelSerializer):
@@ -31,13 +29,14 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
     def get_history(self, obj):
         history = obj.histories.order_by("-created_at")
+        # Bu yerda context o'tkazilishini ta'minlash muhim
         return AcceptanceHistorySerializer(history, many=True, context=self.context).data
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        
+
         request = self.context.get("request")
-        
+
         if not request or getattr(request.user, 'role', None) != getattr(request.user, 'UserRoles', type('roles', (), {'MANAGER': 'manager'})).MANAGER:
             data.pop("arrival_price", None)
             data.pop("arrival_price_in_dollar", None)
@@ -48,7 +47,8 @@ class AcceptanceSerializer(serializers.ModelSerializer):
         return data
 
 class AcceptanceHistorySerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    # Circular importni oldini olish uchun StringRelatedField ishlatamiz
+    user = serializers.StringRelatedField()
     count = TrimmedDecimalField(max_digits=20, decimal_places=3)
     product_name = serializers.CharField(source="product.name", read_only=True)
 
@@ -64,6 +64,7 @@ class AcceptanceCancelSerializer(serializers.Serializer):
 
 class SupplierAcceptanceSerializer(AcceptanceSerializer):
     def get_history(self, obj):
+        # Bu yerda ham context o'tkazilishi kerak
         return AcceptanceHistorySerializer(obj.histories.all(), many=True, context=self.context).data
 
 
