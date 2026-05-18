@@ -3,7 +3,7 @@ from product.models import Product
 from acceptance.models import Acceptance
 
 class Command(BaseCommand):
-    help = "Fixes product and acceptance prices (direct copy of arrival/sale prices)."
+    help = "Fixes product and acceptance prices (direct copy of arrival/sale prices as DOLLAR)."
 
     def handle(self, *args, **options):
         self.stdout.write("1-bosqich: Acceptance jadvalidagi narxlarni to'g'rilash boshlandi...")
@@ -11,9 +11,14 @@ class Command(BaseCommand):
         # 1. Barcha Acceptance'larni to'g'rilash
         acceptances = Acceptance.objects.all()
         for acc in acceptances:
+            # Acceptance'da kiritilgan narxlarni to'g'ridan-to'g'ri DOLLAR deb qabul qilamiz
             acc.arrival_price_in_dollar = acc.arrival_price
             acc.sale_price_in_dollar = acc.sale_price
-            acc.save(update_fields=['arrival_price_in_dollar', 'sale_price_in_dollar'])
+            
+            # Agar price_type SUM bo'lsa uni ham DOLLAR ga o'zgartirib qo'yamiz (chunki endi faqat DOLLAR)
+            acc.price_type = Acceptance.PriceType.DOLLAR
+            
+            acc.save(update_fields=['arrival_price_in_dollar', 'sale_price_in_dollar', 'price_type'])
             
         self.stdout.write(self.style.SUCCESS("Acceptance jadvali to'g'rilandi."))
 
@@ -29,9 +34,15 @@ class Command(BaseCommand):
             ).order_by('-accepted_at').first()
 
             if last_acceptance:
-                product.arrival_price = last_acceptance.arrival_price
-                product.sale_price = last_acceptance.sale_price
-                product.save(update_fields=['arrival_price', 'sale_price'])
+                # Productdagi arrival_price va sale_price endi DOLLAR ni bildiradi
+                product.arrival_price = last_acceptance.arrival_price_in_dollar
+                product.sale_price = last_acceptance.sale_price_in_dollar
+                
+                # Productdagi so'm narxlarni ham Acceptance'dagi so'm narxlar bilan yangilaymiz
+                product.arrival_price_in_sum = last_acceptance.arrival_price_in_sum
+                product.sale_price_in_sum = last_acceptance.sale_price_in_sum
+                
+                product.save(update_fields=['arrival_price', 'sale_price', 'arrival_price_in_sum', 'sale_price_in_sum'])
                 updated_count += 1
                 
         self.stdout.write(self.style.SUCCESS(f"Bajarildi! Jami {updated_count} ta mahsulot narxi tiklandi."))
