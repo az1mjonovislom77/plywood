@@ -1,5 +1,7 @@
 from decimal import Decimal
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory, force_authenticate
+from customer.api.views.customer import CustomerViewSet
 from customer.models import BalanceHistory, Customer
 from customer.service.cover_debt import DebtService
 from order.models import Order
@@ -8,6 +10,7 @@ from user.models import User
 
 class DebtServiceTest(TestCase):
     def setUp(self):
+        self.factory = APIRequestFactory()
         self.user = User.objects.create_user(username="seller", password="123", role=User.UserRoles.SELLER)
         self.customer = Customer.objects.create(full_name="Test Customer", debt=Decimal("100.00"))
         self.order = Order.objects.create(
@@ -35,6 +38,23 @@ class DebtServiceTest(TestCase):
                 amount=Decimal("40.00"),
             ).exists()
         )
+
+    def test_customer_list_is_paginated(self):
+        for index in range(25):
+            Customer.objects.create(full_name=f"Customer {index}")
+
+        view = CustomerViewSet.as_view({"get": "list"})
+        request = self.factory.get("/customer/customer/?limit=10")
+        force_authenticate(request, user=self.user)
+
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["page"], 1)
+        self.assertEqual(response.data["limit"], 10)
+        self.assertEqual(response.data["total"], 26)
+        self.assertEqual(response.data["total_pages"], 3)
+        self.assertEqual(len(response.data["data"]), 10)
 
     def test_cover_debt_stores_amount_over_debt_as_overpayment(self):
         DebtService.cover_debt(self.customer.id, Decimal("150.00"))

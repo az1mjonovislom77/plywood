@@ -1,6 +1,8 @@
 from django.http import HttpResponse
+from math import ceil
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ViewSet
 from customer.api.serializers import CustomerSerializer
 from customer.service.customer_export import SalesStatementService
@@ -17,14 +19,34 @@ from customer.models import Customer
 from customer.service.customer_balance import CustomerBalanceService
 
 
+class CustomerPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "limit"
+
+    def get_paginated_response(self, data):
+        total = self.page.paginator.count
+        limit = self.get_page_size(self.request)
+
+        return Response({
+            "page": self.page.number,
+            "limit": limit,
+            "total": total,
+            "total_pages": ceil(total / limit) if limit else 0,
+            "data": data,
+        })
+
+
 @extend_schema(tags=["Customer"],
                parameters=[
                    OpenApiParameter(name="from", required=False, type=str),
-                   OpenApiParameter(name="to", required=False, type=str)])
+                   OpenApiParameter(name="to", required=False, type=str),
+                   OpenApiParameter(name="page", required=False, type=int),
+                   OpenApiParameter(name="limit", required=False, type=int)])
 class CustomerViewSet(BaseUserViewSet):
     serializer_class = CustomerSerializer
     queryset = Customer.objects.all()
     ordering = ['-id']
+    pagination_class = CustomerPagination
     filter_backends = [TransliteratedSearchFilter]
     search_fields = ['full_name', 'phone_number']
 
@@ -38,10 +60,12 @@ class CustomerViewSet(BaseUserViewSet):
         date_from = request.GET.get("from")
         date_to = request.GET.get("to")
         customers = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(customers)
+        customers_to_serialize = page if page is not None else customers
 
         results = []
 
-        for customer in customers:
+        for customer in customers_to_serialize:
             if date_from and date_to:
                 debt = (CustomerBalanceService
                         .calculate_customer_debt(customer=customer, date_from=date_from, date_to=date_to))
@@ -53,6 +77,9 @@ class CustomerViewSet(BaseUserViewSet):
             data = CustomerSerializer(customer).data
             data["debt"] = debt
             results.append(data)
+
+        if page is not None:
+            return self.get_paginated_response(results)
 
         return Response(results)
 
