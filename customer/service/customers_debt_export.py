@@ -72,11 +72,15 @@ class CustomerDebtExcelService:
 
         total_dt = Decimal("0")
         total_kt = Decimal("0")
-        customers = Customer.objects.all().order_by("full_name")
+        customers = list(Customer.objects.all().order_by("full_name"))
+        debt_map = CustomerBalanceService.bulk_calculate_customer_debt(
+            customers=customers,
+            date_from=start_date,
+            date_to=end_date,
+        )
 
         for index, customer in enumerate(customers, start=1):
-            debt = CustomerBalanceService.calculate_customer_debt(
-                customer=customer, date_from=start_date, date_to=end_date)
+            debt = debt_map.get(customer.id, Decimal("0"))
             debt = Decimal(str(debt or 0))
 
             dt = None

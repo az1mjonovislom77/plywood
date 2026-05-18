@@ -163,3 +163,36 @@ class OrderSerializerTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {"count": 2})
+
+    def test_basket_delete_product_by_url_pk(self):
+        first_product = Product.objects.create(name="Plywood 1", sale_price=Decimal("120.00"))
+        second_product = Product.objects.create(name="Plywood 2", sale_price=Decimal("130.00"))
+        basket = Basket.objects.create(user=self.seller)
+        BasketItem.objects.create(basket=basket, product=first_product)
+        BasketItem.objects.create(basket=basket, product=second_product)
+
+        view = BasketViewSet.as_view({"delete": "destroy"})
+        request = self.factory.delete(f"/orders/basket/{first_product.id}/")
+        force_authenticate(request, user=self.seller)
+
+        response = view(request, pk=first_product.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["items"]), 1)
+        self.assertEqual(response.data["items"][0]["product"]["id"], second_product.id)
+
+    def test_basket_clear_removes_all_items(self):
+        first_product = Product.objects.create(name="Plywood 1", sale_price=Decimal("120.00"))
+        second_product = Product.objects.create(name="Plywood 2", sale_price=Decimal("130.00"))
+        basket = Basket.objects.create(user=self.seller)
+        BasketItem.objects.create(basket=basket, product=first_product)
+        BasketItem.objects.create(basket=basket, product=second_product)
+
+        view = BasketViewSet.as_view({"delete": "clear"})
+        request = self.factory.delete("/orders/basket/clear/")
+        force_authenticate(request, user=self.seller)
+
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["items"], [])

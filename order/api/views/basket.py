@@ -28,6 +28,11 @@ class BasketViewSet(viewsets.GenericViewSet):
     def count(self, request):
         return Response({"count": BasketService.get_items_count(user=request.user)})
 
+    @action(detail=False, methods=["delete"], url_path="clear")
+    def clear(self, request):
+        basket = BasketService.clear_basket(user=request.user)
+        return Response(BasketSerializer(basket).data)
+
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -35,7 +40,7 @@ class BasketViewSet(viewsets.GenericViewSet):
         return Response(BasketSerializer(basket).data)
 
     def destroy(self, request, pk=None):
-        product_id = request.query_params.get("product_id", None)
+        product_id = request.query_params.get("product_id") or pk
         if not product_id:
             raise ValidationError({"product_id": "product_id required"})
 

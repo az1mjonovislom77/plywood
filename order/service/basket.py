@@ -45,9 +45,14 @@ class BasketService:
     def remove_product(user, product_id=None):
         basket = BasketService.get_or_create_basket(user)
 
-        if product_id:
-            BasketItem.objects.filter(basket=basket, product_id=product_id).delete()
-        else:
-            basket.items.all().delete()
+        BasketItem.objects.filter(basket=basket, product_id=product_id).delete()
+
+        return BasketService.get_basket(user)
+
+    @staticmethod
+    @transaction.atomic
+    def clear_basket(user):
+        basket = BasketService.get_or_create_basket(user)
+        basket.items.all().delete()
 
         return BasketService.get_basket(user)

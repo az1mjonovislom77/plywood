@@ -62,20 +62,31 @@ class CustomerViewSet(BaseUserViewSet):
         customers = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(customers)
         customers_to_serialize = page if page is not None else customers
+        customers_to_serialize = list(customers_to_serialize)
+        customer_ids = [customer.id for customer in customers_to_serialize]
+
+        if date_from and date_to:
+            debt_map = CustomerBalanceService.bulk_calculate_customer_debt(
+                customers=customers_to_serialize,
+                date_from=date_from,
+                date_to=date_to,
+            )
+        else:
+            stats_map = CustomerBalanceService.bulk_sync_customer_debts(customer_ids)
+            debt_map = {
+                customer_id: max(stats["remaining_debt"], Decimal("0"))
+                for customer_id, stats in stats_map.items()
+            }
+            for customer in customers_to_serialize:
+                remaining_debt = stats_map.get(customer.id, {}).get("remaining_debt", Decimal("0"))
+                customer.debt = debt_map.get(customer.id, Decimal("0"))
+                customer.overpayment = max(-remaining_debt, Decimal("0"))
 
         results = []
 
         for customer in customers_to_serialize:
-            if date_from and date_to:
-                debt = (CustomerBalanceService
-                        .calculate_customer_debt(customer=customer, date_from=date_from, date_to=date_to))
-
-            else:
-                CustomerBalanceService.sync_customer_debt(customer.id)
-                customer.refresh_from_db()
-                debt = customer.debt
             data = CustomerSerializer(customer).data
-            data["debt"] = debt
+            data["debt"] = debt_map.get(customer.id, Decimal("0"))
             results.append(data)
 
         if page is not None:
@@ -142,16 +153,19 @@ class CustomerDebtReportJsonAPIView(APIView):
         end_date = (parse_date(request.GET.get("to"))
                     if request.GET.get("to")
                     else today)
-        customers = Customer.objects.all().order_by("full_name")
+        customers = list(Customer.objects.all().order_by("full_name"))
         results = []
         total_dt = Decimal("0")
         total_kt = Decimal("0")
+        debt_map = CustomerBalanceService.bulk_calculate_customer_debt(
+            customers=customers,
+            date_from=start_date,
+            date_to=end_date,
+        )
 
         for customer in customers:
 
-            debt = (CustomerBalanceService
-                    .calculate_customer_debt(customer=customer, date_from=start_date, date_to=end_date))
-
+            debt = debt_map.get(customer.id, Decimal("0"))
             debt = Decimal(str(debt or 0))
             debt_value = None
             overpaid_value = None

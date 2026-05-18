@@ -3,6 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 from customer.api.views.customer import CustomerViewSet
 from customer.models import BalanceHistory, Customer
+from customer.service.customer_balance import CustomerBalanceService
 from customer.service.cover_debt import DebtService
 from order.models import Order
 from user.models import User
@@ -71,3 +72,19 @@ class DebtServiceTest(TestCase):
                 amount=Decimal("150.00"),
             ).exists()
         )
+
+    def test_bulk_customer_debt_matches_single_customer_debt(self):
+        today = self.order.created_at.date()
+
+        single_debt = CustomerBalanceService.calculate_customer_debt(
+            customer=self.customer,
+            date_from=today,
+            date_to=today,
+        )
+        bulk_debt = CustomerBalanceService.bulk_calculate_customer_debt(
+            customers=[self.customer],
+            date_from=today,
+            date_to=today,
+        )[self.customer.id]
+
+        self.assertEqual(bulk_debt, single_debt)
