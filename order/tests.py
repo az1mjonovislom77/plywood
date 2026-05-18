@@ -2,9 +2,10 @@ from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 from acceptance.models import CurrencyRate
 from order.api.serializers import OrderSerializer
+from order.api.views.basket import BasketViewSet
 from order.models import Basket, BasketItem, Order, OrderHistory, OrderItem
 from order.service.order import OrderService
 from product.models import Product
@@ -146,3 +147,19 @@ class OrderSerializerTest(TestCase):
 
         self.assertEqual(customer.overpayment, Decimal("0.00"))
         self.assertEqual(customer.debt, Decimal("70.00"))
+
+    def test_basket_count_returns_active_basket_items_count(self):
+        first_product = Product.objects.create(name="Plywood 1", sale_price=Decimal("120.00"))
+        second_product = Product.objects.create(name="Plywood 2", sale_price=Decimal("130.00"))
+        basket = Basket.objects.create(user=self.seller)
+        BasketItem.objects.create(basket=basket, product=first_product)
+        BasketItem.objects.create(basket=basket, product=second_product)
+
+        view = BasketViewSet.as_view({"get": "count"})
+        request = self.factory.get("/orders/basket/count/")
+        force_authenticate(request, user=self.seller)
+
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {"count": 2})

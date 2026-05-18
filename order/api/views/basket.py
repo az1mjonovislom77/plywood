@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -22,6 +23,10 @@ class BasketViewSet(viewsets.GenericViewSet):
         basket = BasketService.get_basket(user=request.user)
         serializer = BasketSerializer(basket)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="count")
+    def count(self, request):
+        return Response({"count": BasketService.get_items_count(user=request.user)})
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)

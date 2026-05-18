@@ -24,6 +24,15 @@ class BasketService:
         return basket
 
     @staticmethod
+    def get_items_count(user):
+        basket = Basket.objects.filter(user=user, is_active=True).first()
+
+        if not basket:
+            return 0
+
+        return BasketItem.objects.filter(basket=basket).count()
+
+    @staticmethod
     @transaction.atomic
     def add_product(user, product_id):
         basket = BasketService.get_or_create_basket(user)
