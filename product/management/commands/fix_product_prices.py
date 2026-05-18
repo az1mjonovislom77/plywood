@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from product.models import Product
-from acceptance.models import Acceptance
+from acceptance.models import Acceptance, CurrencyRate
+from decimal import Decimal
 
 class Command(BaseCommand):
     help = "Fixes product and acceptance prices (direct copy of arrival/sale prices as DOLLAR)."
@@ -15,10 +16,15 @@ class Command(BaseCommand):
             acc.arrival_price_in_dollar = acc.arrival_price
             acc.sale_price_in_dollar = acc.sale_price
             
+            rate = CurrencyRate.objects.filter(date__lte=acc.arrival_date).order_by("-date").first()
+            if rate:
+                acc.arrival_price_in_sum = (Decimal(acc.arrival_price) * rate.rate).quantize(Decimal("0.01"))
+                acc.sale_price_in_sum = (Decimal(acc.sale_price) * rate.rate).quantize(Decimal("0.01"))
+            
             # Agar price_type SUM bo'lsa uni ham DOLLAR ga o'zgartirib qo'yamiz (chunki endi faqat DOLLAR)
             acc.price_type = Acceptance.PriceType.DOLLAR
             
-            acc.save(update_fields=['arrival_price_in_dollar', 'sale_price_in_dollar', 'price_type'])
+            acc.save(update_fields=['arrival_price_in_dollar', 'sale_price_in_dollar', 'arrival_price_in_sum', 'sale_price_in_sum', 'price_type'])
             
         self.stdout.write(self.style.SUCCESS("Acceptance jadvali to'g'rilandi."))
 
@@ -37,7 +43,7 @@ class Command(BaseCommand):
                 # Productdagi arrival_price va sale_price endi DOLLAR ni bildiradi
                 product.arrival_price = last_acceptance.arrival_price_in_dollar
                 product.sale_price = last_acceptance.sale_price_in_dollar
-                
+
                 # Productdagi so'm narxlarni ham Acceptance'dagi so'm narxlar bilan yangilaymiz
                 product.arrival_price_in_sum = last_acceptance.arrival_price_in_sum
                 product.sale_price_in_sum = last_acceptance.sale_price_in_sum
