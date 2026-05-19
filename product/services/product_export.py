@@ -1,7 +1,7 @@
 from io import BytesIO
 from decimal import Decimal
 from collections import defaultdict, deque
-from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper, Q
+from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper, Q, Case, When
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -63,13 +63,18 @@ class MaterialReportService:
         return start_date, end_date, start_dt, end_dt
 
     @staticmethod
-    def _to_map(qs):
+    def _to_map(qs, extra_fields=None):
+        if extra_fields is None:
+            extra_fields = []
         data = {}
         for row in qs:
-            data[row["product_id"]] = {
-                "qty": Decimal(str(row["qty"] or 0)),
-                "total": Decimal(str(row["total"] or 0)),
+            product_id = row["product_id"]
+            data[product_id] = {
+                "qty": Decimal(str(row.get("qty") or 0)),
+                "total": Decimal(str(row.get("total") or 0)),
             }
+            for field in extra_fields:
+                data[product_id][field] = Decimal(str(row.get(field) or 0))
         return data
 
     @classmethod
@@ -80,14 +85,11 @@ class MaterialReportService:
         products = list(Product.objects.select_related("category").order_by("category__name", "name"))
 
         open_in_map = cls._to_map(
-            Acceptance.objects.filter(
-                acceptance_status="accept",
-                arrival_date__lt=start_date,
-            ).values("product_id").annotate(
+            Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
+            .values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(cls._money_expr("count", "arrival_price")),
-                    Value(Decimal("0")),
+                    Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
                     output_field=cls._money_field(),
                 ),
             )
@@ -95,9 +97,8 @@ class MaterialReportService:
 
         open_out_map = cls._to_map(
             OrderItem.objects.filter(
-                cls._accepted_order_filter(),
-                cls._accepted_order_before_filter(start_dt),
-            ).values("product_id").annotate(
+                cls._accepted_order_filter(), cls._accepted_order_before_filter(start_dt))
+            .values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
                     Sum(cls._money_expr("quantity", "price")),
@@ -109,9 +110,7 @@ class MaterialReportService:
 
         in_map = cls._to_map(
             Acceptance.objects.filter(
-                acceptance_status="accept",
-                arrival_date__gte=start_date,
-                arrival_date__lte=end_date,
+                acceptance_status="accept", arrival_date__gte=start_date, arrival_date__lte=end_date,
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
@@ -129,61 +128,23 @@ class MaterialReportService:
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(cls._money_expr("quantity", "price")),
-                    Value(Decimal("0")),
+                    Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")),
                     output_field=cls._money_field(),
                 ),
-            )
+                total_in_dollar=Coalesce(
+                    Sum(
+                        F("quantity") * Case(
+                            When(new_price_in_dollar__isnull=False, then=F("new_price_in_dollar")),
+                            default=F("price_in_dollar"),
+                            output_field=cls._money_field()
+                        )
+                    ),
+                    Value(Decimal("0")),
+                    output_field=cls._money_field()
+                )
+            ),
+            extra_fields=['total_in_dollar']
         )
-
-        profit_map = {}
-        stock_map = defaultdict(deque)
-
-        acceptance_rows = (
-            Acceptance.objects
-            .filter(acceptance_status="accept", arrival_date__lte=end_date)
-            .values("product_id", "count", "arrival_price", "arrival_date", "id")
-            .order_by("product_id", "arrival_date", "id")
-        )
-
-        sale_rows = (
-            OrderItem.objects
-            .filter(cls._accepted_order_filter(), cls._accepted_order_until_filter(end_dt))
-            .values("product_id", "quantity", "price", "order__created_at", "order__accepted_at", "id")
-        )
-
-        for row in acceptance_rows:
-            stock_map[row["product_id"]].append({
-                "qty": Decimal(str(row["count"])),
-                "price": Decimal(str(row["arrival_price"])),
-            })
-
-        sale_rows = sorted(sale_rows, key=lambda row: (row["product_id"], cls._sale_date(row), row["id"]))
-
-        for row in sale_rows:
-            product_id = row["product_id"]
-            qty = Decimal(str(row["quantity"]))
-            sell_price = Decimal(str(row["price"]))
-            sale_date = cls._sale_date(row)
-            revenue = qty * sell_price
-            cogs = Decimal("0")
-
-            while qty > 0 and stock_map[product_id]:
-                batch = stock_map[product_id][0]
-                take = min(qty, batch["qty"])
-
-                cogs += take * batch["price"]
-                batch["qty"] -= take
-                qty -= take
-
-                if batch["qty"] <= 0:
-                    stock_map[product_id].popleft()
-
-            if product_id not in profit_map:
-                profit_map[product_id] = Decimal("0")
-
-            if start_dt <= sale_date < end_dt:
-                profit_map[product_id] += revenue - cogs
 
         grouped_products = {}
         for product in products:
@@ -209,6 +170,12 @@ class MaterialReportService:
                 cell.value = value
                 cell.number_format = "#,##0.000"
 
+        def money_with_dollar(cell, value, value_in_dollar):
+            s_value = f"{float(value or 0):,.2f}".replace(",", " ").replace(".", ",")
+            s_value_in_dollar = f"{float(value_in_dollar or 0):,.2f}".replace(",", " ").replace(".", ",")
+            cell.value = f"{s_value} ({s_value_in_dollar}$)"
+            cell.alignment = right
+
         ws.merge_cells("B1:L1")
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
@@ -225,7 +192,6 @@ class MaterialReportService:
         ws.merge_cells("H4:I4")
         ws.merge_cells("J4:K4")
         ws.merge_cells("L4:M4")
-        ws.merge_cells("N4:N6")
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель / Материал"
         ws["E4"] = "Ед.изм"
@@ -233,7 +199,6 @@ class MaterialReportService:
         ws["H4"] = "Приход"
         ws["J4"] = "Расход"
         ws["L4"] = "Сальдо на конец"
-        ws["N4"] = "Соф Фойда"
         ws["F5"] = "Количество"
         ws["G5"] = "Сумма"
         ws["H5"] = "Количество"
@@ -244,7 +209,7 @@ class MaterialReportService:
         ws["M5"] = "Сумма"
 
         for r in range(4, 7):
-            for c in range(1, 15):
+            for c in range(1, 14):
                 cell = ws.cell(r, c)
                 cell.font = bold
                 cell.alignment = center
@@ -257,9 +222,9 @@ class MaterialReportService:
         grand_in_sum = Decimal("0")
         grand_out_qty = Decimal("0")
         grand_out_sum = Decimal("0")
+        grand_out_sum_in_dollar = Decimal("0")
         grand_end_qty = Decimal("0")
         grand_end_sum = Decimal("0")
-        grand_profit = Decimal("0")
 
         for category in categories:
             category_products = grouped_products.get(category.id, [])
@@ -272,9 +237,9 @@ class MaterialReportService:
             cat_in_sum = Decimal("0")
             cat_out_qty = Decimal("0")
             cat_out_sum = Decimal("0")
+            cat_out_sum_in_dollar = Decimal("0")
             cat_end_qty = Decimal("0")
             cat_end_sum = Decimal("0")
-            cat_profit = Decimal("0")
 
             product_rows = []
 
@@ -282,14 +247,14 @@ class MaterialReportService:
                 open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                profit = profit_map.get(product.id, Decimal("0"))
+                out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
                 open_qty = open_in["qty"] - open_out["qty"]
                 open_sum = open_in["total"] - open_out["total"]
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 out_qty = out_period["qty"]
                 out_sum = out_period["total"]
+                out_sum_in_dollar = out_period["total_in_dollar"]
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_sum
                 cat_open_qty += open_qty
@@ -298,9 +263,9 @@ class MaterialReportService:
                 cat_in_sum += in_sum
                 cat_out_qty += out_qty
                 cat_out_sum += out_sum
+                cat_out_sum_in_dollar += out_sum_in_dollar
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
-                cat_profit += profit
                 product_rows.append({
                     "code": product.id,
                     "name": product.name,
@@ -311,9 +276,9 @@ class MaterialReportService:
                     "in_sum": in_sum,
                     "out_qty": out_qty,
                     "out_sum": out_sum,
+                    "out_sum_in_dollar": out_sum_in_dollar,
                     "end_qty": end_qty,
                     "end_sum": end_sum,
-                    "profit": profit,
                 })
 
             grand_open_qty += cat_open_qty
@@ -322,9 +287,9 @@ class MaterialReportService:
             grand_in_sum += cat_in_sum
             grand_out_qty += cat_out_qty
             grand_out_sum += cat_out_sum
+            grand_out_sum_in_dollar += cat_out_sum_in_dollar
             grand_end_qty += cat_end_qty
             grand_end_sum += cat_end_sum
-            grand_profit += cat_profit
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
@@ -334,12 +299,11 @@ class MaterialReportService:
             money(ws.cell(row, 8), cat_in_qty)
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
-            money(ws.cell(row, 11), cat_out_sum)
+            money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
-            money(ws.cell(row, 14), cat_profit)
 
-            for c in range(1, 15):
+            for c in range(1, 14):
                 ws.cell(row, c).border = border
                 ws.cell(row, c).font = bold
 
@@ -355,12 +319,11 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                money(ws.cell(row, 11), item["out_sum"])
+                money_with_dollar(ws.cell(row, 11), item["out_sum"], item["out_sum_in_dollar"])
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
-                money(ws.cell(row, 14), item["profit"])
 
-                for c in range(1, 15):
+                for c in range(1, 14):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
                     ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
@@ -376,17 +339,16 @@ class MaterialReportService:
         money(ws.cell(row, 8), grand_in_qty)
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
-        money(ws.cell(row, 11), grand_out_sum)
+        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
-        money(ws.cell(row, 14), grand_profit)
 
-        for c in range(1, 15):
+        for c in range(1, 14):
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
-                  "L": 12, "M": 18, "N": 18}
+                  "L": 12, "M": 18}
 
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
