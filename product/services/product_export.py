@@ -1,6 +1,5 @@
 from io import BytesIO
 from decimal import Decimal
-from collections import defaultdict, deque
 from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper, Q, Case, When
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -247,7 +246,8 @@ class MaterialReportService:
                 open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
+                out_period = out_map.get(product.id,
+                                         {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
                 open_qty = open_in["qty"] - open_out["qty"]
                 open_sum = open_in["total"] - open_out["total"]
                 in_qty = in_period["qty"]

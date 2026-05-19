@@ -38,32 +38,27 @@ class FinanceReportJsonService:
         income_map = defaultdict(Decimal)
 
         for order in income_orders:
-            if order.customer:
-                income_map[
-                    (order.customer.id, order.customer.full_name)
-                ] += Decimal(str(order.covered_amount))
+            c_id = order.customer.id if order.customer else None
+            c_name = order.customer.full_name if order.customer else "Anonim"
+            income_map[(c_id, c_name)] += Decimal(str(order.covered_amount))
 
         for banding in Banding.objects.filter(
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
                 covered_amount__gt=0,
         ).select_related("customer"):
-
-            if banding.customer:
-                income_map[
-                    (banding.customer.id, banding.customer.full_name)
-                ] += Decimal(str(banding.covered_amount))
+            c_id = banding.customer.id if banding.customer else None
+            c_name = banding.customer.full_name if banding.customer else "Anonim"
+            income_map[(c_id, c_name)] += Decimal(str(banding.covered_amount))
 
         for cutting in Cutting.objects.filter(
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
                 covered_amount__gt=0,
         ).select_related("customer"):
-
-            if cutting.customer:
-                income_map[
-                    (cutting.customer.id, cutting.customer.full_name)
-                ] += Decimal(str(cutting.covered_amount))
+            c_id = cutting.customer.id if cutting.customer else None
+            c_name = cutting.customer.full_name if cutting.customer else "Anonim"
+            income_map[(c_id, c_name)] += Decimal(str(cutting.covered_amount))
 
         for payment in BalanceHistory.objects.filter(
                 created_at__gte=start_dt,
@@ -71,11 +66,9 @@ class FinanceReportJsonService:
                 type=BalanceHistory.Type.PAYMENT,
                 amount__gt=0,
         ).select_related("customer"):
-
-            if payment.customer:
-                income_map[
-                    (payment.customer.id, payment.customer.full_name)
-                ] += Decimal(str(payment.amount))
+            c_id = payment.customer.id if payment.customer else None
+            c_name = payment.customer.full_name if payment.customer else "Anonim"
+            income_map[(c_id, c_name)] += Decimal(str(payment.amount))
 
         income = []
         income_total = Decimal("0")
