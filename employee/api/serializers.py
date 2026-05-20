@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
 from employee.models import SalaryPayment, Employee
+from utils.base.serializers_base import BaseReadSerializer
+
+
+class EmployeeSerializer(BaseReadSerializer):
+    class Meta(BaseReadSerializer.Meta):
+        model = Employee
 
 
 class SalaryPaymentCreateSerializer(serializers.Serializer):

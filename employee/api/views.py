@@ -3,9 +3,22 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import SalaryPaymentCreateSerializer, SalaryPaymentSerializer, EmployeeSalaryTotalSerializer
+from utils.base.views_base import BaseUserViewSet
+from utils.search import TransliteratedSearchFilter
+from .serializers import SalaryPaymentCreateSerializer, SalaryPaymentSerializer, EmployeeSalaryTotalSerializer, \
+    EmployeeSerializer
+from ..models import Employee
 from ..selectors.employee import SalarySelector
 from ..service.pay_salary import PaySalaryService
+
+
+@extend_schema(tags=["Employee"])
+class SupplierViewSet(BaseUserViewSet):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [TransliteratedSearchFilter]
+    search_fields = ["full_name"]
+    ordering = ["full_name"]
 
 
 @extend_schema(tags=["Salary"], request=SalaryPaymentCreateSerializer, responses={201: SalaryPaymentSerializer})

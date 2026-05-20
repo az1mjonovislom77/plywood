@@ -93,7 +93,7 @@ class CustomerViewSet(BaseUserViewSet):
             return self.get_paginated_response(results)
 
         return Response(results)
-
+            
 
 @extend_schema(
     tags=["CustomerExport"],
