@@ -1,5 +1,6 @@
 from django.db.models import Sum, Q
 from django.db.models.functions import TruncMonth
+from django.utils import timezone
 
 from employee.models import SalaryPayment, Employee
 
@@ -12,7 +13,12 @@ class SalarySelector:
 
         if month:
             year, month_num = map(int, month.split("-"))
-            queryset = queryset.filter(paid_at__year=year, paid_at__month=month_num)
+        else:
+            today = timezone.localdate()
+            year = today.year
+            month_num = today.month
+
+        queryset = queryset.filter(paid_at__year=year, paid_at__month=month_num)
 
         return queryset
 
