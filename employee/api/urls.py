@@ -1,6 +1,11 @@
 from django.urls import path
-from .views import PaySalaryAPIView, EmployeeSalaryHistoryAPIView, EmployeeSalaryTotalAPIView, \
-    EmployeeSalaryMonthlyReportAPIView, AllEmployeesTotalSalaryAPIView
+from rest_framework.routers import DefaultRouter
+
+from .views import PaySalaryAPIView, EmployeeSalaryHistoryAPIView, \
+    EmployeeSalaryMonthlyReportAPIView, AllEmployeesTotalSalaryAPIView, EmployeeViewSet
+
+router = DefaultRouter()
+router.register('employee', EmployeeViewSet, basename='employee')
 
 urlpatterns = [
     path("pay/", PaySalaryAPIView.as_view(), name="pay-salary"),

@@ -13,7 +13,7 @@ from ..service.pay_salary import PaySalaryService
 
 
 @extend_schema(tags=["Employee"])
-class SupplierViewSet(BaseUserViewSet):
+class EmployeeViewSet(BaseUserViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     filter_backends = [TransliteratedSearchFilter]
