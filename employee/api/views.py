@@ -79,14 +79,29 @@ class EmployeeSalaryTotalAPIView(APIView):
         return Response({"employee_id": employee_id, "total_salary": total})
 
 
-@extend_schema(tags=["Salary"],
-               parameters=[OpenApiParameter(
-                   name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)])
 class EmployeeSalaryMonthlyReportAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Salary"],
+        parameters=[
+            OpenApiParameter(
+                name="employee_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH
+            ),
+            OpenApiParameter(
+                name="year",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Default: current year"
+            )
+        ]
+    )
     def get(self, request, employee_id):
-        report = SalarySelector.get_employee_monthly_report(employee_id)
+        year = request.query_params.get("year")
+        report = SalarySelector.get_employee_monthly_report(employee_id=employee_id, year=year)
 
         return Response(report)
 

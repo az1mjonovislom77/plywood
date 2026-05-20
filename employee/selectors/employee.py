@@ -27,9 +27,19 @@ class SalarySelector:
         return SalaryPayment.objects.filter(employee_id=employee_id).aggregate(total=Sum("amount"))["total"] or 0
 
     @staticmethod
-    def get_employee_monthly_report(employee_id):
-        return (SalaryPayment.objects.filter(employee_id=employee_id).annotate(month=TruncMonth("paid_at"))
-                .values("month").annotate(total=Sum("amount")).order_by("month"))
+    def get_employee_monthly_report(employee_id, year=None):
+        if year:
+            year = int(year)
+        else:
+            year = timezone.localdate().year
+
+        return (
+            SalaryPayment.objects.filter(employee_id=employee_id, paid_at__year=year)
+            .annotate(month=TruncMonth("paid_at"))
+            .values("month")
+            .annotate(total=Sum("amount"))
+            .order_by("month")
+        )
 
     @staticmethod
     def get_all_employees_total_salary(month=None):
