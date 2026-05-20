@@ -57,7 +57,6 @@ class ExpensesWorkflowService:
 
         expense.expense_status = Expenses.ExpensesStatus.CANCEL
         expense.save(update_fields=["expense_status"])
-
         ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.CANCEL,
                                        value=expense.value, description=description)
 
