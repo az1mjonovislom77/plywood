@@ -39,14 +39,29 @@ class PaySalaryAPIView(APIView):
         return Response(SalaryPaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(tags=["Salary"],
-               parameters=[OpenApiParameter(name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)],
-               responses={200: SalaryPaymentSerializer(many=True)})
 class EmployeeSalaryHistoryAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Salary"],
+        parameters=[
+            OpenApiParameter(
+                name="employee_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH
+            ),
+            OpenApiParameter(
+                name="month",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Format: YYYY-MM"
+            )
+        ],
+        responses={200: SalaryPaymentSerializer(many=True)}
+    )
     def get(self, request, employee_id):
-        payments = SalarySelector.get_employee_salary_history(employee_id)
+        month = request.query_params.get("month")
+        payments = SalarySelector.get_employee_salary_history(employee_id=employee_id, month=month)
         serializer = SalaryPaymentSerializer(payments, many=True)
 
         return Response(serializer.data)
