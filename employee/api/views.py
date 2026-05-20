@@ -40,6 +40,7 @@ class PaySalaryAPIView(APIView):
 
 
 class EmployeeSalaryHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=["Salary"],
