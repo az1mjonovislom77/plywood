@@ -9,7 +9,7 @@ router.register('employee', EmployeeViewSet, basename='employee')
 
 urlpatterns = [
     path("pay/", PaySalaryAPIView.as_view(), name="pay-salary"),
-    path("employee/<int:employee_id>/history/", EmployeeSalaryHistoryAPIView.as_view(), name="salary-history"),
-    path("employee/<int:employee_id>/monthly/", EmployeeSalaryMonthlyReportAPIView.as_view(), name="salary-monthly"),
-    path("employees/totals/", AllEmployeesTotalSalaryAPIView.as_view(), name="all-employees-total"),
+    path("<int:employee_id>/history/", EmployeeSalaryHistoryAPIView.as_view(), name="salary-history"),
+    path("<int:employee_id>/monthly/", EmployeeSalaryMonthlyReportAPIView.as_view(), name="salary-monthly"),
+    path("totals/", AllEmployeesTotalSalaryAPIView.as_view(), name="all-employees-total"),
 ]
