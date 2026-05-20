@@ -5,7 +5,7 @@ from .views import PaySalaryAPIView, EmployeeSalaryHistoryAPIView, \
     EmployeeSalaryMonthlyReportAPIView, AllEmployeesTotalSalaryAPIView, EmployeeViewSet
 
 router = DefaultRouter()
-router.register('employee', EmployeeViewSet, basename='employee')
+router.register('', EmployeeViewSet, basename='employee')
 
 urlpatterns = [
     path('', include(router.urls)),
