@@ -1,5 +1,6 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -23,6 +24,7 @@ class EmployeeViewSet(BaseUserViewSet):
 
 @extend_schema(tags=["Salary"], request=SalaryPaymentCreateSerializer, responses={201: SalaryPaymentSerializer})
 class PaySalaryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = SalaryPaymentCreateSerializer(data=request.data)
@@ -41,6 +43,7 @@ class PaySalaryAPIView(APIView):
                parameters=[OpenApiParameter(name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)],
                responses={200: SalaryPaymentSerializer(many=True)})
 class EmployeeSalaryHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, employee_id):
         payments = SalarySelector.get_employee_salary_history(employee_id)
@@ -52,6 +55,7 @@ class EmployeeSalaryHistoryAPIView(APIView):
 @extend_schema(tags=["Salary"],
                parameters=[OpenApiParameter(name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)])
 class EmployeeSalaryTotalAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, employee_id):
         total = SalarySelector.get_employee_total_salary(employee_id)
@@ -63,6 +67,7 @@ class EmployeeSalaryTotalAPIView(APIView):
                parameters=[OpenApiParameter(
                    name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)])
 class EmployeeSalaryMonthlyReportAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, employee_id):
         report = SalarySelector.get_employee_monthly_report(employee_id)
@@ -76,6 +81,7 @@ class EmployeeSalaryMonthlyReportAPIView(APIView):
                    description="Format: YYYY-MM")],
                responses={200: EmployeeSalaryTotalSerializer(many=True)})
 class AllEmployeesTotalSalaryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         month = request.query_params.get("month")
