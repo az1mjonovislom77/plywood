@@ -37,12 +37,13 @@ class SalarySelector:
 
         if month:
             year, month_num = map(int, month.split("-"))
-            queryset = queryset.annotate(
-                total_salary=Sum("salary_payments__amount",
-                                 filter=Q(
-                                     salary_payments__paid_at__year=year,
-                                     salary_payments__paid_at__month=month_num)))
         else:
-            queryset = queryset.annotate(total_salary=Sum("salary_payments__amount"))
+            today = timezone.localdate()
+            year = today.year
+            month_num = today.month
+
+        queryset = queryset.annotate(
+            total_salary=Sum("salary_payments__amount",
+                             filter=Q(salary_payments__paid_at__year=year, salary_payments__paid_at__month=month_num)))
 
         return queryset
