@@ -5,6 +5,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from customer.models import BalanceHistory, Customer
+from employee.models import SalaryPayment
 from order.models import Banding, Cutting, Order, OrderItem
 from product.models import Product
 from supplier.models import Supplier, SupplierTransaction
@@ -117,6 +118,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         supplier_filter = Q(transaction_type=SupplierTransaction.TransactionType.PAYMENT)
         banding_filter = Q()
         cutting_filter = Q()
+        salary_filter = Q()
 
         if start_dt and end_dt:
             date_filter = cls._range_filter(start_dt, end_dt)
@@ -126,6 +128,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             supplier_filter &= date_filter
             banding_filter &= date_filter
             cutting_filter &= date_filter
+            salary_filter &= Q(paid_at__gte=start_dt, paid_at__lt=end_dt)
 
         elif end_dt:
             date_filter = Q(created_at__lt=end_dt)
@@ -135,6 +138,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             supplier_filter &= date_filter
             banding_filter &= date_filter
             cutting_filter &= date_filter
+            salary_filter &= Q(paid_at__lt=end_dt)
 
         elif start_dt:
             date_filter = Q(created_at__gte=start_dt)
@@ -144,16 +148,23 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             supplier_filter &= date_filter
             banding_filter &= date_filter
             cutting_filter &= date_filter
+            salary_filter &= Q(paid_at__gte=start_dt)
 
         order_paid = cls.sum(Order.objects.filter(order_filter), "covered_amount")
         banding_paid = cls.sum(Banding.objects.filter(banding_filter), "covered_amount")
         cutting_paid = cls.sum(Cutting.objects.filter(cutting_filter), "covered_amount")
 
         debt_paid = cls.sum(
-            BalanceHistory.objects.filter(balance_filter, type=BalanceHistory.Type.PAYMENT), "amount")
+            BalanceHistory.objects.filter(
+                balance_filter,
+                type=BalanceHistory.Type.PAYMENT
+            ),
+            "amount"
+        )
 
         expenses = cls.sum(Expenses.objects.filter(expense_filter), "value")
         supplier_payments = cls.sum(SupplierTransaction.objects.filter(supplier_filter), "amount")
+        salary_payments = cls.sum(SalaryPayment.objects.filter(salary_filter), "amount")
 
         return (
                 order_paid
@@ -162,6 +173,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
                 + debt_paid
                 - expenses
                 - supplier_payments
+                - salary_payments
         )
 
     @classmethod
