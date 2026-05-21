@@ -61,6 +61,7 @@ class AcceptanceHistory(models.Model):
 
     class Action(models.TextChoices):
         CREATE = "create", "Create"
+        UPDATE = "update", "Update"
         ACCEPT = "accept", "Accept"
         CANCEL = "cancel", "Cancel"
 

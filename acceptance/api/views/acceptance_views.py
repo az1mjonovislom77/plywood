@@ -53,6 +53,11 @@ class AcceptanceViewSet(BaseUserViewSet):
         acceptance = AcceptanceWorkflowService.create(data=serializer.validated_data, user=self.request.user)
         serializer.instance = acceptance
 
+    @transaction.atomic
+    def perform_update(self, serializer):
+        acceptance = AcceptanceWorkflowService.update(acceptance=serializer.instance, data=serializer.validated_data, user=self.request.user)
+        serializer.instance = acceptance
+
     @extend_schema(request=None)
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
