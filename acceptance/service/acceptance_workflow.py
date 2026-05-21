@@ -52,10 +52,12 @@ class AcceptanceWorkflowService:
     @staticmethod
     @transaction.atomic
     def update(acceptance, data, user):
+        old_arrival_price_in_sum = acceptance.arrival_price_in_sum
+        old_count = acceptance.count
+        is_accepted = acceptance.acceptance_status == Acceptance.AcceptanceStatus.ACCEPT
         arrival_price_input = data.get("arrival_price", acceptance.arrival_price)
         sale_price_input = data.get("sale_price", acceptance.sale_price)
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
-
         rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
@@ -72,6 +74,20 @@ class AcceptanceWorkflowService:
             setattr(acceptance, key, value)
 
         acceptance.save()
+
+        if is_accepted and acceptance.supplier:
+            old_debt = old_arrival_price_in_sum * old_count
+            new_debt = acceptance.arrival_price_in_sum * acceptance.count
+            debt_difference = new_debt - old_debt
+
+            if debt_difference != 0:
+                Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
+                SupplierTransaction.objects.create(
+                    supplier_id=acceptance.supplier_id,
+                    transaction_type=SupplierTransaction.TransactionType.ADJUSTMENT,
+                    amount=debt_difference,
+                    description=f"Adjustment for updated Acceptance #{acceptance.id}"
+                )
 
         AcceptanceHistory.objects.create(
             acceptance=acceptance,

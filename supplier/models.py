@@ -19,6 +19,7 @@ class SupplierTransaction(models.Model):
     class TransactionType(models.TextChoices):
         PURCHASE = "purchase", "Purchase"
         PAYMENT = "payment", "Payment"
+        ADJUSTMENT = "adjustment", "Adjustment"
 
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="transactions")
     transaction_type = models.CharField(max_length=20, choices=TransactionType.choices)
