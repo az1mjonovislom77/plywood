@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from acceptance.models import Acceptance, AcceptanceHistory, CurrencyRate
 from product.models import Product
 from supplier.models import Supplier, SupplierTransaction
@@ -14,25 +14,16 @@ class AcceptanceWorkflowService:
         arrival_price_input = data.get("arrival_price", 0)
         sale_price_input = data.get("sale_price", 0)
         arrival_date = data.get("arrival_date", timezone.localdate())
-
         rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
         rate_value = rate.rate
-
-        # Kiritilgan narxlar to'g'ridan-to'g'ri dollar deb qabul qilinadi
         data["arrival_price_in_dollar"] = arrival_price_input
         data["sale_price_in_dollar"] = sale_price_input
-        
-        # So'mdagi narxlar hisoblanadi
         data["arrival_price_in_sum"] = (Decimal(arrival_price_input) * rate_value).quantize(Decimal("0.01"))
         data["sale_price_in_sum"] = (Decimal(sale_price_input) * rate_value).quantize(Decimal("0.01"))
-        
-        # price_type endi faqat DOLLAR bo'ladi
         data["price_type"] = Acceptance.PriceType.DOLLAR
-
         acceptance = Acceptance.objects.create(**data)
-
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,
@@ -55,18 +46,14 @@ class AcceptanceWorkflowService:
         old_arrival_price_in_sum = Decimal(acceptance.arrival_price_in_sum)
         old_count = Decimal(acceptance.count)
         is_accepted = acceptance.acceptance_status == Acceptance.AcceptanceStatus.ACCEPT
-        
         new_arrival_price = Decimal(data.get("arrival_price", acceptance.arrival_price))
         new_sale_price = Decimal(data.get("sale_price", acceptance.sale_price))
         new_count = Decimal(data.get("count", acceptance.count))
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
-        
         rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
         rate_value = rate.rate
-
-        # Update acceptance instance with new values
         acceptance.arrival_price = new_arrival_price
         acceptance.sale_price = new_sale_price
         acceptance.count = new_count
@@ -83,7 +70,7 @@ class AcceptanceWorkflowService:
 
         if is_accepted:
             count_difference = new_count - old_count
-            
+
             Product.objects.filter(pk=acceptance.product_id).update(
                 count=F("count") + count_difference,
                 arrival_price=acceptance.arrival_price_in_dollar,
@@ -91,7 +78,7 @@ class AcceptanceWorkflowService:
                 arrival_price_in_sum=acceptance.arrival_price_in_sum,
                 sale_price_in_sum=acceptance.sale_price_in_sum
             )
-            
+
             if acceptance.supplier:
                 old_debt = old_arrival_price_in_sum * old_count
                 new_debt = acceptance.arrival_price_in_sum * new_count
@@ -105,7 +92,7 @@ class AcceptanceWorkflowService:
                         amount=debt_difference,
                         description=f"Adjustment for updated Acceptance #{acceptance.id}"
                     )
-        
+
         acceptance.save()
 
         AcceptanceHistory.objects.create(
@@ -131,7 +118,6 @@ class AcceptanceWorkflowService:
         if acceptance.acceptance_status != Acceptance.AcceptanceStatus.WAITING:
             raise ValueError("Acceptance already processed")
 
-        # Product modelidagi narxlarni yangilash
         Product.objects.filter(pk=acceptance.product_id).update(
             count=F("count") + acceptance.count,
             arrival_price=acceptance.arrival_price_in_dollar,
@@ -155,9 +141,7 @@ class AcceptanceWorkflowService:
         acceptance.acceptance_status = Acceptance.AcceptanceStatus.ACCEPT
         acceptance.accepted_by = user
         acceptance.accepted_at = timezone.now()
-
         acceptance.save(update_fields=["acceptance_status", "accepted_by", "accepted_at"])
-
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,

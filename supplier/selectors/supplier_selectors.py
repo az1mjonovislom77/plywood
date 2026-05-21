@@ -34,7 +34,7 @@ class SupplierSelector:
         stats = {
             "total_purchases": total_purchases,
             "total_paid": total_paid,
-            "remaining_debt": total_purchases - total_paid,
+            "remaining_debt": supplier.debt,
         }
 
         return supplier, transactions, stats
