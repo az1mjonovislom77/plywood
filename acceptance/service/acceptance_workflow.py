@@ -43,8 +43,8 @@ class AcceptanceWorkflowService:
     @staticmethod
     @transaction.atomic
     def update(acceptance, data, user):
-        old_arrival_price_in_sum = Decimal(acceptance.arrival_price_in_sum)
         old_count = Decimal(acceptance.count)
+        old_debt = Decimal(acceptance.arrival_price_in_sum) * old_count
         is_accepted = str(acceptance.acceptance_status) == "accept"
         
         new_arrival_price = Decimal(data.get("arrival_price", acceptance.arrival_price))
@@ -57,58 +57,49 @@ class AcceptanceWorkflowService:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
         rate_value = rate.rate
 
+        new_arrival_price_in_sum = (new_arrival_price * rate_value).quantize(Decimal("0.01"))
+        new_sale_price_in_sum = (new_sale_price * rate_value).quantize(Decimal("0.01"))
+        
+        if is_accepted:
+            count_difference = new_count - old_count
+            new_debt = new_arrival_price_in_sum * new_count
+            debt_difference = new_debt - old_debt
+
+            Product.objects.filter(pk=acceptance.product_id).update(
+                count=F("count") + count_difference,
+                arrival_price=new_arrival_price,
+                sale_price=new_sale_price,
+                arrival_price_in_sum=new_arrival_price_in_sum,
+                sale_price_in_sum=new_sale_price_in_sum
+            )
+            
+            if acceptance.supplier and debt_difference != Decimal(0):
+                Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
+                
+                purchase_txn = SupplierTransaction.objects.filter(
+                    supplier_id=acceptance.supplier_id,
+                    transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+                    description=f"Acceptance #{acceptance.id}"
+                ).first()
+                
+                if purchase_txn:
+                    purchase_txn.amount = new_debt
+                    purchase_txn.save(update_fields=["amount"])
+
+        # Update acceptance instance with new values
         acceptance.arrival_price = new_arrival_price
         acceptance.sale_price = new_sale_price
         acceptance.count = new_count
         acceptance.arrival_date = arrival_date
+        acceptance.arrival_price_in_dollar = new_arrival_price
+        acceptance.sale_price_in_dollar = new_sale_price
+        acceptance.arrival_price_in_sum = new_arrival_price_in_sum
+        acceptance.sale_price_in_sum = new_sale_price_in_sum
+        acceptance.price_type = Acceptance.PriceType.DOLLAR
         
-        # Update other fields from data avoiding overriding our controlled fields
         for key, value in data.items():
             if key not in ["arrival_price", "sale_price", "count", "arrival_date"]:
                 setattr(acceptance, key, value)
-
-        acceptance.arrival_price_in_dollar = new_arrival_price
-        acceptance.sale_price_in_dollar = new_sale_price
-        acceptance.arrival_price_in_sum = (new_arrival_price * rate_value).quantize(Decimal("0.01"))
-        acceptance.sale_price_in_sum = (new_sale_price * rate_value).quantize(Decimal("0.01"))
-        acceptance.price_type = Acceptance.PriceType.DOLLAR
-
-        if is_accepted:
-            count_difference = new_count - old_count
-            
-            Product.objects.filter(pk=acceptance.product_id).update(
-                count=F("count") + count_difference,
-                arrival_price=acceptance.arrival_price_in_dollar,
-                sale_price=acceptance.sale_price_in_dollar,
-                arrival_price_in_sum=acceptance.arrival_price_in_sum,
-                sale_price_in_sum=acceptance.sale_price_in_sum
-            )
-            
-            if acceptance.supplier:
-                old_debt = old_arrival_price_in_sum * old_count
-                new_debt = acceptance.arrival_price_in_sum * new_count
-                debt_difference = new_debt - old_debt
-
-                if debt_difference != Decimal(0):
-                    Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
-                    
-                    purchase_txn = SupplierTransaction.objects.filter(
-                        supplier_id=acceptance.supplier_id,
-                        transaction_type=SupplierTransaction.TransactionType.PURCHASE,
-                        description=f"Acceptance #{acceptance.id}"
-                    ).first()
-                    
-                    if purchase_txn:
-                        purchase_txn.amount = new_debt # Update to the new total debt for this acceptance
-                        purchase_txn.save(update_fields=["amount"])
-                    else:
-                        # This case should ideally not happen if an acceptance was accepted
-                        SupplierTransaction.objects.create(
-                            supplier_id=acceptance.supplier_id,
-                            transaction_type=SupplierTransaction.TransactionType.PURCHASE,
-                            amount=new_debt,
-                            description=f"Acceptance #{acceptance.id} (created on update)"
-                        )
 
         acceptance.save()
 
