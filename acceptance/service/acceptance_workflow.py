@@ -52,12 +52,13 @@ class AcceptanceWorkflowService:
     @staticmethod
     @transaction.atomic
     def update(acceptance, data, user):
-        old_arrival_price_in_sum = acceptance.arrival_price_in_sum
-        old_count = acceptance.count
+        old_arrival_price_in_sum = Decimal(acceptance.arrival_price_in_sum)
+        old_count = Decimal(acceptance.count)
         is_accepted = acceptance.acceptance_status == Acceptance.AcceptanceStatus.ACCEPT
         
-        arrival_price_input = data.get("arrival_price", acceptance.arrival_price)
-        sale_price_input = data.get("sale_price", acceptance.sale_price)
+        new_arrival_price = Decimal(data.get("arrival_price", acceptance.arrival_price))
+        new_sale_price = Decimal(data.get("sale_price", acceptance.sale_price))
+        new_count = Decimal(data.get("count", acceptance.count))
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
         
         rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
@@ -65,22 +66,24 @@ class AcceptanceWorkflowService:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
         rate_value = rate.rate
 
-        acceptance.arrival_price_in_dollar = arrival_price_input
-        acceptance.sale_price_in_dollar = sale_price_input
-        acceptance.arrival_price_in_sum = (Decimal(arrival_price_input) * rate_value).quantize(Decimal("0.01"))
-        acceptance.sale_price_in_sum = (Decimal(sale_price_input) * rate_value).quantize(Decimal("0.01"))
+        # Update acceptance instance with new values
+        acceptance.arrival_price = new_arrival_price
+        acceptance.sale_price = new_sale_price
+        acceptance.count = new_count
+        acceptance.arrival_date = arrival_date
+        acceptance.description = data.get("description", acceptance.description)
+        acceptance.supplier = data.get("supplier", acceptance.supplier)
+        acceptance.product = data.get("product", acceptance.product)
+
+        acceptance.arrival_price_in_dollar = new_arrival_price
+        acceptance.sale_price_in_dollar = new_sale_price
+        acceptance.arrival_price_in_sum = (new_arrival_price * rate_value).quantize(Decimal("0.01"))
+        acceptance.sale_price_in_sum = (new_sale_price * rate_value).quantize(Decimal("0.01"))
         acceptance.price_type = Acceptance.PriceType.DOLLAR
 
-        # Update other fields from data
-        for key, value in data.items():
-            setattr(acceptance, key, value)
-
-        acceptance.save()
-
         if is_accepted:
-            count_difference = acceptance.count - old_count
+            count_difference = new_count - old_count
             
-            # Mahsulot miqdorini va yangi narxlarni to'g'rilash
             Product.objects.filter(pk=acceptance.product_id).update(
                 count=F("count") + count_difference,
                 arrival_price=acceptance.arrival_price_in_dollar,
@@ -89,13 +92,12 @@ class AcceptanceWorkflowService:
                 sale_price_in_sum=acceptance.sale_price_in_sum
             )
             
-            # Yetkazib beruvchi qarzini to'g'rilash
             if acceptance.supplier:
                 old_debt = old_arrival_price_in_sum * old_count
-                new_debt = acceptance.arrival_price_in_sum * acceptance.count
+                new_debt = acceptance.arrival_price_in_sum * new_count
                 debt_difference = new_debt - old_debt
 
-                if debt_difference != 0:
+                if debt_difference != Decimal(0):
                     Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
                     SupplierTransaction.objects.create(
                         supplier_id=acceptance.supplier_id,
@@ -103,6 +105,8 @@ class AcceptanceWorkflowService:
                         amount=debt_difference,
                         description=f"Adjustment for updated Acceptance #{acceptance.id}"
                     )
+        
+        acceptance.save()
 
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
