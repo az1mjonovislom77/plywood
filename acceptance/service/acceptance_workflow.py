@@ -74,7 +74,9 @@ class AcceptanceWorkflowService:
             )
             
             if acceptance.supplier and debt_difference != Decimal(0):
-                Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
+                supplier = Supplier.objects.get(pk=acceptance.supplier_id)
+                supplier.debt += debt_difference
+                supplier.save(update_fields=["debt"])
                 
                 purchase_txn = SupplierTransaction.objects.filter(
                     supplier_id=acceptance.supplier_id,
