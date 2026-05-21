@@ -5,6 +5,7 @@ from decimal import Decimal
 from acceptance.models import Acceptance, AcceptanceHistory, CurrencyRate
 from product.models import Product
 from supplier.models import Supplier, SupplierTransaction
+from supplier.service.supplier import SupplierService
 
 
 class AcceptanceWorkflowService:
@@ -14,16 +15,28 @@ class AcceptanceWorkflowService:
         arrival_price_input = data.get("arrival_price", 0)
         sale_price_input = data.get("sale_price", 0)
         arrival_date = data.get("arrival_date", timezone.localdate())
-        rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
+
+        rate = CurrencyRate.objects.filter(
+            date__lte=arrival_date
+        ).order_by("-date").first()
+
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
+
         rate_value = rate.rate
+
         data["arrival_price_in_dollar"] = arrival_price_input
         data["sale_price_in_dollar"] = sale_price_input
-        data["arrival_price_in_sum"] = (Decimal(arrival_price_input) * rate_value).quantize(Decimal("0.01"))
-        data["sale_price_in_sum"] = (Decimal(sale_price_input) * rate_value).quantize(Decimal("0.01"))
+        data["arrival_price_in_sum"] = (
+                Decimal(arrival_price_input) * rate_value
+        ).quantize(Decimal("0.01"))
+        data["sale_price_in_sum"] = (
+                Decimal(sale_price_input) * rate_value
+        ).quantize(Decimal("0.01"))
         data["price_type"] = Acceptance.PriceType.DOLLAR
+
         acceptance = Acceptance.objects.create(**data)
+
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,
@@ -38,6 +51,7 @@ class AcceptanceWorkflowService:
             arrival_date=acceptance.arrival_date,
             description=acceptance.description,
         )
+
         return acceptance
 
     @staticmethod
@@ -46,24 +60,36 @@ class AcceptanceWorkflowService:
         old_count = Decimal(acceptance.count)
         old_debt = Decimal(acceptance.arrival_price_in_sum) * old_count
         is_accepted = str(acceptance.acceptance_status) == "accept"
-        
-        new_arrival_price = Decimal(data.get("arrival_price", acceptance.arrival_price))
-        new_sale_price = Decimal(data.get("sale_price", acceptance.sale_price))
+
+        new_arrival_price = Decimal(
+            data.get("arrival_price", acceptance.arrival_price)
+        )
+        new_sale_price = Decimal(
+            data.get("sale_price", acceptance.sale_price)
+        )
         new_count = Decimal(data.get("count", acceptance.count))
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
-        
-        rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
+
+        rate = CurrencyRate.objects.filter(
+            date__lte=arrival_date
+        ).order_by("-date").first()
+
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
+
         rate_value = rate.rate
 
-        new_arrival_price_in_sum = (new_arrival_price * rate_value).quantize(Decimal("0.01"))
-        new_sale_price_in_sum = (new_sale_price * rate_value).quantize(Decimal("0.01"))
-        
+        new_arrival_price_in_sum = (
+                new_arrival_price * rate_value
+        ).quantize(Decimal("0.01"))
+
+        new_sale_price_in_sum = (
+                new_sale_price * rate_value
+        ).quantize(Decimal("0.01"))
+
         if is_accepted:
             count_difference = new_count - old_count
             new_debt = new_arrival_price_in_sum * new_count
-            debt_difference = new_debt - old_debt
 
             Product.objects.filter(pk=acceptance.product_id).update(
                 count=F("count") + count_difference,
@@ -72,23 +98,23 @@ class AcceptanceWorkflowService:
                 arrival_price_in_sum=new_arrival_price_in_sum,
                 sale_price_in_sum=new_sale_price_in_sum
             )
-            
+
             if acceptance.supplier:
-                supplier = Supplier.objects.select_for_update().get(pk=acceptance.supplier_id)
-                supplier.debt += debt_difference
-                supplier.save(update_fields=["debt"])
-                
+                supplier = Supplier.objects.select_for_update().get(
+                    pk=acceptance.supplier_id
+                )
+
                 purchase_txn = SupplierTransaction.objects.filter(
                     supplier_id=acceptance.supplier_id,
                     transaction_type=SupplierTransaction.TransactionType.PURCHASE,
                     description=f"Acceptance #{acceptance.id}"
                 ).first()
-                
+
                 if purchase_txn:
                     purchase_txn.amount = new_debt
                     purchase_txn.save(update_fields=["amount"])
+                    SupplierService.recalculate_debt(supplier)
 
-        # Update acceptance instance with new values
         acceptance.arrival_price = new_arrival_price
         acceptance.sale_price = new_sale_price
         acceptance.count = new_count
@@ -98,14 +124,20 @@ class AcceptanceWorkflowService:
         acceptance.arrival_price_in_sum = new_arrival_price_in_sum
         acceptance.sale_price_in_sum = new_sale_price_in_sum
         acceptance.price_type = Acceptance.PriceType.DOLLAR
-        
+
         for key, value in data.items():
-            if key not in ["arrival_price", "sale_price", "count", "arrival_date", "supplier"]:
+            if key not in [
+                "arrival_price",
+                "sale_price",
+                "count",
+                "arrival_date",
+                "supplier"
+            ]:
                 setattr(acceptance, key, value)
-                
+
         if "supplier" in data:
             acceptance.supplier = data["supplier"]
-        
+
         acceptance.save()
 
         AcceptanceHistory.objects.create(
@@ -122,9 +154,7 @@ class AcceptanceWorkflowService:
             arrival_date=acceptance.arrival_date,
             description=acceptance.description,
         )
-        
-        # Obyektlarni bazadan yangilaymiz, chunki ularning qiymatlari o'zgarishi mumkin 
-        # va Django cache da eski qiymatlarni ushlab qolishi mumkin.
+
         acceptance.refresh_from_db()
         if acceptance.supplier:
             acceptance.supplier.refresh_from_db()
@@ -135,6 +165,7 @@ class AcceptanceWorkflowService:
     @transaction.atomic
     def accept(acceptance_id, user):
         acceptance = Acceptance.objects.select_for_update().get(id=acceptance_id)
+
         if acceptance.acceptance_status != Acceptance.AcceptanceStatus.WAITING:
             raise ValueError("Acceptance already processed")
 
@@ -149,8 +180,6 @@ class AcceptanceWorkflowService:
         total_amount = acceptance.arrival_price_in_sum * acceptance.count
 
         if acceptance.supplier_id:
-            Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + total_amount)
-
             SupplierTransaction.objects.create(
                 supplier_id=acceptance.supplier_id,
                 transaction_type=SupplierTransaction.TransactionType.PURCHASE,
@@ -158,10 +187,17 @@ class AcceptanceWorkflowService:
                 description=f"Acceptance #{acceptance.id}"
             )
 
+            supplier = Supplier.objects.select_for_update().get(pk=acceptance.supplier_id)
+            SupplierService.recalculate_debt(supplier)
+
         acceptance.acceptance_status = Acceptance.AcceptanceStatus.ACCEPT
         acceptance.accepted_by = user
         acceptance.accepted_at = timezone.now()
-        acceptance.save(update_fields=["acceptance_status", "accepted_by", "accepted_at"])
+
+        acceptance.save(
+            update_fields=["acceptance_status", "accepted_by", "accepted_at"]
+        )
+
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,
@@ -187,6 +223,7 @@ class AcceptanceWorkflowService:
 
         acceptance.acceptance_status = Acceptance.AcceptanceStatus.CANCEL
         acceptance.save(update_fields=["acceptance_status"])
+
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,

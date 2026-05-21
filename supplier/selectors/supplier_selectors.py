@@ -1,5 +1,5 @@
 from decimal import Decimal
-from django.db.models import Count, Sum
+from django.db.models import Sum, Count
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from supplier.models import Supplier, SupplierTransaction
