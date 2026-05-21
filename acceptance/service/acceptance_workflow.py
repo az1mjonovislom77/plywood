@@ -74,7 +74,7 @@ class AcceptanceWorkflowService:
             )
             
             if acceptance.supplier and debt_difference != Decimal(0):
-                supplier = Supplier.objects.get(pk=acceptance.supplier_id)
+                supplier = Supplier.objects.select_for_update().get(pk=acceptance.supplier_id)
                 supplier.debt += debt_difference
                 supplier.save(update_fields=["debt"])
                 
@@ -100,9 +100,12 @@ class AcceptanceWorkflowService:
         acceptance.price_type = Acceptance.PriceType.DOLLAR
         
         for key, value in data.items():
-            if key not in ["arrival_price", "sale_price", "count", "arrival_date"]:
+            if key not in ["arrival_price", "sale_price", "count", "arrival_date", "supplier"]:
                 setattr(acceptance, key, value)
-
+                
+        if "supplier" in data:
+            acceptance.supplier = data["supplier"]
+        
         acceptance.save()
 
         AcceptanceHistory.objects.create(
@@ -119,6 +122,13 @@ class AcceptanceWorkflowService:
             arrival_date=acceptance.arrival_date,
             description=acceptance.description,
         )
+        
+        # Obyektlarni bazadan yangilaymiz, chunki ularning qiymatlari o'zgarishi mumkin 
+        # va Django cache da eski qiymatlarni ushlab qolishi mumkin.
+        acceptance.refresh_from_db()
+        if acceptance.supplier:
+            acceptance.supplier.refresh_from_db()
+
         return acceptance
 
     @staticmethod
