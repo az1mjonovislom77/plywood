@@ -55,9 +55,11 @@ class AcceptanceWorkflowService:
         old_arrival_price_in_sum = acceptance.arrival_price_in_sum
         old_count = acceptance.count
         is_accepted = acceptance.acceptance_status == Acceptance.AcceptanceStatus.ACCEPT
+        
         arrival_price_input = data.get("arrival_price", acceptance.arrival_price)
         sale_price_input = data.get("sale_price", acceptance.sale_price)
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
+        
         rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
@@ -75,19 +77,32 @@ class AcceptanceWorkflowService:
 
         acceptance.save()
 
-        if is_accepted and acceptance.supplier:
-            old_debt = old_arrival_price_in_sum * old_count
-            new_debt = acceptance.arrival_price_in_sum * acceptance.count
-            debt_difference = new_debt - old_debt
+        if is_accepted:
+            count_difference = acceptance.count - old_count
+            
+            # Mahsulot miqdorini va yangi narxlarni to'g'rilash
+            Product.objects.filter(pk=acceptance.product_id).update(
+                count=F("count") + count_difference,
+                arrival_price=acceptance.arrival_price_in_dollar,
+                sale_price=acceptance.sale_price_in_dollar,
+                arrival_price_in_sum=acceptance.arrival_price_in_sum,
+                sale_price_in_sum=acceptance.sale_price_in_sum
+            )
+            
+            # Yetkazib beruvchi qarzini to'g'rilash
+            if acceptance.supplier:
+                old_debt = old_arrival_price_in_sum * old_count
+                new_debt = acceptance.arrival_price_in_sum * acceptance.count
+                debt_difference = new_debt - old_debt
 
-            if debt_difference != 0:
-                Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
-                SupplierTransaction.objects.create(
-                    supplier_id=acceptance.supplier_id,
-                    transaction_type=SupplierTransaction.TransactionType.ADJUSTMENT,
-                    amount=debt_difference,
-                    description=f"Adjustment for updated Acceptance #{acceptance.id}"
-                )
+                if debt_difference != 0:
+                    Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
+                    SupplierTransaction.objects.create(
+                        supplier_id=acceptance.supplier_id,
+                        transaction_type=SupplierTransaction.TransactionType.ADJUSTMENT,
+                        amount=debt_difference,
+                        description=f"Adjustment for updated Acceptance #{acceptance.id}"
+                    )
 
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
