@@ -100,6 +100,7 @@ class FinanceReportJsonService:
         expense_data = []
         expense_total = Decimal("0")
 
+        # Expenses
         for item in expenses:
             expense_data.append({
                 "id": item.id,
@@ -110,30 +111,16 @@ class FinanceReportJsonService:
 
             expense_total += Decimal(str(item.value))
 
-        outcome = []
-        outcome_total = Decimal("0")
-
-        for item in expenses:
-            outcome.append({
-                "id": item.id,
-                "type": "expense",
-                "description": item.description,
-                "date": item.created_at.strftime("%d.%m.%Y"),
-                "value": item.value,
-            })
-
-            outcome_total += Decimal(str(item.value))
-
+        # Supplier payments ham expenses ichiga qo‘shiladi
         for payment in supplier_payments:
-            outcome.append({
+            expense_data.append({
                 "id": payment.id,
-                "type": "supplier_payment",
                 "description": f"Supplier payment - {payment.supplier.full_name}",
                 "date": payment.created_at.strftime("%d.%m.%Y"),
                 "value": payment.amount,
             })
 
-            outcome_total += Decimal(str(payment.amount))
+            expense_total += Decimal(str(payment.amount))
 
         return {
             "from": str(start_date),
@@ -142,8 +129,6 @@ class FinanceReportJsonService:
             "income_total": income_total,
             "expenses": expense_data,
             "expense_total": expense_total,
-            "outcome": outcome,
-            "outcome_total": outcome_total,
             "opening_balance": Decimal(
                 str(
                     DashboardStatsService._cashbox_total(
@@ -151,7 +136,6 @@ class FinanceReportJsonService:
                     )
                 )
             ),
-
             "closing_balance": Decimal(
                 str(
                     DashboardStatsService._cashbox_total(end_dt=end_dt)
