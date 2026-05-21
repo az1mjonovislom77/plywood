@@ -45,22 +45,27 @@ class AcceptanceWorkflowService:
     def update(acceptance, data, user):
         old_arrival_price_in_sum = Decimal(acceptance.arrival_price_in_sum)
         old_count = Decimal(acceptance.count)
-        is_accepted = acceptance.acceptance_status == Acceptance.AcceptanceStatus.ACCEPT
+        is_accepted = str(acceptance.acceptance_status) == "accept"
+        
         new_arrival_price = Decimal(data.get("arrival_price", acceptance.arrival_price))
         new_sale_price = Decimal(data.get("sale_price", acceptance.sale_price))
         new_count = Decimal(data.get("count", acceptance.count))
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
+        
         rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
         rate_value = rate.rate
+
         acceptance.arrival_price = new_arrival_price
         acceptance.sale_price = new_sale_price
         acceptance.count = new_count
         acceptance.arrival_date = arrival_date
-        acceptance.description = data.get("description", acceptance.description)
-        acceptance.supplier = data.get("supplier", acceptance.supplier)
-        acceptance.product = data.get("product", acceptance.product)
+        
+        # Update other fields from data avoiding overriding our controlled fields
+        for key, value in data.items():
+            if key not in ["arrival_price", "sale_price", "count", "arrival_date"]:
+                setattr(acceptance, key, value)
 
         acceptance.arrival_price_in_dollar = new_arrival_price
         acceptance.sale_price_in_dollar = new_sale_price
@@ -70,7 +75,7 @@ class AcceptanceWorkflowService:
 
         if is_accepted:
             count_difference = new_count - old_count
-
+            
             Product.objects.filter(pk=acceptance.product_id).update(
                 count=F("count") + count_difference,
                 arrival_price=acceptance.arrival_price_in_dollar,
@@ -78,7 +83,7 @@ class AcceptanceWorkflowService:
                 arrival_price_in_sum=acceptance.arrival_price_in_sum,
                 sale_price_in_sum=acceptance.sale_price_in_sum
             )
-
+            
             if acceptance.supplier:
                 old_debt = old_arrival_price_in_sum * old_count
                 new_debt = acceptance.arrival_price_in_sum * new_count
@@ -86,12 +91,24 @@ class AcceptanceWorkflowService:
 
                 if debt_difference != Decimal(0):
                     Supplier.objects.filter(pk=acceptance.supplier_id).update(debt=F("debt") + debt_difference)
-                    SupplierTransaction.objects.create(
+                    
+                    purchase_txn = SupplierTransaction.objects.filter(
                         supplier_id=acceptance.supplier_id,
-                        transaction_type=SupplierTransaction.TransactionType.ADJUSTMENT,
-                        amount=debt_difference,
-                        description=f"Adjustment for updated Acceptance #{acceptance.id}"
-                    )
+                        transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+                        description=f"Acceptance #{acceptance.id}"
+                    ).first()
+                    
+                    if purchase_txn:
+                        purchase_txn.amount = new_debt # Update to the new total debt for this acceptance
+                        purchase_txn.save(update_fields=["amount"])
+                    else:
+                        # This case should ideally not happen if an acceptance was accepted
+                        SupplierTransaction.objects.create(
+                            supplier_id=acceptance.supplier_id,
+                            transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+                            amount=new_debt,
+                            description=f"Acceptance #{acceptance.id} (created on update)"
+                        )
 
         acceptance.save()
 
