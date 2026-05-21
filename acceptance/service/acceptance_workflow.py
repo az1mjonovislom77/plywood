@@ -73,7 +73,7 @@ class AcceptanceWorkflowService:
                 sale_price_in_sum=new_sale_price_in_sum
             )
             
-            if acceptance.supplier and debt_difference != Decimal(0):
+            if acceptance.supplier:
                 supplier = Supplier.objects.select_for_update().get(pk=acceptance.supplier_id)
                 supplier.debt += debt_difference
                 supplier.save(update_fields=["debt"])
