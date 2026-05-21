@@ -29,7 +29,7 @@ class AcceptanceSelector:
         history_queryset = AcceptanceHistory.objects.select_related("user", "supplier", "product")
         return (
             Acceptance.objects
-            .filter(supplier_id=supplier_id, created_at__date=date)
+            .filter(supplier_id=supplier_id, arrival_date=date)
             .select_related("product", "supplier", "accepted_by")
             .prefetch_related(Prefetch("histories", queryset=history_queryset))
             .order_by("-created_at")
