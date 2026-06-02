@@ -12,7 +12,7 @@ class Basket(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(
-            fields=["user"], condition=models.Q(is_active=True),
+            fields=["user"], condition=models.Q(is_active = True),
             name="unique_active_basket_per_user")]
 
 
