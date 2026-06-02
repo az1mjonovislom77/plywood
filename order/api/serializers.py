@@ -212,3 +212,43 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class OrderCancelSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
+
+
+class OrderItemUpdateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+    product_id = serializers.IntegerField()
+    quantity = serializers.DecimalField(max_digits=20, decimal_places=3)
+    new_sell_price = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    cutting = CuttingCreateSerializer(required=False)
+    banding = BandingPostSerializer(required=False)
+
+    class Meta:
+        model = OrderItem
+        fields = ["id", "product_id", "quantity", "new_sell_price", "cutting", "banding"]
+
+    def validate_product_id(self, value):
+        if not Product.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Product not found")
+        return value
+
+    def validate_new_sell_price(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("New sell price must be greater than 0")
+        return value
+
+
+class OrderUpdateSerializer(serializers.Serializer):
+    items = OrderItemUpdateSerializer(many=True)
+    customer_id = serializers.IntegerField(required=False)
+    payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
+    discount = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=0)
+    discount_type = serializers.ChoiceField(choices=Order.DiscountType.choices, default=Order.DiscountType.CASH)
+    covered_amount = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=0)
+    description = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        validate_percentage_discount(
+            attrs.get("discount_type", Order.DiscountType.CASH),
+            attrs.get("discount", 0),
+        )
+        return attrs

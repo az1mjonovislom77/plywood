@@ -11,7 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
-from order.api.serializers import OrderCancelSerializer, OrderCreateSerializer, OrderSerializer
+from order.api.serializers import OrderCancelSerializer, OrderCreateSerializer, OrderSerializer, OrderUpdateSerializer
 from order.models import Order
 from order.service.order import OrderService
 from order.service.order_export import generate_order_ledger_excel
@@ -50,6 +50,8 @@ class OrderViewSet(viewsets.GenericViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return OrderCreateSerializer
+        if self.action == "update":
+            return OrderUpdateSerializer
         return OrderSerializer
 
     def get_queryset(self):
@@ -127,16 +129,22 @@ class OrderViewSet(viewsets.GenericViewSet):
         return Response(response.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
-        order = OrderService.get_by_id(order_id=pk)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not order:
+        try:
+            order = OrderWorkflowService.update_order(
+                order_id=pk,
+                user=request.user,
+                data=serializer.validated_data
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Order.DoesNotExist:
             return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = OrderSerializer(order, data=request.data, partial=True, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data)
+        response = OrderSerializer(order, context={"request": request})
+        return Response(response.data)
 
     def destroy(self, request, pk=None):
         order = OrderService.get_by_id(order_id=pk)

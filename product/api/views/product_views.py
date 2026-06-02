@@ -30,17 +30,13 @@ class ProductPagination(PageNumberPagination):
         total = self.page.paginator.count
         limit = self.get_page_size(self.request)
         total_pages = math.ceil(total / limit)
-        
         all_investment_in_dollar = Decimal('0')
-        
+
         if hasattr(self.page.paginator, "object_list"):
             queryset = self.page.paginator.object_list
-            
-            # Jami investitsiyani hisoblash (Product.arrival_price endi dollarda)
             total_investment = queryset.aggregate(
                 total=Sum(ExpressionWrapper(F('count') * F('arrival_price'), output_field=DecimalField()))
             )['total'] or Decimal('0')
-            
             all_investment_in_dollar = float(total_investment)
 
         return Response({
@@ -91,14 +87,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         tags=["ProductExport"],
         parameters=[
             OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR),
-            OpenApiParameter(name="category", description="Filter by category id", required=False, type=OpenApiTypes.INT),
+            OpenApiParameter(name="category", description="Filter by category id", required=False,
+                             type=OpenApiTypes.INT),
             OpenApiParameter(name="quality", description="Filter by quality", required=False, type=OpenApiTypes.STR)
         ]
     )
     @action(detail=False, methods=["get"], url_path="export_all")
     def export_excel(self, request):
         queryset = self.filter_queryset(self.get_queryset())
-        
+
         file = ProductExcelExportService.build_excel(queryset, user=request.user)
 
         return HttpResponse(
