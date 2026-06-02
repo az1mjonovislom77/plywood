@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from customer.models import Customer
-from order.models import Order
+from order.models import Order, Banding, Cutting
 from product.models import Product
 from user.models import User
 from order.models import OrderHistory, OrderItem
@@ -12,6 +12,33 @@ from order.service.order import OrderService
 
 
 class OrderWorkflowService:
+
+    @staticmethod
+    def _handle_service(service_class, current_instance, data, customer, payment_method):
+        if not data:
+            if current_instance:
+                current_instance.delete()
+            return None
+
+        if current_instance:
+            for key, value in data.items():
+                if hasattr(current_instance, key) and key not in ['id', 'customer_id']:
+                    setattr(current_instance, key, value)
+            current_instance.customer = customer
+            current_instance.payment_method = payment_method
+            current_instance.save()
+            return current_instance
+        else:
+            data_copy = dict(data)
+            data_copy.pop('id', None)
+            data_copy.pop('customer_id', None)
+            data_copy['customer'] = customer
+            data_copy['payment_method'] = payment_method
+            if 'covered_amount' not in data_copy:
+                data_copy['covered_amount'] = Decimal('0')
+            if 'discount' not in data_copy:
+                data_copy['discount'] = Decimal('0')
+            return service_class.objects.create(**data_copy)
 
     @staticmethod
     @transaction.atomic
@@ -134,7 +161,11 @@ class OrderWorkflowService:
         if not rate_obj:
             raise ValueError("Bugungi dollar kursi kiritilmagan")
         rate_value = rate_obj.rate
-        current_items = {item.id: item for item in order.items.select_related('product')}
+        
+        new_customer = OrderService._get_customer(data.get("customer_id"))
+        payment_method = data['payment_method']
+
+        current_items = {item.id: item for item in order.items.select_related('product', 'cutting', 'banding')}
         incoming_items_map = {item.get('id'): item for item in data['items'] if item.get('id')}
         new_items_data = [item for item in data['items'] if not item.get('id')]
         
@@ -142,6 +173,10 @@ class OrderWorkflowService:
         for item_id in item_ids_to_delete:
             item = current_items[item_id]
             Product.objects.filter(id=item.product_id).update(count=F("count") + item.quantity)
+            if item.cutting:
+                item.cutting.delete()
+            if item.banding:
+                item.banding.delete()
             item.delete()
 
         for item_id, item_data in incoming_items_map.items():
@@ -175,6 +210,9 @@ class OrderWorkflowService:
                         Decimal("0.0001"), rounding=ROUND_HALF_UP
                     )
 
+            item.cutting = OrderWorkflowService._handle_service(Cutting, item.cutting, item_data.get('cutting'), new_customer, payment_method)
+            item.banding = OrderWorkflowService._handle_service(Banding, item.banding, item_data.get('banding'), new_customer, payment_method)
+            
             item.quantity = new_quantity
             item.price = actual_sell_price
             item.new_sell_price = new_sell_price
@@ -207,9 +245,14 @@ class OrderWorkflowService:
                         Decimal("0.0001"), rounding=ROUND_HALF_UP
                     )
 
+            cutting_instance = OrderWorkflowService._handle_service(Cutting, None, item_data.get('cutting'), new_customer, payment_method)
+            banding_instance = OrderWorkflowService._handle_service(Banding, None, item_data.get('banding'), new_customer, payment_method)
+
             new_order_items.append(OrderItem(
                 order=order,
                 product=product,
+                cutting=cutting_instance,
+                banding=banding_instance,
                 quantity=quantity,
                 price=actual_sell_price,
                 original_sell_price=original_sell_price,
@@ -224,10 +267,9 @@ class OrderWorkflowService:
             OrderItem.objects.bulk_create(new_order_items)
 
         old_customer = order.customer
-        new_customer = OrderService._get_customer(data.get("customer_id"))
         order.customer = new_customer
         order.is_anonymous = (new_customer is None)
-        order.payment_method = data['payment_method']
+        order.payment_method = payment_method
         order.discount = Decimal(data.get('discount', 0))
         order.discount_type = data.get('discount_type', Order.DiscountType.CASH)
         order.covered_amount = Decimal(data.get('covered_amount', 0))
