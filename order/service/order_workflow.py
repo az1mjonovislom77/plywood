@@ -53,7 +53,6 @@ class OrderWorkflowService:
     @staticmethod
     @transaction.atomic
     def cashier_accept(order_id, user):
-
         if user.role != User.UserRoles.CASHIER:
             raise ValueError("Only cashier can accept")
 
@@ -65,7 +64,6 @@ class OrderWorkflowService:
         order.order_status = Order.OrderStatus.ACCEPT
         order.accepted_by = user
         order.accepted_at = timezone.now()
-
         order.save(update_fields=[
             "order_status",
             "accepted_by",
@@ -136,11 +134,10 @@ class OrderWorkflowService:
         if not rate_obj:
             raise ValueError("Bugungi dollar kursi kiritilmagan")
         rate_value = rate_obj.rate
-
-        current_items = {item.id: item for item in order.items.all()}
+        current_items = {item.id: item for item in order.items.select_related('product')}
         incoming_items_map = {item.get('id'): item for item in data['items'] if item.get('id')}
         new_items_data = [item for item in data['items'] if not item.get('id')]
-
+        
         item_ids_to_delete = set(current_items.keys()) - set(incoming_items_map.keys())
         for item_id in item_ids_to_delete:
             item = current_items[item_id]
@@ -149,18 +146,27 @@ class OrderWorkflowService:
 
         for item_id, item_data in incoming_items_map.items():
             item = current_items[item_id]
-            quantity_diff = Decimal(item_data['quantity']) - item.quantity
+            new_product_id = item_data['product_id']
+            new_quantity = Decimal(item_data['quantity'])
 
-            if quantity_diff != 0:
-                if quantity_diff > 0 and item.product.count < quantity_diff:
-                    raise ValueError(f"{item.product.name} yetarli miqdorda mavjud emas")
-                Product.objects.filter(id=item.product_id).update(count=F("count") - quantity_diff)
+            if item.product_id != new_product_id:
+                Product.objects.filter(id=item.product_id).update(count=F("count") + item.quantity)
+                new_product = Product.objects.get(id=new_product_id)
+                if new_product.count < new_quantity:
+                    raise ValueError(f"{new_product.name} yetarli miqdorda mavjud emas")
+                Product.objects.filter(id=new_product_id).update(count=F("count") - new_quantity)
+                item.product = new_product
+            else:
+                quantity_diff = new_quantity - item.quantity
+                if quantity_diff != 0:
+                    if quantity_diff > 0 and item.product.count < quantity_diff:
+                        raise ValueError(f"{item.product.name} yetarli miqdorda mavjud emas")
+                    Product.objects.filter(id=item.product_id).update(count=F("count") - quantity_diff)
 
             original_sell_price = item.product.sale_price
             new_sell_price = item_data.get("new_sell_price")
             actual_sell_price = new_sell_price if new_sell_price is not None else item.price
             sell_price_difference = actual_sell_price - original_sell_price if new_sell_price is not None else item.sell_price_difference
-
             price_in_dollar = item.price_in_dollar
             new_price_in_dollar = item.new_price_in_dollar
             if rate_value is not None and rate_value != Decimal("0"):
@@ -169,7 +175,7 @@ class OrderWorkflowService:
                         Decimal("0.0001"), rounding=ROUND_HALF_UP
                     )
 
-            item.quantity = Decimal(item_data['quantity'])
+            item.quantity = new_quantity
             item.price = actual_sell_price
             item.new_sell_price = new_sell_price
             item.sell_price_difference = sell_price_difference
@@ -190,7 +196,6 @@ class OrderWorkflowService:
             new_sell_price = item_data.get("new_sell_price")
             actual_sell_price = new_sell_price if new_sell_price is not None else original_sell_price
             sell_price_difference = actual_sell_price - original_sell_price if new_sell_price is not None else 0
-
             price_in_dollar = None
             new_price_in_dollar = None
             if rate_value is not None and rate_value != Decimal("0"):
@@ -220,7 +225,6 @@ class OrderWorkflowService:
 
         old_customer = order.customer
         new_customer = OrderService._get_customer(data.get("customer_id"))
-        
         order.customer = new_customer
         order.is_anonymous = (new_customer is None)
         order.payment_method = data['payment_method']
@@ -251,4 +255,4 @@ class OrderWorkflowService:
             description=description
         )
 
-        return order
+        return OrderService.get_by_id(order.id)

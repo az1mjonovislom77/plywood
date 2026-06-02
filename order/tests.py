@@ -1,5 +1,4 @@
 from decimal import Decimal
-
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -198,17 +197,15 @@ class OrderSerializerTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["items"], [])
 
+
 class OrderUpdateTest(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.seller = User.objects.create_user(username="seller", password="123", role=User.UserRoles.SELLER)
         CurrencyRate.objects.create(date=timezone.localdate(), rate=Decimal("12500.00"))
-        
         self.customer = Customer.objects.create(full_name="Test Customer")
-        
         self.product1 = Product.objects.create(name="Product 1", sale_price=Decimal("100.00"), count=Decimal("10.000"))
         self.product2 = Product.objects.create(name="Product 2", sale_price=Decimal("200.00"), count=Decimal("10.000"))
-        
         basket = Basket.objects.create(user=self.seller)
         BasketItem.objects.create(basket=basket, product=self.product1)
         BasketItem.objects.create(basket=basket, product=self.product2)
@@ -223,14 +220,13 @@ class OrderUpdateTest(TestCase):
                 {"product_id": self.product2.id, "quantity": Decimal("1.000")},
             ],
         )
-        
+
     def test_update_order_reduces_quantity_returns_to_stock(self):
         self.product1.refresh_from_db()
         self.assertEqual(self.product1.count, Decimal("8.000"))
-        
         item1 = self.order.items.get(product=self.product1)
         item2 = self.order.items.get(product=self.product2)
-        
+
         update_data = {
             "customer_id": self.customer.id,
             "payment_method": Order.PaymentMethod.NASIYA,
@@ -240,16 +236,16 @@ class OrderUpdateTest(TestCase):
                 {"id": item2.id, "product_id": self.product2.id, "quantity": Decimal("1.000")},
             ]
         }
-        
+
         OrderWorkflowService.update_order(self.order.id, self.seller, update_data)
-        
+
         self.product1.refresh_from_db()
         self.assertEqual(self.product1.count, Decimal("9.000"))
 
     def test_update_order_increases_quantity_takes_from_stock(self):
         item1 = self.order.items.get(product=self.product1)
         item2 = self.order.items.get(product=self.product2)
-        
+
         update_data = {
             "customer_id": self.customer.id,
             "payment_method": Order.PaymentMethod.NASIYA,
@@ -259,18 +255,16 @@ class OrderUpdateTest(TestCase):
                 {"id": item2.id, "product_id": self.product2.id, "quantity": Decimal("1.000")},
             ]
         }
-        
+
         OrderWorkflowService.update_order(self.order.id, self.seller, update_data)
-        
         self.product1.refresh_from_db()
         self.assertEqual(self.product1.count, Decimal("6.000"))
 
     def test_update_order_recalculates_debt(self):
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.debt, Decimal("350.00"))
-        
         item1 = self.order.items.get(product=self.product1)
-        
+
         update_data = {
             "customer_id": self.customer.id,
             "payment_method": Order.PaymentMethod.NASIYA,
@@ -279,11 +273,9 @@ class OrderUpdateTest(TestCase):
                 {"id": item1.id, "product_id": self.product1.id, "quantity": Decimal("1.000")},
             ]
         }
-        
+
         OrderWorkflowService.update_order(self.order.id, self.seller, update_data)
-        
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.debt, Decimal("0.00"))
-        
         self.product2.refresh_from_db()
         self.assertEqual(self.product2.count, Decimal("10.000"))
