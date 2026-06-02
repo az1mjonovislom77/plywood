@@ -213,7 +213,6 @@ class OrderWorkflowService:
 
         old_customer = order.customer
         new_customer = OrderService._get_customer(data.get("customer_id"))
-        
         order.customer = new_customer
         order.is_anonymous = (new_customer is None)
         order.payment_method = data['payment_method']
