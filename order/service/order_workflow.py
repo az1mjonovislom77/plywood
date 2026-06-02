@@ -116,8 +116,15 @@ class OrderWorkflowService:
     def update_order(order_id, user, data):
         order = Order.objects.select_for_update().get(id=order_id)
 
-        if order.order_status != Order.OrderStatus.WAITING:
-            raise ValueError("Faqat kutilayotgan buyurtmani o'zgartirish mumkin")
+        if order.order_status == Order.OrderStatus.CANCEL:
+            raise ValueError("Bekor qilingan buyurtmani o'zgartirib bo'lmaydi")
+
+        is_accepted_order = order.order_status == Order.OrderStatus.ACCEPT
+        description = data.get('description', '')
+        if is_accepted_order:
+            accepted_by_user = order.accepted_by.username if order.accepted_by else 'N/A'
+            accepted_info = f"[Tasdiqlangan buyurtma tahrirlandi (Accepted by: {accepted_by_user})] "
+            description = accepted_info + description
 
         if user.role == User.UserRoles.SELLER and order.user_id != user.id:
             raise ValueError("Siz faqat o'zingizni buyurtmangizni o'zgartira olasiz")
@@ -213,6 +220,7 @@ class OrderWorkflowService:
 
         old_customer = order.customer
         new_customer = OrderService._get_customer(data.get("customer_id"))
+        
         order.customer = new_customer
         order.is_anonymous = (new_customer is None)
         order.payment_method = data['payment_method']
@@ -240,7 +248,7 @@ class OrderWorkflowService:
             visible_for=(OrderHistory.VisibleFor.CASHIER
                          if user.role == User.UserRoles.CASHIER
                          else OrderHistory.VisibleFor.SELLER),
-            description=data.get('description')
+            description=description
         )
 
         return order
