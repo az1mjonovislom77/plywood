@@ -144,7 +144,7 @@ class MaterialReportJsonService:
         for row in (
                 Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
                         .values("product_id")
-                        .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                        .annotate(total=Coalesce(Sum("arrival_price_in_sum"), Value(Decimal("0")),
                                                  output_field=cls._money_field()))
         ):
             open_in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
@@ -174,7 +174,7 @@ class MaterialReportJsonService:
                     acceptance_status="accept",
                     arrival_date__gte=start_date,
                     arrival_date__lte=end_date).values("product_id")
-                        .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                        .annotate(total=Coalesce(Sum("arrival_price_in_sum"), Value(Decimal("0")),
                                                  output_field=cls._money_field()))):
             in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 

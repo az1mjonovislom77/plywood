@@ -88,7 +88,7 @@ class MaterialReportService:
             .values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+                    Sum("arrival_price_in_sum"), Value(Decimal("0")),
                     output_field=cls._money_field(),
                 ),
             )
@@ -121,7 +121,7 @@ class MaterialReportService:
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum(cls._money_expr("count", "arrival_price")),
+                    Sum("arrival_price_in_sum"),
                     Value(Decimal("0")),
                     output_field=cls._money_field())))
 
