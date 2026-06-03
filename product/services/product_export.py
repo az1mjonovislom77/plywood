@@ -104,7 +104,15 @@ class MaterialReportService:
                     Value(Decimal("0")),
                     output_field=cls._money_field(),
                 ),
-            )
+                total_in_dollar=Coalesce(
+                    Sum(
+                        F("quantity") * Case(
+                            When(new_price_in_dollar__isnull=False, then=F("new_price_in_dollar")),
+                            default=F("price_in_dollar"),
+                            output_field=cls._money_field())),
+                    Value(Decimal("0")),
+                    output_field=cls._money_field()
+                )), extra_fields=['total_in_dollar']
         )
 
         in_map = cls._to_map(
@@ -137,13 +145,7 @@ class MaterialReportService:
                     output_field=cls._money_field()
                 )), extra_fields=['total_in_dollar'])
 
-        total_sales_uzs = sum(p.get('total', Decimal('0')) for p in out_map.values())
-        total_sales_usd = sum(p.get('total_in_dollar', Decimal('0')) for p in out_map.values())
-        effective_rate = Decimal('0')
-        if total_sales_usd > 0:
-            effective_rate = total_sales_uzs / total_sales_usd
-
-        open_cogs_map, period_cogs_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
+        open_cogs_sum_map, open_cogs_usd_map, period_cogs_sum_map, period_cogs_usd_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
 
         grouped_products = {}
         for product in products:
@@ -198,7 +200,7 @@ class MaterialReportService:
         ws["H4"] = "Приход"
         ws["J4"] = "Расход"
         ws["L4"] = "Сальдо на конец"
-        ws["N4"] = "Sof Foyda"
+        ws["N4"] = "Sof Foyda Dollar"
         ws["F5"] = "Количество"
         ws["G5"] = "Сумма"
         ws["H5"] = "Количество"
@@ -207,11 +209,10 @@ class MaterialReportService:
         ws["K5"] = "Сумма"
         ws["L5"] = "Количество"
         ws["M5"] = "Сумма"
-        ws.merge_cells("N5:N6")
-        ws["N5"] = "Сумма (Сумма $)"
+        ws["N5"] = "Сумма"
 
         for r in range(4, 7):
-            for c in range(1, 15):
+            for c in range(1, 14):
                 cell = ws.cell(r, c)
                 cell.font = bold
                 cell.alignment = center
@@ -225,10 +226,10 @@ class MaterialReportService:
         grand_out_qty = Decimal("0")
         grand_out_sum = Decimal("0")
         grand_out_sum_in_dollar = Decimal("0")
+        grand_net_profit_sum = Decimal("0")
+        grand_net_profit_usd = Decimal("0")
         grand_end_qty = Decimal("0")
         grand_end_sum = Decimal("0")
-        grand_net_profit_uzs = Decimal("0")
-        grand_net_profit_usd = Decimal("0")
 
         for category in categories:
             category_products = grouped_products.get(category.id, [])
@@ -242,40 +243,32 @@ class MaterialReportService:
             cat_out_qty = Decimal("0")
             cat_out_sum = Decimal("0")
             cat_out_sum_in_dollar = Decimal("0")
+            cat_net_profit_sum = Decimal("0")
+            cat_net_profit_usd = Decimal("0")
             cat_end_qty = Decimal("0")
             cat_end_sum = Decimal("0")
-            cat_net_profit_uzs = Decimal("0")
-            cat_net_profit_usd = Decimal("0")
 
             product_rows = []
 
             for product in category_products:
                 open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
+                open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 out_period = out_map.get(product.id,
                                          {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
                 open_qty = open_in["qty"] - open_out["qty"]
-                open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
+                open_sum = open_in["total"] - open_cogs_sum_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 out_qty = out_period["qty"]
-                out_sum = period_cogs_map.get(product.id, Decimal("0"))
-                
-                selling_price_uzs = out_period["total"]
-                selling_price_usd = out_period["total_in_dollar"]
-                cost_price_uzs = out_sum
-
-                net_profit_uzs = selling_price_uzs - cost_price_uzs
-                net_profit_usd = Decimal('0')
-                cost_price_usd = Decimal('0')
-                if effective_rate > 0:
-                    cost_price_usd = cost_price_uzs / effective_rate
-                    net_profit_usd = selling_price_usd - cost_price_usd
-                
+                out_sum = out_period["total"]
                 out_sum_in_dollar = out_period["total_in_dollar"]
+                period_cogs_sum = period_cogs_sum_map.get(product.id, Decimal("0"))
+                period_cogs_usd = period_cogs_usd_map.get(product.id, Decimal("0"))
+                net_profit_sum = out_sum - period_cogs_sum
+                net_profit_usd = out_sum_in_dollar - period_cogs_usd
                 end_qty = open_qty + in_qty - out_qty
-                end_sum = open_sum + in_sum - out_sum
+                end_sum = open_sum + in_sum - period_cogs_sum
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
@@ -283,11 +276,10 @@ class MaterialReportService:
                 cat_out_qty += out_qty
                 cat_out_sum += out_sum
                 cat_out_sum_in_dollar += out_sum_in_dollar
+                cat_net_profit_sum += net_profit_sum
+                cat_net_profit_usd += net_profit_usd
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
-                cat_net_profit_uzs += net_profit_uzs
-                cat_net_profit_usd += net_profit_usd
-                
                 product_rows.append({
                     "code": product.id,
                     "name": product.name,
@@ -298,12 +290,11 @@ class MaterialReportService:
                     "in_sum": in_sum,
                     "out_qty": out_qty,
                     "out_sum": out_sum,
-                    "cost_price_usd": cost_price_usd,
                     "out_sum_in_dollar": out_sum_in_dollar,
+                    "net_profit_sum": net_profit_sum,
+                    "net_profit_usd": net_profit_usd,
                     "end_qty": end_qty,
                     "end_sum": end_sum,
-                    "net_profit_uzs": net_profit_uzs,
-                    "net_profit_usd": net_profit_usd,
                 })
 
             grand_open_qty += cat_open_qty
@@ -313,11 +304,10 @@ class MaterialReportService:
             grand_out_qty += cat_out_qty
             grand_out_sum += cat_out_sum
             grand_out_sum_in_dollar += cat_out_sum_in_dollar
+            grand_net_profit_sum += cat_net_profit_sum
+            grand_net_profit_usd += cat_net_profit_usd
             grand_end_qty += cat_end_qty
             grand_end_sum += cat_end_sum
-            grand_net_profit_uzs += cat_net_profit_uzs
-            grand_net_profit_usd += cat_net_profit_usd
-            
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
@@ -327,10 +317,10 @@ class MaterialReportService:
             money(ws.cell(row, 8), cat_in_qty)
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
-            money_with_dollar(ws.cell(row, 11), cat_out_sum, sum(item['cost_price_usd'] for item in product_rows))
+            money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
+            money_with_dollar(ws.cell(row, 14), cat_net_profit_sum, cat_net_profit_usd)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
-            money_with_dollar(ws.cell(row, 14), cat_net_profit_uzs, cat_net_profit_usd)
 
             for c in range(1, 15):
                 ws.cell(row, c).border = border
@@ -348,12 +338,11 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                money_with_dollar(ws.cell(row, 11), item["out_sum"], item["cost_price_usd"])
+                money_with_dollar(ws.cell(row, 11), item["out_sum"], item["out_sum_in_dollar"])
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
-                money_with_dollar(ws.cell(row, 14), item["net_profit_uzs"], item["net_profit_usd"])
 
-                for c in range(1, 15):
+                for c in range(1, 14):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
                     ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
@@ -369,17 +358,17 @@ class MaterialReportService:
         money(ws.cell(row, 8), grand_in_qty)
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
-        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum / effective_rate if effective_rate > 0 else Decimal('0'))
+        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
-        money_with_dollar(ws.cell(row, 14), grand_net_profit_uzs, grand_net_profit_usd)
+        money(ws.cell(row, 14), grand_end_sum)
 
-        for c in range(1, 15):
+        for c in range(1, 14):
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
-                  "L": 12, "M": 18, "N": 24}
+                  "L": 12, "M": 18}
 
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
