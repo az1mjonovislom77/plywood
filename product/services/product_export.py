@@ -268,6 +268,7 @@ class MaterialReportService:
 
                 net_profit_uzs = selling_price_uzs - cost_price_uzs
                 net_profit_usd = Decimal('0')
+                cost_price_usd = Decimal('0')
                 if effective_rate > 0:
                     cost_price_usd = cost_price_uzs / effective_rate
                     net_profit_usd = selling_price_usd - cost_price_usd
@@ -297,6 +298,7 @@ class MaterialReportService:
                     "in_sum": in_sum,
                     "out_qty": out_qty,
                     "out_sum": out_sum,
+                    "cost_price_usd": cost_price_usd,
                     "out_sum_in_dollar": out_sum_in_dollar,
                     "end_qty": end_qty,
                     "end_sum": end_sum,
@@ -325,7 +327,7 @@ class MaterialReportService:
             money(ws.cell(row, 8), cat_in_qty)
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
-            money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
+            money_with_dollar(ws.cell(row, 11), cat_out_sum, sum(item['cost_price_usd'] for item in product_rows))
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
             money_with_dollar(ws.cell(row, 14), cat_net_profit_uzs, cat_net_profit_usd)
@@ -346,7 +348,7 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                money_with_dollar(ws.cell(row, 11), item["out_sum"], item["out_sum_in_dollar"])
+                money_with_dollar(ws.cell(row, 11), item["out_sum"], item["cost_price_usd"])
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
                 money_with_dollar(ws.cell(row, 14), item["net_profit_uzs"], item["net_profit_usd"])
@@ -367,7 +369,7 @@ class MaterialReportService:
         money(ws.cell(row, 8), grand_in_qty)
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
-        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
+        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum / effective_rate if effective_rate > 0 else Decimal('0'))
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
         money_with_dollar(ws.cell(row, 14), grand_net_profit_uzs, grand_net_profit_usd)
