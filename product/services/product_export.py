@@ -203,7 +203,6 @@ class MaterialReportService:
         ws["K5"] = "Сумма"
         ws["L5"] = "Количество"
         ws["M5"] = "Сумма"
-        ws["N5"] = "Сумма"
 
         for r in range(4, 7):
             for c in range(1, 15):
