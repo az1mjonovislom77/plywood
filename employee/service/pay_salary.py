@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-
 from employee.models import Employee, SalaryPayment
 
 

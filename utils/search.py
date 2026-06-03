@@ -1,79 +1,21 @@
 from django.db.models import Q
 from rest_framework.filters import SearchFilter
 
-
 APOSTROPHES = ("'", "`", "‘", "’", "ʼ", "ʻ")
 CANONICAL_APOSTROPHE = "'"
 
-LATIN_TO_CYRILLIC_PAIRS = (
-    ("o'", "ў"),
-    ("g'", "ғ"),
-    ("sh", "ш"),
-    ("ch", "ч"),
-    ("ya", "я"),
-    ("yo", "ё"),
-    ("yu", "ю"),
-)
+LATIN_TO_CYRILLIC_PAIRS = (("o'", "ў"), ("g'", "ғ"), ("sh", "ш"), ("ch", "ч"), ("ya", "я"), ("yo", "ё"), ("yu", "ю"))
 
 LATIN_TO_CYRILLIC_CHARS = {
-    "a": "а",
-    "b": "б",
-    "d": "д",
-    "e": "е",
-    "f": "ф",
-    "g": "г",
-    "h": "ҳ",
-    "i": "и",
-    "j": "ж",
-    "k": "к",
-    "l": "л",
-    "m": "м",
-    "n": "н",
-    "o": "о",
-    "p": "п",
-    "q": "қ",
-    "r": "р",
-    "s": "с",
-    "t": "т",
-    "u": "у",
-    "v": "в",
-    "x": "х",
-    "y": "й",
-    "z": "з",
+    "a": "а", "b": "б", "d": "д", "e": "е", "f": "ф", "g": "г", "h": "ҳ", "i": "и", "j": "ж", "k": "к", "l": "л",
+    "m": "м", "n": "н", "o": "о", "p": "п", "q": "қ", "r": "р", "s": "с", "t": "т", "u": "у", "v": "в", "x": "х",
+    "y": "й", "z": "з",
 }
 
 CYRILLIC_TO_LATIN_CHARS = {
-    "а": "a",
-    "б": "b",
-    "д": "d",
-    "е": "e",
-    "ф": "f",
-    "г": "g",
-    "ҳ": "h",
-    "и": "i",
-    "ж": "j",
-    "к": "k",
-    "л": "l",
-    "м": "m",
-    "н": "n",
-    "о": "o",
-    "п": "p",
-    "қ": "q",
-    "р": "r",
-    "с": "s",
-    "т": "t",
-    "у": "u",
-    "в": "v",
-    "х": "x",
-    "й": "y",
-    "з": "z",
-    "ш": "sh",
-    "ч": "ch",
-    "я": "ya",
-    "ё": "yo",
-    "ю": "yu",
-    "ў": "o'",
-    "ғ": "g'",
+    "а": "a", "б": "b", "д": "d", "е": "e", "ф": "f", "г": "g", "ҳ": "h", "и": "i", "ж": "j", "к": "k", "л": "l",
+    "м": "m", "н": "n", "о": "o", "п": "p", "қ": "q", "р": "r", "с": "s", "т": "t", "у": "u", "в": "v", "х": "x",
+    "й": "y", "з": "z", "ш": "sh", "ч": "ch", "я": "ya", "ё": "yo", "ю": "yu", "ў": "o'", "ғ": "g'",
 }
 
 
@@ -124,12 +66,7 @@ def build_transliterated_search_q(fields, search):
 
 class TransliteratedSearchFilter(SearchFilter):
     def construct_search(self, field_name, queryset=None):
-        lookup_prefixes = {
-            "^": "istartswith",
-            "=": "iexact",
-            "@": "search",
-            "$": "iregex",
-        }
+        lookup_prefixes = {"^": "istartswith", "=": "iexact", "@": "search", "$": "iregex"}
         lookup = lookup_prefixes.get(field_name[0], "icontains")
 
         if field_name[0] in lookup_prefixes:

@@ -1,7 +1,6 @@
 from django.db.models import Sum, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
-
 from employee.models import SalaryPayment, Employee
 
 
