@@ -25,19 +25,15 @@ class DebtServiceTest(TestCase):
 
     def test_cover_debt_does_not_mutate_existing_orders(self):
         DebtService.cover_debt(self.customer.id, Decimal("40.00"))
-
         self.order.refresh_from_db()
         self.customer.refresh_from_db()
-
         self.assertEqual(self.order.covered_amount, Decimal("10.00"))
         self.assertEqual(self.customer.debt, Decimal("60.00"))
         self.assertEqual(self.customer.covered_debt, Decimal("40.00"))
         self.assertTrue(
             BalanceHistory.objects.filter(
-                customer=self.customer,
-                type=BalanceHistory.Type.PAYMENT,
-                amount=Decimal("40.00"),
-            ).exists()
+                customer=self.customer, type=BalanceHistory.Type.PAYMENT,
+                amount=Decimal("40.00")).exists()
         )
 
     def test_customer_list_is_paginated(self):
@@ -69,22 +65,15 @@ class DebtServiceTest(TestCase):
             BalanceHistory.objects.filter(
                 customer=self.customer,
                 type=BalanceHistory.Type.PAYMENT,
-                amount=Decimal("150.00"),
-            ).exists()
+                amount=Decimal("150.00")).exists()
         )
 
     def test_bulk_customer_debt_matches_single_customer_debt(self):
         today = self.order.created_at.date()
 
         single_debt = CustomerBalanceService.calculate_customer_debt(
-            customer=self.customer,
-            date_from=today,
-            date_to=today,
-        )
+            customer=self.customer, date_from=today, date_to=today)
         bulk_debt = CustomerBalanceService.bulk_calculate_customer_debt(
-            customers=[self.customer],
-            date_from=today,
-            date_to=today,
-        )[self.customer.id]
+            customers=[self.customer], date_from=today, date_to=today)[self.customer.id]
 
         self.assertEqual(bulk_debt, single_debt)
