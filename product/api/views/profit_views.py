@@ -60,7 +60,7 @@ class ProfitByCategoryView(APIView):
             if category.name.strip().upper() == "KROMKA":
                 continue
 
-            products = category.product_set.all()
+            products = category.products.all()
             cat_profit_som = Decimal("0")
             cat_profit_dollar = Decimal("0")
 
@@ -166,7 +166,7 @@ class KromkaProfitView(APIView):
             start_dt, end_dt, end_date)
         rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
         rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
-        cat_products = kromka.product_set.all()
+        cat_products = kromka.products.all()
         product_profit_dollar = Decimal("0")
         product_profit_som = Decimal("0")
 
