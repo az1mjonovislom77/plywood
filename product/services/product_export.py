@@ -88,7 +88,7 @@ class MaterialReportService:
             .values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum("arrival_price_in_sum"), Value(Decimal("0")),
+                    Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
                     output_field=cls._money_field(),
                 ),
             )
@@ -104,15 +104,7 @@ class MaterialReportService:
                     Value(Decimal("0")),
                     output_field=cls._money_field(),
                 ),
-                total_in_dollar=Coalesce(
-                    Sum(
-                        F("quantity") * Case(
-                            When(new_price_in_dollar__isnull=False, then=F("new_price_in_dollar")),
-                            default=F("price_in_dollar"),
-                            output_field=cls._money_field())),
-                    Value(Decimal("0")),
-                    output_field=cls._money_field()
-                )), extra_fields=['total_in_dollar']
+            )
         )
 
         in_map = cls._to_map(
@@ -121,7 +113,7 @@ class MaterialReportService:
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
                 total=Coalesce(
-                    Sum("arrival_price_in_sum"),
+                    Sum(cls._money_expr("count", "arrival_price")),
                     Value(Decimal("0")),
                     output_field=cls._money_field())))
 
@@ -145,7 +137,7 @@ class MaterialReportService:
                     output_field=cls._money_field()
                 )), extra_fields=['total_in_dollar'])
 
-        open_cogs_sum_map, open_cogs_usd_map, period_cogs_sum_map, period_cogs_usd_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
+        open_cogs_map, period_cogs_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
 
         grouped_products = {}
         for product in products:
@@ -177,7 +169,7 @@ class MaterialReportService:
             cell.value = f"{s_value} ({s_value_in_dollar}$)"
             cell.alignment = right
 
-        ws.merge_cells("B1:M1")
+        ws.merge_cells("B1:L1")
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
@@ -193,7 +185,6 @@ class MaterialReportService:
         ws.merge_cells("H4:I4")
         ws.merge_cells("J4:K4")
         ws.merge_cells("L4:M4")
-        ws.merge_cells("N4:N5")
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель / Материал"
         ws["E4"] = "Ед.изм"
@@ -201,7 +192,7 @@ class MaterialReportService:
         ws["H4"] = "Приход"
         ws["J4"] = "Расход"
         ws["L4"] = "Сальдо на конец"
-        ws["N4"] = "Sof Foyda"
+        ws["N4"] = "Sof Foyda Dollar"
         ws["F5"] = "Количество"
         ws["G5"] = "Сумма"
         ws["H5"] = "Количество"
@@ -210,9 +201,10 @@ class MaterialReportService:
         ws["K5"] = "Сумма"
         ws["L5"] = "Количество"
         ws["M5"] = "Сумма"
+        ws["N5"] = "Сумма"
 
         for r in range(4, 7):
-            for c in range(1, 15):
+            for c in range(1, 14):
                 cell = ws.cell(r, c)
                 cell.font = bold
                 cell.alignment = center
@@ -226,8 +218,6 @@ class MaterialReportService:
         grand_out_qty = Decimal("0")
         grand_out_sum = Decimal("0")
         grand_out_sum_in_dollar = Decimal("0")
-        grand_net_profit_sum = Decimal("0")
-        grand_net_profit_usd = Decimal("0")
         grand_end_qty = Decimal("0")
         grand_end_sum = Decimal("0")
 
@@ -243,8 +233,6 @@ class MaterialReportService:
             cat_out_qty = Decimal("0")
             cat_out_sum = Decimal("0")
             cat_out_sum_in_dollar = Decimal("0")
-            cat_net_profit_sum = Decimal("0")
-            cat_net_profit_usd = Decimal("0")
             cat_end_qty = Decimal("0")
             cat_end_sum = Decimal("0")
 
@@ -252,23 +240,19 @@ class MaterialReportService:
 
             for product in category_products:
                 open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
+                open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 out_period = out_map.get(product.id,
                                          {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
                 open_qty = open_in["qty"] - open_out["qty"]
-                open_sum = open_in["total"] - open_cogs_sum_map.get(product.id, Decimal("0"))
+                open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 out_qty = out_period["qty"]
-                out_sum = out_period["total"]
+                out_sum = period_cogs_map.get(product.id, Decimal("0"))
                 out_sum_in_dollar = out_period["total_in_dollar"]
-                period_cogs_sum = period_cogs_sum_map.get(product.id, Decimal("0"))
-                period_cogs_usd = period_cogs_usd_map.get(product.id, Decimal("0"))
-                net_profit_sum = out_sum - period_cogs_sum
-                net_profit_usd = out_sum_in_dollar - period_cogs_usd
                 end_qty = open_qty + in_qty - out_qty
-                end_sum = open_sum + in_sum - period_cogs_sum
+                end_sum = open_sum + in_sum - out_sum
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
@@ -276,8 +260,6 @@ class MaterialReportService:
                 cat_out_qty += out_qty
                 cat_out_sum += out_sum
                 cat_out_sum_in_dollar += out_sum_in_dollar
-                cat_net_profit_sum += net_profit_sum
-                cat_net_profit_usd += net_profit_usd
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
                 product_rows.append({
@@ -291,8 +273,6 @@ class MaterialReportService:
                     "out_qty": out_qty,
                     "out_sum": out_sum,
                     "out_sum_in_dollar": out_sum_in_dollar,
-                    "net_profit_sum": net_profit_sum,
-                    "net_profit_usd": net_profit_usd,
                     "end_qty": end_qty,
                     "end_sum": end_sum,
                 })
@@ -304,8 +284,6 @@ class MaterialReportService:
             grand_out_qty += cat_out_qty
             grand_out_sum += cat_out_sum
             grand_out_sum_in_dollar += cat_out_sum_in_dollar
-            grand_net_profit_sum += cat_net_profit_sum
-            grand_net_profit_usd += cat_net_profit_usd
             grand_end_qty += cat_end_qty
             grand_end_sum += cat_end_sum
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
@@ -318,11 +296,10 @@ class MaterialReportService:
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
             money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
-            money_with_dollar(ws.cell(row, 14), cat_net_profit_sum, cat_net_profit_usd)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
 
-            for c in range(1, 15):
+            for c in range(1, 14):
                 ws.cell(row, c).border = border
                 ws.cell(row, c).font = bold
 
@@ -339,11 +316,10 @@ class MaterialReportService:
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
                 money_with_dollar(ws.cell(row, 11), item["out_sum"], item["out_sum_in_dollar"])
-                money_with_dollar(ws.cell(row, 14), item["net_profit_sum"], item["net_profit_usd"])
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
 
-                for c in range(1, 15):
+                for c in range(1, 14):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
                     ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
@@ -360,16 +336,16 @@ class MaterialReportService:
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
         money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
-        money_with_dollar(ws.cell(row, 14), grand_net_profit_sum, grand_net_profit_usd)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
+        money(ws.cell(row, 14), grand_end_sum)
 
-        for c in range(1, 15):
+        for c in range(1, 14):
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
-                  "L": 12, "M": 18, "N": 20}
+                  "L": 12, "M": 18}
 
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
