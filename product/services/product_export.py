@@ -10,6 +10,7 @@ from category.models import Category
 from product.models import Product
 from acceptance.models import Acceptance
 from order.models import Order, OrderItem
+from product.services.export_json import MaterialReportJsonService
 
 
 class MaterialReportService:
@@ -137,6 +138,8 @@ class MaterialReportService:
                     output_field=cls._money_field()
                 )), extra_fields=['total_in_dollar'])
 
+        open_cogs_map, period_cogs_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
+
         grouped_products = {}
         for product in products:
             grouped_products.setdefault(product.category_id, []).append(product)
@@ -241,11 +244,11 @@ class MaterialReportService:
                 out_period = out_map.get(product.id,
                                          {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
                 open_qty = open_in["qty"] - open_out["qty"]
-                open_sum = open_in["total"] - open_out["total"]
+                open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 out_qty = out_period["qty"]
-                out_sum = out_period["total"]
+                out_sum = period_cogs_map.get(product.id, Decimal("0"))
                 out_sum_in_dollar = out_period["total_in_dollar"]
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_sum
