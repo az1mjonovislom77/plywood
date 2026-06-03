@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.cell.cell import MergedCell
 from category.models import Category
+from acceptance.models import CurrencyRate
 from product.models import Product
 from acceptance.models import Acceptance
 from order.models import Order, OrderItem
@@ -139,6 +140,10 @@ class MaterialReportService:
                 )), extra_fields=['total_in_dollar'])
 
         open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
+
+        # get currency rate for conversion to sum (use latest rate <= end_date)
+        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
+        rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
 
         grouped_products = {}
         for product in products:
@@ -281,8 +286,11 @@ class MaterialReportService:
                 cat_end_sum += end_sum
 
                 # profits
-                profit_som = out_revenue - out_cogs
                 profit_dollar = out_revenue_in_dollar - out_cogs_in_dollar
+                if rate_value and rate_value != Decimal("0"):
+                    profit_som = (profit_dollar * rate_value).quantize(Decimal("0.01"))
+                else:
+                    profit_som = out_revenue - out_cogs
                 cat_profit_sum += profit_som
                 cat_profit_sum_in_dollar += profit_dollar
 
