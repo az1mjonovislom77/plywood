@@ -4,10 +4,12 @@ from django.contrib import admin
 
 class AcceptanceAdmin(admin.ModelAdmin):
     list_display = ("id", "supplier", "product")
+    list_select_related = ("supplier", "product")
 
 
 class AcceptanceHistoryAdmin(admin.ModelAdmin):
     list_display = ("id",)
+    list_select_related = ("product",)
 
 
 class CurrencyRateAdmin(admin.ModelAdmin):

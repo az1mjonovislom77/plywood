@@ -28,7 +28,7 @@ class AcceptanceSerializer(serializers.ModelSerializer):
         return obj.count * obj.arrival_price_in_dollar
 
     def get_history(self, obj):
-        history = obj.histories.order_by("-created_at")
+        history = obj.histories.all()
         # Bu yerda context o'tkazilishini ta'minlash muhim
         return AcceptanceHistorySerializer(history, many=True, context=self.context).data
 

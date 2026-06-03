@@ -99,21 +99,51 @@ class AcceptanceWorkflowService:
                 sale_price_in_sum=new_sale_price_in_sum
             )
 
-            if acceptance.supplier:
-                supplier = Supplier.objects.select_for_update().get(
-                    pk=acceptance.supplier_id
-                )
+            old_supplier = acceptance.supplier
+            new_supplier = data.get("supplier", old_supplier)
 
-                purchase_txn = SupplierTransaction.objects.filter(
-                    supplier_id=acceptance.supplier_id,
-                    transaction_type=SupplierTransaction.TransactionType.PURCHASE,
-                    description=f"Acceptance #{acceptance.id}"
-                ).first()
+            suppliers_to_update = set()
+            if old_supplier:
+                suppliers_to_update.add(old_supplier.id)
+            if new_supplier:
+                suppliers_to_update.add(new_supplier.id)
 
+            locked_suppliers = {}
+            if suppliers_to_update:
+                locked_suppliers = {
+                    s.id: s for s in Supplier.objects.select_for_update().filter(id__in=suppliers_to_update)
+                }
+
+            if old_supplier and old_supplier.id in locked_suppliers:
+                old_supplier = locked_suppliers[old_supplier.id]
+            
+            if new_supplier and new_supplier.id in locked_suppliers:
+                new_supplier = locked_suppliers[new_supplier.id]
+
+            purchase_txn = SupplierTransaction.objects.filter(
+                transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+                description=f"Acceptance #{acceptance.id}"
+            ).first()
+
+            if new_supplier:
                 if purchase_txn:
                     purchase_txn.amount = new_debt
-                    purchase_txn.save(update_fields=["amount"])
-                    SupplierService.recalculate_debt(supplier)
+                    purchase_txn.supplier = new_supplier
+                    purchase_txn.save(update_fields=["amount", "supplier"])
+                else:
+                    SupplierTransaction.objects.create(
+                        supplier=new_supplier,
+                        transaction_type=SupplierTransaction.TransactionType.PURCHASE,
+                        amount=new_debt,
+                        description=f"Acceptance #{acceptance.id}"
+                    )
+                SupplierService.recalculate_debt(new_supplier)
+            else:
+                if purchase_txn:
+                    purchase_txn.delete()
+
+            if old_supplier and old_supplier != new_supplier:
+                SupplierService.recalculate_debt(old_supplier)
 
         acceptance.arrival_price = new_arrival_price
         acceptance.sale_price = new_sale_price

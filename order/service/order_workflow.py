@@ -2,7 +2,6 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from customer.models import Customer
 from order.models import Order, Banding, Cutting
 from product.models import Product
 from user.models import User
@@ -161,14 +160,11 @@ class OrderWorkflowService:
         if not rate_obj:
             raise ValueError("Bugungi dollar kursi kiritilmagan")
         rate_value = rate_obj.rate
-        
         new_customer = OrderService._get_customer(data.get("customer_id"))
         payment_method = data['payment_method']
-
         current_items = {item.id: item for item in order.items.select_related('product', 'cutting', 'banding')}
         incoming_items_map = {item.get('id'): item for item in data['items'] if item.get('id')}
         new_items_data = [item for item in data['items'] if not item.get('id')]
-        
         item_ids_to_delete = set(current_items.keys()) - set(incoming_items_map.keys())
         for item_id in item_ids_to_delete:
             item = current_items[item_id]
@@ -202,7 +198,6 @@ class OrderWorkflowService:
             new_sell_price = item_data.get("new_sell_price")
             actual_sell_price = new_sell_price if new_sell_price is not None else item.price
             sell_price_difference = actual_sell_price - original_sell_price if new_sell_price is not None else item.sell_price_difference
-            price_in_dollar = item.price_in_dollar
             new_price_in_dollar = item.new_price_in_dollar
             if rate_value is not None and rate_value != Decimal("0"):
                 if new_sell_price is not None:
@@ -210,9 +205,11 @@ class OrderWorkflowService:
                         Decimal("0.0001"), rounding=ROUND_HALF_UP
                     )
 
-            item.cutting = OrderWorkflowService._handle_service(Cutting, item.cutting, item_data.get('cutting'), new_customer, payment_method)
-            item.banding = OrderWorkflowService._handle_service(Banding, item.banding, item_data.get('banding'), new_customer, payment_method)
-            
+            item.cutting = OrderWorkflowService._handle_service(Cutting, item.cutting, item_data.get('cutting'),
+                                                                new_customer, payment_method)
+            item.banding = OrderWorkflowService._handle_service(Banding, item.banding, item_data.get('banding'),
+                                                                new_customer, payment_method)
+
             item.quantity = new_quantity
             item.price = actual_sell_price
             item.new_sell_price = new_sell_price
@@ -245,8 +242,10 @@ class OrderWorkflowService:
                         Decimal("0.0001"), rounding=ROUND_HALF_UP
                     )
 
-            cutting_instance = OrderWorkflowService._handle_service(Cutting, None, item_data.get('cutting'), new_customer, payment_method)
-            banding_instance = OrderWorkflowService._handle_service(Banding, None, item_data.get('banding'), new_customer, payment_method)
+            cutting_instance = OrderWorkflowService._handle_service(Cutting, None, item_data.get('cutting'),
+                                                                    new_customer, payment_method)
+            banding_instance = OrderWorkflowService._handle_service(Banding, None, item_data.get('banding'),
+                                                                    new_customer, payment_method)
 
             new_order_items.append(OrderItem(
                 order=order,

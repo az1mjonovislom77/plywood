@@ -22,7 +22,7 @@ class AcceptanceSelector:
 
     @staticmethod
     def history_queryset():
-        return AcceptanceHistory.objects.select_related("product", "acceptance")
+        return AcceptanceHistory.objects.select_related("product", "acceptance", "user")
 
     @staticmethod
     def supplier_acceptances_queryset(supplier_id, date):
