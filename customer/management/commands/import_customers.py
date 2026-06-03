@@ -39,7 +39,6 @@ class Command(BaseCommand):
                 continue
                 
             try:
-                # Bazada shu ismli mijoz bor-yo'qligini tekshiramiz (Dublikat bo'lmasligi uchun)
                 customer, created = Customer.objects.get_or_create(
                     full_name=customer_name,
                     defaults={

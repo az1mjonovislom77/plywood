@@ -100,7 +100,6 @@ class MaterialReportJsonService:
             product_id = row["product_id"]
             qty = Decimal(str(row["quantity"]))
             sale_date = cls._sale_date(row)
-
             cogs = Decimal("0")
             remaining = qty
             while remaining > 0 and stock_map[product_id]:

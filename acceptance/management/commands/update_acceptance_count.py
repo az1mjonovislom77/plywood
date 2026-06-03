@@ -23,7 +23,7 @@ class Command(BaseCommand):
         if df.empty:
             self.stdout.write(self.style.WARNING("The Excel file is empty or could not be read properly."))
             return
-            
+
         self.stdout.write(f"Found {len(df)} rows in the Excel file.")
 
         success_count = 0
@@ -32,10 +32,8 @@ class Command(BaseCommand):
 
         for index, row in df.iterrows():
             product_name_raw = row[0]
-            
-            product_name = str(product_name_raw).strip() if pd.notna(product_name_raw) else ""
 
-            # Miqdorni avtomatik topish (huddi oldingisidek barcha ustunlarni aylanib chiqamiz)
+            product_name = str(product_name_raw).strip() if pd.notna(product_name_raw) else ""
             count_val = None
             for col_idx in range(1, len(df.columns)):
                 if pd.notna(row[col_idx]):
@@ -47,14 +45,16 @@ class Command(BaseCommand):
                         pass
 
             if not product_name or count_val is None:
-                self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because count is empty for '{product_name}'"))
+                self.stdout.write(
+                    self.style.NOTICE(f"Row {index + 1}: Skipped because count is empty for '{product_name}'"))
                 skipped_count += 1
                 continue
-                
+
             try:
                 count = Decimal(str(count_val))
             except Exception:
-                self.stdout.write(self.style.WARNING(f"Row {index + 1}: Invalid count format for product '{product_name}'. Found: {count_val}"))
+                self.stdout.write(self.style.WARNING(
+                    f"Row {index + 1}: Invalid count format for product '{product_name}'. Found: {count_val}"))
                 error_count += 1
                 continue
 
@@ -65,39 +65,37 @@ class Command(BaseCommand):
                 error_count += 1
                 continue
             except Product.MultipleObjectsReturned:
-                self.stdout.write(self.style.ERROR(f"Row {index + 1}: Multiple products found with name '{product_name}'"))
+                self.stdout.write(
+                    self.style.ERROR(f"Row {index + 1}: Multiple products found with name '{product_name}'"))
                 error_count += 1
                 continue
 
-            # Kutish holatidagi qabulni qidirish
             acceptances = Acceptance.objects.filter(
-                product=product, 
+                product=product,
                 acceptance_status=Acceptance.AcceptanceStatus.WAITING
             ).order_by('-created_at')
-            
+
             if not acceptances.exists():
-                self.stdout.write(self.style.ERROR(f"Row {index + 1}: No 'WAITING' acceptance found for '{product_name}'"))
+                self.stdout.write(
+                    self.style.ERROR(f"Row {index + 1}: No 'WAITING' acceptance found for '{product_name}'"))
                 error_count += 1
                 continue
-                
-            # Agar bir xil mahsulotdan bir nechta kutish holatidagilari bo'lsa, eng oxirgisini oladi
+
             acceptance = acceptances.first()
             old_count = acceptance.count
-            
-            # Miqdorni yangilash
             acceptance.count = count
             acceptance.save(update_fields=['count'])
-            
-            # Historydagi yaratilgan vaqtidagi miqdorni ham to'g'rilab qo'yamiz (logika buzilmasligi uchun)
             history = AcceptanceHistory.objects.filter(
-                acceptance=acceptance, 
+                acceptance=acceptance,
                 action=AcceptanceHistory.Action.CREATE
             ).first()
             if history:
                 history.count = count
                 history.save(update_fields=['count'])
 
-            self.stdout.write(self.style.SUCCESS(f"Row {index + 1}: Updated '{product_name}' count from {old_count} to {count}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"Row {index + 1}: Updated '{product_name}' count from {old_count} to {count}"))
             success_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f"\\nUpdate finished! Successful: {success_count}, Errors: {error_count}, Skipped: {skipped_count}"))
+        self.stdout.write(self.style.SUCCESS(
+            f"\\nUpdate finished! Successful: {success_count}, Errors: {error_count}, Skipped: {skipped_count}"))

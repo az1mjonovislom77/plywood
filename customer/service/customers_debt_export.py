@@ -67,9 +67,7 @@ class CustomerDebtExcelService:
         ws['B3'] = 'Mijozlar'
         ws['C3'] = 'Ortiqcha to`lov qilganlar'
         ws['D3'] = 'Qarzdorlar'
-
         row = 5
-
         total_dt = Decimal("0")
         total_kt = Decimal("0")
         customers = list(Customer.objects.all().order_by("full_name"))

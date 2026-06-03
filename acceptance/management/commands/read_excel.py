@@ -56,22 +56,15 @@ class Command(BaseCommand):
         success_count = 0
         error_count = 0
         skipped_count = 0
-
-        # We will try to find which column is the product name and which is the count
-        # In this specific case, it seems the count is 'nan' in column 1 (index 1)
-        # Let's inspect all columns to find the count.
         
         for index, row in df.iterrows():
             product_name_raw = row[0]
             
             product_name = str(product_name_raw).strip() if pd.notna(product_name_raw) else ""
-            
-            # Find the first column that has a valid number for count, starting from column 1
             count_val = None
             for col_idx in range(1, len(df.columns)):
                 if pd.notna(row[col_idx]):
                     try:
-                        # Try to cast to float to check if it's a number
                         float(row[col_idx])
                         count_val = row[col_idx]
                         break
@@ -79,7 +72,6 @@ class Command(BaseCommand):
                         pass
             
             if not product_name or count_val is None:
-                 # If we couldn't find a valid count in any other column, let's just log what we found in col 1
                  original_count = row[1] if len(df.columns) > 1 else 'N/A'
                  self.stdout.write(self.style.NOTICE(f"Row {index + 1}: Skipped because count is empty. (Name: '{product_name}', Count Col 1: '{original_count}')"))
                  skipped_count += 1

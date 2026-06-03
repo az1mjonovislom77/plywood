@@ -6,6 +6,7 @@ from django.db.models import Sum, Case, When, F, DecimalField
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 
+
 class SupplierService:
 
     @staticmethod
@@ -18,11 +19,7 @@ class SupplierService:
                         When(transaction_type="payment", then=F("amount") * Decimal("-1")),
                         default=Decimal("0.00"),
                         output_field=DecimalField(max_digits=14, decimal_places=2),
-                    )
-                ),
-                Decimal("0.00")
-            )
-        )["total"]
+                    )), Decimal("0.00")))["total"]
 
         supplier.debt = debt
         supplier.save(update_fields=["debt"])
@@ -47,10 +44,8 @@ class SupplierService:
             raise ValidationError("Payment exceeds current cashbox balance")
 
         SupplierTransaction.objects.create(
-            supplier=supplier,
-            transaction_type=SupplierTransaction.TransactionType.PAYMENT,
-            amount=amount,
-            description="Debt payment"
+            supplier=supplier, transaction_type=SupplierTransaction.TransactionType.PAYMENT,
+            amount=amount, description="Debt payment"
         )
 
         SupplierService.recalculate_debt(supplier)

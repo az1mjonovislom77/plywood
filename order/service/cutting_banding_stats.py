@@ -2,7 +2,7 @@ from django.db.models import Sum, F, DecimalField, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from decimal import Decimal
-from order.models import Order, Banding, Cutting
+from order.models import Banding, Cutting
 
 
 class DashboardStatsService:
@@ -43,13 +43,13 @@ class DashboardStatsService:
         }
 
         stats["total_income"] = (
-            stats["total_cutting_income"] +
-            stats["total_banding_income"]
+                stats["total_cutting_income"] +
+                stats["total_banding_income"]
         )
 
         stats["today_income"] = (
-            stats["today_cutting_income"] +
-            stats["today_banding_income"]
+                stats["today_cutting_income"] +
+                stats["today_banding_income"]
         )
 
         return stats

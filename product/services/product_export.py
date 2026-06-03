@@ -115,10 +115,7 @@ class MaterialReportService:
                 total=Coalesce(
                     Sum(cls._money_expr("count", "arrival_price")),
                     Value(Decimal("0")),
-                    output_field=cls._money_field(),
-                ),
-            )
-        )
+                    output_field=cls._money_field())))
 
         out_map = cls._to_map(
             OrderItem.objects.filter(
@@ -135,15 +132,10 @@ class MaterialReportService:
                         F("quantity") * Case(
                             When(new_price_in_dollar__isnull=False, then=F("new_price_in_dollar")),
                             default=F("price_in_dollar"),
-                            output_field=cls._money_field()
-                        )
-                    ),
+                            output_field=cls._money_field())),
                     Value(Decimal("0")),
                     output_field=cls._money_field()
-                )
-            ),
-            extra_fields=['total_in_dollar']
-        )
+                )), extra_fields=['total_in_dollar'])
 
         grouped_products = {}
         for product in products:

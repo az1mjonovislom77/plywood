@@ -2,6 +2,7 @@ from rest_framework import serializers
 from acceptance.models import Acceptance, AcceptanceHistory
 from utils.base.serializers_base import TrimmedDecimalField
 
+
 class AcceptanceSerializer(serializers.ModelSerializer):
     count = TrimmedDecimalField(max_digits=20, decimal_places=3)
     product_name = serializers.CharField(source="product.name", read_only=True)
@@ -16,9 +17,10 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Acceptance
-        fields = ["id", "supplier", "product", "price_type", "product_name", "arrival_price", "arrival_price_in_dollar", 
+        fields = ["id", "supplier", "product", "price_type", "product_name", "arrival_price", "arrival_price_in_dollar",
                   "arrival_price_in_sum", "sale_price", "sale_price_in_dollar", "sale_price_in_sum", "count",
-                  "arrival_date", "description", "acceptance_status", "accepted_by_name", "accepted_at", "history", "investment", "investment_in_dollar"]
+                  "arrival_date", "description", "acceptance_status", "accepted_by_name", "accepted_at", "history",
+                  "investment", "investment_in_dollar"]
         read_only_fields = ["acceptance_status"]
 
     def get_investment(self, obj):
@@ -29,7 +31,6 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
     def get_history(self, obj):
         history = obj.histories.all()
-        # Bu yerda context o'tkazilishini ta'minlash muhim
         return AcceptanceHistorySerializer(history, many=True, context=self.context).data
 
     def to_representation(self, instance):
@@ -37,7 +38,8 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
 
-        if not request or getattr(request.user, 'role', None) != getattr(request.user, 'UserRoles', type('roles', (), {'MANAGER': 'manager'})).MANAGER:
+        if not request or getattr(request.user, 'role', None) != getattr(request.user, 'UserRoles', type('roles', (), {
+            'MANAGER': 'manager'})).MANAGER:
             data.pop("arrival_price", None)
             data.pop("arrival_price_in_dollar", None)
             data.pop("arrival_price_in_sum", None)
@@ -46,8 +48,8 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
         return data
 
+
 class AcceptanceHistorySerializer(serializers.ModelSerializer):
-    # Circular importni oldini olish uchun StringRelatedField ishlatamiz
     user = serializers.StringRelatedField()
     count = TrimmedDecimalField(max_digits=20, decimal_places=3)
     product_name = serializers.CharField(source="product.name", read_only=True)
@@ -64,7 +66,6 @@ class AcceptanceCancelSerializer(serializers.Serializer):
 
 class SupplierAcceptanceSerializer(AcceptanceSerializer):
     def get_history(self, obj):
-        # Bu yerda ham context o'tkazilishi kerak
         return AcceptanceHistorySerializer(obj.histories.all(), many=True, context=self.context).data
 
 

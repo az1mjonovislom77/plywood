@@ -1,9 +1,6 @@
-from io import BytesIO
-from decimal import Decimal, ROUND_HALF_UP
-from django.utils import timezone
 import openpyxl
+from io import BytesIO
 from openpyxl.styles import Font, Alignment, Border, Side
-from acceptance.models import CurrencyRate
 
 
 class ProductExcelExportService:
@@ -22,8 +19,8 @@ class ProductExcelExportService:
             "Узунлиги",
             "Эни",
             "Қалинлиги",
-            "Келиш нархи (so'm)", 
-            "Келиш нархи ($)", 
+            "Келиш нархи (so'm)",
+            "Келиш нархи ($)",
             "Инвестиция ($)",
             "Сотиш нархи (so'm)",
             "Сотиш нархи ($)",
@@ -37,9 +34,9 @@ class ProductExcelExportService:
         bold_font = Font(bold=True)
         center_alignment = Alignment(horizontal="center", vertical="center")
         thin_border = Border(
-            left=Side(style='thin'), 
-            right=Side(style='thin'), 
-            top=Side(style='thin'), 
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
             bottom=Side(style='thin')
         )
 
@@ -53,14 +50,11 @@ class ProductExcelExportService:
 
         for product in queryset:
             category_name = product.category.name if product.category else ""
-            
             arrival_price = float(product.arrival_price) if product.arrival_price else 0
             arrival_price_in_dollar = float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0
             sale_price = float(product.sale_price) if product.sale_price else 0
             sale_price_in_dollar = float(product.sale_price_in_dollar) if product.sale_price_in_dollar else 0
-            
             count = float(product.count) if product.count else 0
-
             investment_in_dollar = count * arrival_price_in_dollar
             total_investment += investment_in_dollar
             total_count += count
@@ -83,14 +77,13 @@ class ProductExcelExportService:
                 product.arrival_date.strftime('%Y-%m-%d') if product.arrival_date else "",
                 product.description if product.description else ""
             ]
-            
+
             ws.append(row)
 
         total_row = [
             "", "", "ЖАМИ", "", "", "", "", "", "", "", total_investment, "", "", total_count, "", ""
         ]
         ws.append(total_row)
-        
         last_row_idx = ws.max_row
         for cell in ws[last_row_idx]:
             cell.font = bold_font
@@ -103,7 +96,7 @@ class ProductExcelExportService:
         for row in ws.iter_rows(min_row=2, max_row=last_row_idx - 1):
             for cell in row:
                 cell.border = thin_border
-                if isinstance(cell.value, (int, float)) and cell.column not in [1]: # Don't format ID
+                if isinstance(cell.value, (int, float)) and cell.column not in [1]:  # Don't format ID
                     cell.number_format = '#,##0.00'
 
         ws.column_dimensions["A"].width = 10
@@ -122,7 +115,6 @@ class ProductExcelExportService:
         ws.column_dimensions["N"].width = 20
         ws.column_dimensions["O"].width = 15
         ws.column_dimensions["P"].width = 30
-
         output = BytesIO()
         wb.save(output)
         output.seek(0)

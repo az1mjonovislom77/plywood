@@ -1,5 +1,4 @@
 from decimal import Decimal
-
 from django.test import TestCase
 from product.api.serializers import ProductSerializer
 from product.models import Product

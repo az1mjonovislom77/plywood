@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 from acceptance.selectors.acceptance_selectors import AcceptanceSelector
 
 
