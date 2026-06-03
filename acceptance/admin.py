@@ -3,7 +3,7 @@ from django.contrib import admin
 
 
 class AcceptanceAdmin(admin.ModelAdmin):
-    list_display = ("id", "supplier", "product")
+    list_display = ("id", "supplier", "product", "count")
     list_select_related = ("supplier", "product")
 
 
