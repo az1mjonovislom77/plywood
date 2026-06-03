@@ -137,7 +137,7 @@ class MaterialReportService:
                     output_field=cls._money_field()
                 )), extra_fields=['total_in_dollar'])
 
-        open_cogs_map, period_cogs_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
+        open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
 
         grouped_products = {}
         for product in products:
@@ -185,6 +185,7 @@ class MaterialReportService:
         ws.merge_cells("H4:I4")
         ws.merge_cells("J4:K4")
         ws.merge_cells("L4:M4")
+        ws.merge_cells("N4:N6")
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель / Материал"
         ws["E4"] = "Ед.изм"
@@ -192,6 +193,7 @@ class MaterialReportService:
         ws["H4"] = "Приход"
         ws["J4"] = "Расход"
         ws["L4"] = "Сальдо на конец"
+        ws["N4"] = "Соф фойда"
         ws["F5"] = "Количество"
         ws["G5"] = "Сумма"
         ws["H5"] = "Количество"
@@ -200,9 +202,10 @@ class MaterialReportService:
         ws["K5"] = "Сумма"
         ws["L5"] = "Количество"
         ws["M5"] = "Сумма"
+        ws["N5"] = "Сумма"
 
         for r in range(4, 7):
-            for c in range(1, 14):
+            for c in range(1, 15):
                 cell = ws.cell(r, c)
                 cell.font = bold
                 cell.alignment = center
@@ -215,9 +218,12 @@ class MaterialReportService:
         grand_in_sum = Decimal("0")
         grand_out_qty = Decimal("0")
         grand_out_sum = Decimal("0")
+        grand_out_revenue_sum = Decimal("0")
         grand_out_sum_in_dollar = Decimal("0")
         grand_end_qty = Decimal("0")
         grand_end_sum = Decimal("0")
+        grand_profit_sum = Decimal("0")
+        grand_profit_sum_in_dollar = Decimal("0")
 
         for category in categories:
             category_products = grouped_products.get(category.id, [])
@@ -230,9 +236,12 @@ class MaterialReportService:
             cat_in_sum = Decimal("0")
             cat_out_qty = Decimal("0")
             cat_out_sum = Decimal("0")
+            cat_out_revenue_sum = Decimal("0")
             cat_out_sum_in_dollar = Decimal("0")
             cat_end_qty = Decimal("0")
             cat_end_sum = Decimal("0")
+            cat_profit_sum = Decimal("0")
+            cat_profit_sum_in_dollar = Decimal("0")
 
             product_rows = []
 
@@ -247,19 +256,33 @@ class MaterialReportService:
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 out_qty = out_period["qty"]
-                out_sum = period_cogs_map.get(product.id, Decimal("0"))
-                out_sum_in_dollar = out_period["total_in_dollar"]
+                # revenue (som) and revenue (dollar)
+                out_revenue = out_period.get("total", Decimal("0"))
+                out_revenue_in_dollar = out_period.get("total_in_dollar", Decimal("0"))
+                # cogs in som and in dollar (from FIFO)
+                out_cogs = period_cogs_map.get(product.id, Decimal("0"))
+                out_cogs_in_dollar = period_cogs_map_in_dollar.get(product.id, Decimal("0"))
                 end_qty = open_qty + in_qty - out_qty
-                end_sum = open_sum + in_sum - out_sum
+                end_sum = open_sum + in_sum - out_cogs
+
+                # accumulate category totals
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
                 cat_in_sum += in_sum
                 cat_out_qty += out_qty
-                cat_out_sum += out_sum
-                cat_out_sum_in_dollar += out_sum_in_dollar
+                cat_out_sum += out_cogs
+                cat_out_revenue_sum += out_revenue
+                cat_out_sum_in_dollar += out_revenue_in_dollar
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
+
+                # profits
+                profit_som = out_revenue - out_cogs
+                profit_dollar = out_revenue_in_dollar - out_cogs_in_dollar
+                cat_profit_sum += profit_som
+                cat_profit_sum_in_dollar += profit_dollar
+
                 product_rows.append({
                     "code": product.id,
                     "name": product.name,
@@ -269,8 +292,12 @@ class MaterialReportService:
                     "in_qty": in_qty,
                     "in_sum": in_sum,
                     "out_qty": out_qty,
-                    "out_sum": out_sum,
-                    "out_sum_in_dollar": out_sum_in_dollar,
+                    "out_revenue": out_revenue,
+                    "out_sum": out_cogs,
+                    "out_sum_in_dollar": out_revenue_in_dollar,
+                    "out_cogs_in_dollar": out_cogs_in_dollar,
+                    "profit_som": profit_som,
+                    "profit_dollar": profit_dollar,
                     "end_qty": end_qty,
                     "end_sum": end_sum,
                 })
@@ -281,9 +308,12 @@ class MaterialReportService:
             grand_in_sum += cat_in_sum
             grand_out_qty += cat_out_qty
             grand_out_sum += cat_out_sum
+            grand_out_revenue_sum += cat_out_revenue_sum
             grand_out_sum_in_dollar += cat_out_sum_in_dollar
             grand_end_qty += cat_end_qty
             grand_end_sum += cat_end_sum
+            grand_profit_sum += cat_profit_sum
+            grand_profit_sum_in_dollar += cat_profit_sum_in_dollar
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
             ws.cell(row, 2, category.name)
             ws.cell(row, 2).font = bold
@@ -296,8 +326,9 @@ class MaterialReportService:
             money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
+            money_with_dollar(ws.cell(row, 14), cat_profit_sum, cat_profit_sum_in_dollar)
 
-            for c in range(1, 14):
+            for c in range(1, 15):
                 ws.cell(row, c).border = border
                 ws.cell(row, c).font = bold
 
@@ -313,11 +344,12 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                money_with_dollar(ws.cell(row, 11), item["out_sum"], item["out_sum_in_dollar"])
+                money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")), item.get("out_sum_in_dollar", Decimal("0")))
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
+                money_with_dollar(ws.cell(row, 14), item.get("profit_som", Decimal("0")), item.get("profit_dollar", Decimal("0")))
 
-                for c in range(1, 14):
+                for c in range(1, 15):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
                     ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
@@ -336,14 +368,14 @@ class MaterialReportService:
         money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
-        money(ws.cell(row, 14), grand_end_sum)
+        money_with_dollar(ws.cell(row, 14), grand_profit_sum, grand_profit_sum_in_dollar)
 
-        for c in range(1, 14):
+        for c in range(1, 15):
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
-                  "L": 12, "M": 18}
+                  "L": 12, "M": 18, "N": 18}
 
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
