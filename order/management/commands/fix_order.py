@@ -1,6 +1,5 @@
-from decimal import Decimal, ROUND_HALF_UP
 import requests
-
+from decimal import Decimal, ROUND_HALF_UP
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from acceptance.models import CurrencyRate
@@ -14,7 +13,7 @@ class Command(BaseCommand):
             return obj.rate
 
         url = f"https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/{d.strftime('%Y-%m-%d')}/"
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=15)
         r.raise_for_status()
         rate = Decimal(r.json()[0]["Rate"])
 
@@ -30,18 +29,12 @@ class Command(BaseCommand):
         for item in items:
             d = item.order.created_at.date()
             rate = self.get_rate(d)
-
             item.exchange_rate = rate
             base_price = item.original_sell_price or item.price
-            item.price_in_dollar = (base_price / rate).quantize(
-                Decimal("0.0001"),
-                rounding=ROUND_HALF_UP
-            )
+            item.price_in_dollar = (base_price / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
             if item.new_sell_price is not None:
                 item.new_price_in_dollar = (item.new_sell_price / rate).quantize(
-                    Decimal("0.0001"),
-                    rounding=ROUND_HALF_UP
-                )
+                    Decimal("0.0001"), rounding=ROUND_HALF_UP)
             item.save(update_fields=["exchange_rate", "price_in_dollar", "new_price_in_dollar"])
 
         self.stdout.write("done")

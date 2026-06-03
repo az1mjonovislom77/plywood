@@ -13,6 +13,5 @@ class ProductNotificationService:
     def get_low_stock_queryset():
         threshold = ProductNotificationService.get_low_stock_threshold()
         return Product.objects.filter(
-            count__lt=threshold,
-            is_active=True,
+            count__lt=threshold, is_active=True,
         ).values("id", "name", "count").order_by("count")

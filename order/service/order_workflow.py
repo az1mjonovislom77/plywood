@@ -50,10 +50,8 @@ class OrderWorkflowService:
 
         if order.user_id != user.id:
             raise ValueError("Not your order")
-
         if order.source != Order.OrderSource.SELLER:
             raise ValueError("Seller cannot cancel cashier order")
-
         if order.order_status != Order.OrderStatus.WAITING:
             raise ValueError("Order already closed")
 
@@ -198,32 +196,31 @@ class OrderWorkflowService:
             new_sell_price = item_data.get("new_sell_price")
             actual_sell_price = new_sell_price if new_sell_price is not None else item.price
             sell_price_difference = actual_sell_price - original_sell_price if new_sell_price is not None else item.sell_price_difference
-            new_price_in_dollar = item.new_price_in_dollar
             if rate_value is not None and rate_value != Decimal("0"):
                 if new_sell_price is not None:
                     new_price_in_dollar = (new_sell_price / rate_value).quantize(
                         Decimal("0.0001"), rounding=ROUND_HALF_UP
                     )
 
-            item.cutting = OrderWorkflowService._handle_service(Cutting, item.cutting, item_data.get('cutting'),
-                                                                new_customer, payment_method)
-            item.banding = OrderWorkflowService._handle_service(Banding, item.banding, item_data.get('banding'),
-                                                                new_customer, payment_method)
+                    item.cutting = OrderWorkflowService._handle_service(Cutting, item.cutting, item_data.get('cutting'),
+                                                                        new_customer, payment_method)
+                    item.banding = OrderWorkflowService._handle_service(Banding, item.banding, item_data.get('banding'),
+                                                                        new_customer, payment_method)
 
-            item.quantity = new_quantity
-            item.price = actual_sell_price
-            item.new_sell_price = new_sell_price
-            item.sell_price_difference = sell_price_difference
-            item.new_price_in_dollar = new_price_in_dollar
-            item.save()
+                    item.quantity = new_quantity
+                    item.price = actual_sell_price
+                    item.new_sell_price = new_sell_price
+                    item.sell_price_difference = sell_price_difference
+                    item.new_price_in_dollar = new_price_in_dollar
+                    item.save()
 
-        new_order_items = []
-        for item_data in new_items_data:
-            product = Product.objects.get(id=item_data['product_id'])
-            quantity = Decimal(item_data['quantity'])
+                    new_order_items = []
+                    for item_data in new_items_data:
+                        product = Product.objects.get(id=item_data['product_id'])
+                    quantity = Decimal(item_data['quantity'])
 
-            if product.count < quantity:
-                raise ValueError(f"{product.name} yetarli miqdorda mavjud emas")
+                    if product.count < quantity:
+                        raise ValueError(f"{product.name} yetarli miqdorda mavjud emas")
 
             Product.objects.filter(id=product.id).update(count=F("count") - quantity)
 

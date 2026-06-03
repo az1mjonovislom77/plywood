@@ -17,8 +17,7 @@ class SupplierPaymentView(APIView):
         serializer.is_valid(raise_exception=True)
 
         supplier = SupplierService.make_payment(
-            supplier_id=serializer.validated_data["supplier_id"],
-            amount=serializer.validated_data["amount"],
+            supplier_id=serializer.validated_data["supplier_id"], amount=serializer.validated_data["amount"],
         )
 
         return Response(SupplierSerializer(supplier).data, status=status.HTTP_200_OK)

@@ -59,11 +59,8 @@ class OrderSerializerTest(TestCase):
         )
         request = self.factory.get("/orders/")
         request.user = self.seller
-
         data = OrderSerializer(self.order, context={"request": request}).data
-
         self.assertNotIn("items", data["history"][0])
-
         item = data["items"][0]
         self.assertEqual(item["price"], "450000.00")
         self.assertEqual(item["original_sell_price"], "400000.00")
@@ -117,7 +114,6 @@ class OrderSerializerTest(TestCase):
         self.assertIsNotNone(item.banding)
         self.assertEqual(order.total_price, Decimal("460000.00"))
         self.assertEqual(order.covered_amount, Decimal("460000.00"))
-
         request = self.factory.get("/orders/")
         request.user = self.seller
         data = OrderSerializer(order, context={"request": request}).data
@@ -154,13 +150,10 @@ class OrderSerializerTest(TestCase):
         basket = Basket.objects.create(user=self.seller)
         BasketItem.objects.create(basket=basket, product=first_product)
         BasketItem.objects.create(basket=basket, product=second_product)
-
         view = BasketViewSet.as_view({"get": "count"})
         request = self.factory.get("/orders/basket/count/")
         force_authenticate(request, user=self.seller)
-
         response = view(request)
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {"count": 2})
 
@@ -170,7 +163,6 @@ class OrderSerializerTest(TestCase):
         basket = Basket.objects.create(user=self.seller)
         BasketItem.objects.create(basket=basket, product=first_product)
         BasketItem.objects.create(basket=basket, product=second_product)
-
         view = BasketViewSet.as_view({"delete": "destroy"})
         request = self.factory.delete(f"/orders/basket/{first_product.id}/")
         force_authenticate(request, user=self.seller)
@@ -238,7 +230,6 @@ class OrderUpdateTest(TestCase):
         }
 
         OrderWorkflowService.update_order(self.order.id, self.seller, update_data)
-
         self.product1.refresh_from_db()
         self.assertEqual(self.product1.count, Decimal("9.000"))
 
