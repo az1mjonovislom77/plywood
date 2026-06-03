@@ -7,6 +7,7 @@ from order.api.views.cutting import CuttingViewSet
 from order.api.views.history import OrderHistoryViewSet
 from order.api.views.order import OrderViewSet, OrderExcelViewSet
 from order.api.views.thickness import ThicknessViewSet
+from product.api.views.profit_views import CuttingProfitView
 
 router = DefaultRouter()
 router.register('basket', BasketViewSet, basename='basket')
@@ -21,4 +22,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path("income/cutting-banding/", CuttingBandingIncomeStatsView.as_view(), name="cutting-banding-income"),
     path("last7days/", Last7DaysIncomeView.as_view()),
+    path("cutting-profit/", CuttingProfitView.as_view(), name="cutting-profit"),
 ]
