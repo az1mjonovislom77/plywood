@@ -281,11 +281,12 @@ class MaterialReportService:
                 cat_out_qty += out_qty
                 cat_out_sum += out_cogs
                 cat_out_revenue_sum += out_revenue
-                cat_out_sum_in_dollar += out_revenue_in_dollar
+                # accumulate COGS in dollar
+                cat_out_sum_in_dollar += out_cogs_in_dollar
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
 
-                # profits
+                # profits (compute in dollar then convert to sum using rate)
                 profit_dollar = out_revenue_in_dollar - out_cogs_in_dollar
                 if rate_value and rate_value != Decimal("0"):
                     profit_som = (profit_dollar * rate_value).quantize(Decimal("0.01"))
@@ -304,9 +305,9 @@ class MaterialReportService:
                     "in_sum": in_sum,
                     "out_qty": out_qty,
                     "out_revenue": out_revenue,
+                    "out_revenue_in_dollar": out_revenue_in_dollar,
                     "out_sum": out_cogs,
-                    "out_sum_in_dollar": out_revenue_in_dollar,
-                    "out_cogs_in_dollar": out_cogs_in_dollar,
+                    "out_sum_in_dollar": out_cogs_in_dollar,
                     "profit_som": profit_som,
                     "profit_dollar": profit_dollar,
                     "end_qty": end_qty,
@@ -334,7 +335,8 @@ class MaterialReportService:
             money(ws.cell(row, 8), cat_in_qty)
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
-            money_with_dollar(ws.cell(row, 11), cat_out_revenue_sum, cat_out_sum_in_dollar)
+            # Расход (Сумма) should show COGS (out_sum) with its dollar equivalent
+            money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
             money_with_dollar(ws.cell(row, 14), cat_profit_sum, cat_profit_sum_in_dollar)
@@ -358,7 +360,8 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                money_with_dollar(ws.cell(row, 11), item.get("out_revenue", Decimal("0")), item.get("out_sum_in_dollar", Decimal("0")))
+                # Расход (Сумма) shows COGS and COGS in dollar
+                money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")), item.get("out_sum_in_dollar", Decimal("0")))
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
                 money_with_dollar(ws.cell(row, 14), item.get("profit_som", Decimal("0")), item.get("profit_dollar", Decimal("0")))
@@ -382,7 +385,8 @@ class MaterialReportService:
         money(ws.cell(row, 8), grand_in_qty)
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
-        money_with_dollar(ws.cell(row, 11), grand_out_revenue_sum, grand_out_sum_in_dollar)
+        # Grand Расход shows total COGS
+        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
         money_with_dollar(ws.cell(row, 14), grand_profit_sum, grand_profit_sum_in_dollar)
