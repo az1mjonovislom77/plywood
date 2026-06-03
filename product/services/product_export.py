@@ -177,7 +177,7 @@ class MaterialReportService:
             cell.value = f"{s_value} ({s_value_in_dollar}$)"
             cell.alignment = right
 
-        ws.merge_cells("B1:L1")
+        ws.merge_cells("B1:M1")
         ws["B1"] = f"Материальный отчет за {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
         ws["B1"].font = Font(name="Arial", size=14, bold=True)
         ws["B1"].alignment = left
@@ -193,6 +193,7 @@ class MaterialReportService:
         ws.merge_cells("H4:I4")
         ws.merge_cells("J4:K4")
         ws.merge_cells("L4:M4")
+        ws.merge_cells("N4:N5")
         ws["A4"] = "Код"
         ws["B4"] = "МатериалРодитель / Материал"
         ws["E4"] = "Ед.изм"
@@ -200,7 +201,7 @@ class MaterialReportService:
         ws["H4"] = "Приход"
         ws["J4"] = "Расход"
         ws["L4"] = "Сальдо на конец"
-        ws["N4"] = "Sof Foyda Dollar"
+        ws["N4"] = "Sof Foyda"
         ws["F5"] = "Количество"
         ws["G5"] = "Сумма"
         ws["H5"] = "Количество"
@@ -209,10 +210,9 @@ class MaterialReportService:
         ws["K5"] = "Сумма"
         ws["L5"] = "Количество"
         ws["M5"] = "Сумма"
-        ws["N5"] = "Сумма"
 
         for r in range(4, 7):
-            for c in range(1, 14):
+            for c in range(1, 15):
                 cell = ws.cell(r, c)
                 cell.font = bold
                 cell.alignment = center
@@ -339,10 +339,11 @@ class MaterialReportService:
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
                 money_with_dollar(ws.cell(row, 11), item["out_sum"], item["out_sum_in_dollar"])
+                money_with_dollar(ws.cell(row, 14), item["net_profit_sum"], item["net_profit_usd"])
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
 
-                for c in range(1, 14):
+                for c in range(1, 15):
                     ws.cell(row, c).border = border
                     ws.cell(row, c).font = normal
                     ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
@@ -359,16 +360,16 @@ class MaterialReportService:
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
         money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
+        money_with_dollar(ws.cell(row, 14), grand_net_profit_sum, grand_net_profit_usd)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
-        money(ws.cell(row, 14), grand_end_sum)
 
-        for c in range(1, 14):
+        for c in range(1, 15):
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
-                  "L": 12, "M": 18}
+                  "L": 12, "M": 18, "N": 20}
 
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
