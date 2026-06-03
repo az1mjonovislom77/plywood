@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.cell.cell import MergedCell
 from category.models import Category
 from product.models import Product
 from acceptance.models import Acceptance
@@ -207,6 +208,9 @@ class MaterialReportService:
         for r in range(4, 7):
             for c in range(1, 15):
                 cell = ws.cell(r, c)
+                if isinstance(cell, MergedCell) and cell.coordinate != ws.cell(r, c).coordinate:
+                    # skip non top-left merged cells
+                    continue
                 cell.font = bold
                 cell.alignment = center
                 cell.border = border
@@ -329,8 +333,11 @@ class MaterialReportService:
             money_with_dollar(ws.cell(row, 14), cat_profit_sum, cat_profit_sum_in_dollar)
 
             for c in range(1, 15):
-                ws.cell(row, c).border = border
-                ws.cell(row, c).font = bold
+                cell = ws.cell(row, c)
+                if isinstance(cell, MergedCell):
+                    continue
+                cell.border = border
+                cell.font = bold
 
             row += 1
 
@@ -350,9 +357,12 @@ class MaterialReportService:
                 money_with_dollar(ws.cell(row, 14), item.get("profit_som", Decimal("0")), item.get("profit_dollar", Decimal("0")))
 
                 for c in range(1, 15):
-                    ws.cell(row, c).border = border
-                    ws.cell(row, c).font = normal
-                    ws.cell(row, c).alignment = left if c in [1, 2, 5] else right
+                    cell = ws.cell(row, c)
+                    if isinstance(cell, MergedCell):
+                        continue
+                    cell.border = border
+                    cell.font = normal
+                    cell.alignment = left if c in [1, 2, 5] else right
 
                 row += 1
 
@@ -371,8 +381,11 @@ class MaterialReportService:
         money_with_dollar(ws.cell(row, 14), grand_profit_sum, grand_profit_sum_in_dollar)
 
         for c in range(1, 15):
-            ws.cell(row, c).border = border
-            ws.cell(row, c).font = bold
+            cell = ws.cell(row, c)
+            if isinstance(cell, MergedCell):
+                continue
+            cell.border = border
+            cell.font = bold
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
                   "L": 12, "M": 18, "N": 18}
