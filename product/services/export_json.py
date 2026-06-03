@@ -74,14 +74,13 @@ class MaterialReportJsonService:
         acceptance_rows = (
             Acceptance.objects
             .filter(acceptance_status="accept", arrival_date__lte=end_date)
-            .values("product_id", "count", "arrival_price", "arrival_price_in_dollar", "arrival_date", "id")
+            .values("product_id", "count", "arrival_price", "arrival_date", "id")
             .order_by("product_id", "arrival_date", "id")
         )
         for row in acceptance_rows:
             stock_map[row["product_id"]].append({
                 "qty": Decimal(str(row["count"])),
                 "price": Decimal(str(row["arrival_price"])),
-                "price_in_dollar": Decimal(str(row["arrival_price_in_dollar"])),
             })
 
         sale_rows = list(
@@ -96,21 +95,17 @@ class MaterialReportJsonService:
 
         open_cogs_map = defaultdict(lambda: Decimal("0"))
         period_cogs_map = defaultdict(lambda: Decimal("0"))
-        open_cogs_dollar_map = defaultdict(lambda: Decimal("0"))
-        period_cogs_dollar_map = defaultdict(lambda: Decimal("0"))
 
         for row in sale_rows:
             product_id = row["product_id"]
             qty = Decimal(str(row["quantity"]))
             sale_date = cls._sale_date(row)
             cogs = Decimal("0")
-            cogs_dollar = Decimal("0")
             remaining = qty
             while remaining > 0 and stock_map[product_id]:
                 batch = stock_map[product_id][0]
                 take = min(remaining, batch["qty"])
                 cogs += take * batch["price"]
-                cogs_dollar += take * batch["price_in_dollar"]
                 batch["qty"] -= take
                 remaining -= take
                 if batch["qty"] <= 0:
@@ -118,12 +113,10 @@ class MaterialReportJsonService:
 
             if sale_date < start_dt:
                 open_cogs_map[product_id] += cogs
-                open_cogs_dollar_map[product_id] += cogs_dollar
             elif sale_date < end_dt:
                 period_cogs_map[product_id] += cogs
-                period_cogs_dollar_map[product_id] += cogs_dollar
 
-        return open_cogs_map, period_cogs_map, open_cogs_dollar_map, period_cogs_dollar_map
+        return open_cogs_map, period_cogs_map
 
     @staticmethod
     def _num(v):
@@ -188,7 +181,7 @@ class MaterialReportJsonService:
             "qty",
         )
 
-        open_cogs_map, period_cogs_map, open_cogs_dollar_map, period_cogs_dollar_map = cls._calc_fifo(start_dt, end_dt, end_date)
+        open_cogs_map, period_cogs_map = cls._calc_fifo(start_dt, end_dt, end_date)
 
         grouped_products = {}
         for product in products:

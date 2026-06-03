@@ -138,7 +138,7 @@ class MaterialReportService:
                     output_field=cls._money_field()
                 )), extra_fields=['total_in_dollar'])
 
-        open_cogs_map, period_cogs_map, open_cogs_dollar_map, period_cogs_dollar_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
+        open_cogs_map, period_cogs_map = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
 
         grouped_products = {}
         for product in products:
@@ -219,9 +219,6 @@ class MaterialReportService:
         grand_out_qty = Decimal("0")
         grand_out_sum = Decimal("0")
         grand_out_sum_in_dollar = Decimal("0")
-        grand_revenue_sum = Decimal("0")
-        grand_revenue_dollar = Decimal("0")
-        grand_cogs_dollar = Decimal("0")
         grand_end_qty = Decimal("0")
         grand_end_sum = Decimal("0")
 
@@ -254,15 +251,7 @@ class MaterialReportService:
                 in_sum = in_period["total"]
                 out_qty = out_period["qty"]
                 out_sum = period_cogs_map.get(product.id, Decimal("0"))
-                cogs_dollar = period_cogs_dollar_map.get(product.id, Decimal("0"))
-                out_sum_in_dollar = cogs_dollar
-                revenue_sum = out_period["total"]
-                revenue_dollar = out_period["total_in_dollar"]
-
-                grand_revenue_sum += revenue_sum
-                grand_revenue_dollar += revenue_dollar
-                grand_cogs_dollar += cogs_dollar
-
+                out_sum_in_dollar = out_period["total_in_dollar"]
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_sum
                 cat_open_qty += open_qty
@@ -354,41 +343,6 @@ class MaterialReportService:
         for c in range(1, 14):
             ws.cell(row, c).border = border
             ws.cell(row, c).font = bold
-
-        row += 2
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
-        ws.cell(row, 1, "Молиявий натижа:")
-        ws.cell(row, 1).font = Font(name="Arial", size=12, bold=True)
-        ws.cell(row, 1).alignment = left
-
-        row += 1
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
-        ws.cell(row, 1, "Кўрсаткич")
-        ws.cell(row, 1).font = bold
-        ws.cell(row, 1).border = border
-        ws.cell(row, 1).alignment = center
-        ws.cell(row, 2).border = border
-        ws.cell(row, 3, "Сўм")
-        ws.cell(row, 3).font = bold
-        ws.cell(row, 3).border = border
-        ws.cell(row, 3).alignment = center
-        ws.cell(row, 4, "Доллар")
-        ws.cell(row, 4).font = bold
-        ws.cell(row, 4).border = border
-        ws.cell(row, 4).alignment = center
-        
-        row += 1
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
-        ws.cell(row, 1, "Соф фойда")
-        ws.cell(row, 1).font = bold
-        ws.cell(row, 1).border = border
-        ws.cell(row, 2).border = border
-        money(ws.cell(row, 3), grand_revenue_sum - grand_out_sum)
-        ws.cell(row, 3).font = bold
-        ws.cell(row, 3).border = border
-        money(ws.cell(row, 4), grand_revenue_dollar - grand_cogs_dollar)
-        ws.cell(row, 4).font = bold
-        ws.cell(row, 4).border = border
 
         widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
                   "L": 12, "M": 18}
