@@ -3,7 +3,6 @@ from rest_framework.filters import SearchFilter
 
 APOSTROPHES = ("'", "`", "‘", "’", "ʼ", "ʻ")
 CANONICAL_APOSTROPHE = "'"
-
 LATIN_TO_CYRILLIC_PAIRS = (("o'", "ў"), ("g'", "ғ"), ("sh", "ш"), ("ch", "ч"), ("ya", "я"), ("yo", "ё"), ("yu", "ю"))
 
 LATIN_TO_CYRILLIC_CHARS = {
