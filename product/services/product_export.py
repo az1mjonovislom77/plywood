@@ -227,6 +227,7 @@ class MaterialReportService:
         grand_out_qty = Decimal("0")
         grand_out_sum = Decimal("0")
         grand_out_revenue_sum = Decimal("0")
+        grand_out_revenue_sum_in_dollar = Decimal("0")
         grand_out_sum_in_dollar = Decimal("0")
         grand_end_qty = Decimal("0")
         grand_end_sum = Decimal("0")
@@ -245,6 +246,7 @@ class MaterialReportService:
             cat_out_qty = Decimal("0")
             cat_out_sum = Decimal("0")
             cat_out_revenue_sum = Decimal("0")
+            cat_out_revenue_sum_in_dollar = Decimal("0")
             cat_out_sum_in_dollar = Decimal("0")
             cat_end_qty = Decimal("0")
             cat_end_sum = Decimal("0")
@@ -281,6 +283,7 @@ class MaterialReportService:
                 cat_out_qty += out_qty
                 cat_out_sum += out_cogs
                 cat_out_revenue_sum += out_revenue
+                cat_out_revenue_sum_in_dollar += out_revenue_in_dollar
                 # accumulate COGS in dollar
                 cat_out_sum_in_dollar += out_cogs_in_dollar
                 cat_end_qty += end_qty
@@ -321,6 +324,7 @@ class MaterialReportService:
             grand_out_qty += cat_out_qty
             grand_out_sum += cat_out_sum
             grand_out_revenue_sum += cat_out_revenue_sum
+            grand_out_revenue_sum_in_dollar += cat_out_revenue_sum_in_dollar
             grand_out_sum_in_dollar += cat_out_sum_in_dollar
             grand_end_qty += cat_end_qty
             grand_end_sum += cat_end_sum
@@ -336,7 +340,8 @@ class MaterialReportService:
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
             # Расход (Сумма) should show COGS (out_sum) with its dollar equivalent
-            money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_sum_in_dollar)
+            # show COGS (som) and sold price in parentheses (dollar)
+            money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_revenue_sum_in_dollar)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
             money_with_dollar(ws.cell(row, 14), cat_profit_sum, cat_profit_sum_in_dollar)
@@ -360,8 +365,8 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                # Расход (Сумма) shows COGS and COGS in dollar
-                money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")), item.get("out_sum_in_dollar", Decimal("0")))
+                # Расход: show COGS (som) and sold price in parentheses (dollar)
+                money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")), item.get("out_revenue_in_dollar", Decimal("0")))
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
                 money_with_dollar(ws.cell(row, 14), item.get("profit_som", Decimal("0")), item.get("profit_dollar", Decimal("0")))
@@ -385,8 +390,8 @@ class MaterialReportService:
         money(ws.cell(row, 8), grand_in_qty)
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
-        # Grand Расход shows total COGS
-        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_sum_in_dollar)
+        # Grand Расход shows total COGS and sold price in parentheses (dollar)
+        money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_revenue_sum_in_dollar)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
         money_with_dollar(ws.cell(row, 14), grand_profit_sum, grand_profit_sum_in_dollar)
