@@ -28,13 +28,11 @@ class FinanceReportJsonService:
         )
 
         expenses = Expenses.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
+            created_at__gte=start_dt, created_at__lt=end_dt,
             expense_status__in=[Expenses.ExpensesStatus.ACCEPT, Expenses.ExpensesStatus.CREATED]).order_by("created_at")
 
         supplier_payments = SupplierTransaction.objects.filter(
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
+            created_at__gte=start_dt, created_at__lt=end_dt,
             transaction_type=SupplierTransaction.TransactionType.PAYMENT).select_related("supplier")
 
         income_map = defaultdict(Decimal)
@@ -52,9 +50,7 @@ class FinanceReportJsonService:
             income_map[(c_id, c_name)] += Decimal(str(banding.covered_amount))
 
         for cutting in Cutting.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-                covered_amount__gt=0,
+                created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0,
         ).select_related("customer"):
             c_id = cutting.customer.id if cutting.customer else None
             c_name = cutting.customer.full_name if cutting.customer else "Anonim"

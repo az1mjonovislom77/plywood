@@ -35,9 +35,7 @@ class CashFlowReportService:
         expense_rows = []
 
         for order in Order.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-                order_status=Order.OrderStatus.ACCEPT,
+                created_at__gte=start_dt, created_at__lt=end_dt, order_status=Order.OrderStatus.ACCEPT,
                 covered_amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
@@ -47,9 +45,7 @@ class CashFlowReportService:
             })
 
         for banding in Banding.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-                covered_amount__gt=0,
+                created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
                 "name": banding.customer.full_name if banding.customer else "Аноним",
@@ -69,10 +65,7 @@ class CashFlowReportService:
             })
 
         for payment in BalanceHistory.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-                type=BalanceHistory.Type.PAYMENT,
-                amount__gt=0,
+                created_at__gte=start_dt, created_at__lt=end_dt, type=BalanceHistory.Type.PAYMENT, amount__gt=0,
         ).select_related("customer").order_by("created_at", "id"):
             income_rows.append({
                 "name": payment.customer.full_name if payment.customer else "Аноним",
@@ -97,10 +90,8 @@ class CashFlowReportService:
             })
 
         for payment in SupplierTransaction.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-                transaction_type=SupplierTransaction.TransactionType.PAYMENT,
-                amount__gt=0,
+                created_at__gte=start_dt, created_at__lt=end_dt,
+                transaction_type=SupplierTransaction.TransactionType.PAYMENT, amount__gt=0,
         ).select_related("supplier").order_by("created_at", "id"):
             expense_rows.append({
                 "description": payment.supplier.full_name if payment.supplier else "Поставщик",
