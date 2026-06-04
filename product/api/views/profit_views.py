@@ -76,10 +76,8 @@ class ProfitByCategoryView(APIView):
                     out_revenue_som = Decimal("0")
                     out_cogs_som = period_cogs_map.get(pid, Decimal("0"))
                     profit_som = out_revenue_som - out_cogs_som
-
                 cat_profit_dollar += profit_dollar
                 cat_profit_som += profit_som
-
             total_profit_dollar += cat_profit_dollar
             total_profit_som += cat_profit_som
 
@@ -97,6 +95,7 @@ class ProfitByCategoryView(APIView):
             "total_profit_som": float(total_profit_som),
             "total_profit_dollar": float(total_profit_dollar),
         })
+
 
 @extend_schema(tags=["Cutting"], parameters=[
     OpenApiParameter(name="from", required=False, type=OpenApiTypes.STR),

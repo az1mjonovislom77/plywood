@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from product.api.views.product_views import ProductViewSet, MaterialReportExcelViewSet, MaterialReportJsonViewSet
+from product.api.views.product_views import ProductViewSet, MaterialReportExcelViewSet, MaterialReportJsonViewSet, \
+    DeletedProductsViewSet
 from product.api.views.quality_views import QualityViewSet
 from product.api.views.profit_views import ProfitByCategoryView, KromkaProfitView
 
@@ -14,4 +15,5 @@ urlpatterns = [
     path("product-report/", MaterialReportJsonViewSet.as_view({"get": "list"})),
     path("profit-category/", ProfitByCategoryView.as_view(), name="profit-by-category"),
     path("kromka-profit/", KromkaProfitView.as_view(), name="kromka-profit"),
+    path("deleted-products/", DeletedProductsViewSet.as_view({"get": "list"})),
 ]

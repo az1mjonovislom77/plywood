@@ -18,8 +18,6 @@ from product.services.product_export import MaterialReportService
 from product.services.product_excel_export import ProductExcelExportService
 from utils.search import build_transliterated_search_q
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
-from django.utils import timezone
-from acceptance.models import CurrencyRate
 
 
 class ProductPagination(PageNumberPagination):
@@ -141,3 +139,13 @@ class MaterialReportJsonViewSet(ViewSet):
         return Response(MaterialReportJsonService.build(
             date_from=request.query_params.get("from"),
             date_to=request.query_params.get("to")))
+
+
+@extend_schema(tags=["Product"])
+class DeletedProductsViewSet(ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        products = Product.objects.select_related("category").filter(is_active=False)
+
+        return Response(products)
