@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.base.views_base import BaseUserViewSet
 from utils.models import Currency, Services, ServicesName
-from utils.api.serializers import CurrencySerializer, ServicesSerializer
+from utils.api.serializers import CurrencySerializer, ServicesSerializer, ServicesNameSerializer
 from utils.service.notification_service import ProductNotificationService
 
 
@@ -62,11 +62,11 @@ class LowStockNotificationView(APIView):
 @extend_schema(tags=["ServicesName"])
 class ServicesNameView(APIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = ServicesSerializer
 
     def get(self, request):
         queryset = ServicesName.objects.all()
-        return Response(list(queryset))
+        serializer = ServicesNameSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 @extend_schema(tags=["Services"])
