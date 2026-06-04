@@ -146,7 +146,7 @@ class MaterialReportJsonViewSet(ViewSet):
     parameters=[OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR)],
 )
 class DeletedProductsViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related("category").filter(is_active=True)
+    queryset = Product.objects.select_related("category").filter(is_active=False)
     serializer_class = ProductSerializer
     http_method_names = ["get"]
     permission_classes = [IsAuthenticated]
@@ -154,10 +154,6 @@ class DeletedProductsViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["category", "quality"]
     ordering = ["-id"]
-
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=["is_active"])
 
     def get_queryset(self):
         queryset = super().get_queryset()
