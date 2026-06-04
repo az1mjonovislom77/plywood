@@ -8,12 +8,12 @@ from product.api.views.profit_views import ProfitByCategoryView, KromkaProfitVie
 router = DefaultRouter()
 router.register('products', ProductViewSet, basename='product')
 router.register('quality', QualityViewSet, basename='quality')
+router.register('deleted-products', DeletedProductsViewSet, basename='deleted')
 
 urlpatterns = [
     path('', include(router.urls)),
     path("export/", MaterialReportExcelViewSet.as_view({"get": "list"}), name="material-report"),
     path("product-report/", MaterialReportJsonViewSet.as_view({"get": "list"})),
     path("profit-category/", ProfitByCategoryView.as_view(), name="profit-by-category"),
-    path("kromka-profit/", KromkaProfitView.as_view(), name="kromka-profit"),
-    path("deleted-products/", DeletedProductsViewSet.as_view(), name="deleted-products"),
+    path("kromka-profit/", KromkaProfitView.as_view(), name="kromka-profit")
 ]
