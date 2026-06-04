@@ -1,12 +1,11 @@
 from decimal import Decimal
 
-from django.db.models import Sum, F, Value, DecimalField
+from django.db.models import Sum, F, Value, DecimalField, ExpressionWrapper, Q, Case, When
 from django.db.models.functions import Coalesce
 
-from category.models import Category
-from order.models import OrderItem
+from order.models import Banding, Order, OrderItem
 from product.services.export_json import MaterialReportJsonService
-from product.services.material_profit import KROMKA_CATEGORY_NAME, MaterialProfitService
+from product.services.material_profit import MaterialProfitService
 from utils.models import Services, ServicesName
 from utils.service.comprehensive_stats import DashboardStatsService
 
@@ -23,36 +22,89 @@ class AncillaryProfitService:
         return Decimal("0")
 
     @classmethod
+    def banding_sales_expr(cls, prefix: str = "banding__"):
+        gross = ExpressionWrapper(
+            F(f"{prefix}length") * F(f"{prefix}thickness"),
+            output_field=cls.money_field(),
+        )
+        discounted = ExpressionWrapper(
+            gross - Coalesce(F(f"{prefix}discount"), Value(Decimal("0"))),
+            output_field=cls.money_field(),
+        )
+        return Case(
+            When(
+                **{
+                    f"{prefix}discount__gt": 0,
+                    f"{prefix}discount_type": Banding.DiscountType.PERCENTAGE,
+                },
+                then=ExpressionWrapper(
+                    gross - gross * F(f"{prefix}discount") / Value(Decimal("100")),
+                    output_field=cls.money_field(),
+                ),
+            ),
+            default=discounted,
+            output_field=cls.money_field(),
+        )
+
+    @classmethod
+    def _sum_banding_sales(cls, queryset, prefix: str = "banding__"):
+        return queryset.aggregate(
+            total=Coalesce(
+                Sum(cls.banding_sales_expr(prefix)),
+                Value(Decimal("0")),
+                output_field=cls.money_field(),
+            )
+        )["total"]
+
+    @classmethod
+    def calc_banding_profit(cls, start_dt, end_dt, rate_value: Decimal):
+        """
+        Kromka xizmat (banding) foydasi — to'langan summa emas, xizmat narxi.
+        Nasiya bo'lib covered_amount=0 bo'lsa ham length*thickness (minus chegirma) hisobga olinadi.
+        """
+        order_item_filter = Q(
+            MaterialReportJsonService._accepted_order_filter(),
+            MaterialReportJsonService._accepted_order_range_filter(start_dt, end_dt),
+            banding__isnull=False,
+        )
+        order_filter = Q(
+            MaterialReportJsonService._accepted_order_filter(),
+            MaterialReportJsonService._accepted_order_range_filter(start_dt, end_dt),
+            banding__isnull=False,
+            banding__order_items__isnull=True,
+        )
+        standalone_filter = Q(
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
+            order_items__isnull=True,
+            orders__isnull=True,
+        )
+
+        item_total = cls._sum_banding_sales(
+            OrderItem.objects.filter(order_item_filter),
+            prefix="banding__",
+        )
+        order_total = cls._sum_banding_sales(
+            Order.objects.filter(order_filter),
+            prefix="banding__",
+        )
+        standalone_total = cls._sum_banding_sales(
+            Banding.objects.filter(standalone_filter),
+            prefix="",
+        )
+
+        banding_som = Decimal(str(item_total or 0)) + Decimal(str(order_total or 0)) + Decimal(
+            str(standalone_total or 0)
+        )
+        banding_dollar = cls._som_to_dollar(banding_som, rate_value)
+        return banding_som, banding_dollar
+
+    @classmethod
     def calc_cutting_profit(cls, date_from, date_to, rate_value: Decimal):
         stats = DashboardStatsService.get_stats(date_from, date_to)
         cutting_som = Decimal(str(stats.get("cutting_sales", 0)))
         cutting_dollar = cls._som_to_dollar(cutting_som, rate_value)
         return cutting_som, cutting_dollar
-
-    @classmethod
-    def calc_banding_profit(cls, start_dt, end_dt, rate_value: Decimal):
-        kromka = Category.objects.filter(name__iexact=KROMKA_CATEGORY_NAME).first()
-        if not kromka:
-            return Decimal("0"), Decimal("0")
-
-        banding_qs = OrderItem.objects.filter(
-            MaterialReportJsonService._accepted_order_filter(),
-            MaterialReportJsonService._accepted_order_range_filter(start_dt, end_dt),
-            product__category=kromka,
-            banding__isnull=False,
-        ).aggregate(
-            banding_som=Coalesce(
-                Sum(
-                    F("banding__length") * F("banding__thickness")
-                    - Coalesce(F("banding__discount"), Value(Decimal("0")))
-                ),
-                Value(Decimal("0")),
-                output_field=cls.money_field(),
-            )
-        )
-        banding_som = Decimal(str(banding_qs.get("banding_som") or 0))
-        banding_dollar = cls._som_to_dollar(banding_som, rate_value)
-        return banding_som, banding_dollar
 
     @classmethod
     def calc_services_profit(cls, start_dt, end_dt, rate_value: Decimal):

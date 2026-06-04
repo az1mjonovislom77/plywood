@@ -86,6 +86,11 @@ class KromkaProfitView(APIView):
         product_profit_som, product_profit_dollar, products_count = (
             MaterialProfitService.calc_kromka_product_profit(context)
         )
+        banding_som, banding_dollar = AncillaryProfitService.calc_banding_profit(
+            context["start_dt"],
+            context["end_dt"],
+            context["rate_value"],
+        )
         all_profit = AllProfitService.calculate(
             date_from=date_from,
             date_to=date_to,
@@ -101,5 +106,9 @@ class KromkaProfitView(APIView):
             "kromka_product_profit_som": float(product_profit_som),
             "kromka_product_profit_dollar": float(product_profit_dollar),
             "kromka_products_count": products_count,
+            "kromka_xizmat_profit_som": float(banding_som),
+            "kromka_xizmat_profit_dollar": float(banding_dollar),
+            "kromka_total_profit_som": float(product_profit_som + banding_som),
+            "kromka_total_profit_dollar": float(product_profit_dollar + banding_dollar),
             **all_profit,
         })
