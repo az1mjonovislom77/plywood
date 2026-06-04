@@ -48,7 +48,9 @@ class ProfitByCategoryView(APIView):
 
         open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(
             start_dt, end_dt, end_date)
-        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
+        
+        # Bugungi kursni olish
+        rate_obj = CurrencyRate.objects.filter(date=timezone.localdate()).first()
         rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
 
         categories = list(Category.objects.all().order_by("name"))
@@ -113,9 +115,11 @@ class CuttingProfitView(APIView):
 
         stats = ComprehensiveDashboard.get_stats(date_from, date_to)
         cutting_som = Decimal(str(stats.get("cutting_sales", 0)))
-        _, end_date, _, _ = MaterialReportJsonService._parse_bounds(date_from, date_to)
-        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
+        
+        # Bugungi kursni olish
+        rate_obj = CurrencyRate.objects.filter(date=timezone.localdate()).first()
         rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
+        
         cutting_dollar = Decimal("0")
         if rate_value and rate_value != Decimal("0"):
             cutting_dollar = (cutting_som / rate_value).quantize(Decimal("0.01"))
@@ -210,8 +214,11 @@ class KromkaProfitView(APIView):
 
         open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(
             start_dt, end_dt, end_date)
-        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
+        
+        # Bugungi kursni olish
+        rate_obj = CurrencyRate.objects.filter(date=timezone.localdate()).first()
         rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
+        
         cat_products = kromka.products.all()
         product_profit_dollar = Decimal("0")
         product_profit_som = Decimal("0")
