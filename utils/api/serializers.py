@@ -49,6 +49,7 @@ class ExpenseListSerializer(serializers.ModelSerializer):
 
 class ServicesSerializer(serializers.ModelSerializer):
     services_name = serializers.CharField(source="services_name.name", read_only=True)
+    services_id = serializers.IntegerField(source="services_name.id")
     total_price = SerializerMethodField()
 
     class Meta:
