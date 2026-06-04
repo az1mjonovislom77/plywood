@@ -46,7 +46,7 @@ class ProfitByCategoryView(APIView):
 
         open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(
             start_dt, end_dt, end_date)
-        rate_obj = CurrencyRate.objects.filter(date=timezone.localdate()).first()
+        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
         rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
         categories = list(Category.objects.all().order_by("name"))
         result_categories = []
@@ -205,7 +205,7 @@ class KromkaProfitView(APIView):
         open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(
             start_dt, end_dt, end_date)
 
-        rate_obj = CurrencyRate.objects.filter(date=timezone.localdate()).first()
+        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
         rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
         cat_products = kromka.products.all()
         product_profit_dollar = Decimal("0")
@@ -222,7 +222,6 @@ class KromkaProfitView(APIView):
                 profit_som = period_cogs_map.get(pid, Decimal("0")) * Decimal("-1")
             product_profit_dollar += profit_dollar
             product_profit_som += profit_som
-
 
         all_profit = AllProfitService.calculate(
             date_from=date_from,
