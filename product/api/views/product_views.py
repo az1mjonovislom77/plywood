@@ -145,6 +145,7 @@ class MaterialReportJsonViewSet(ViewSet):
 class DeletedProductsViewSet(ViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
+    pagination_class = ProductPagination
 
     def list(self, request):
         products = Product.objects.select_related("category").filter(is_active=False)
