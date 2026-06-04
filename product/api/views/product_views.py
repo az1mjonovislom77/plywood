@@ -141,15 +141,36 @@ class MaterialReportJsonViewSet(ViewSet):
             date_to=request.query_params.get("to")))
 
 
-@extend_schema(tags=["Product"])
-class DeletedProductsViewSet(ViewSet):
-    permission_classes = [IsAuthenticated]
+@extend_schema(
+    tags=["Product"],
+    parameters=[OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR)],
+)
+class DeletedProductsViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.select_related("category").filter(is_active=True)
     serializer_class = ProductSerializer
+    http_method_names = ["get"]
+    permission_classes = [IsAuthenticated]
     pagination_class = ProductPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["category", "quality"]
+    ordering = ["-id"]
 
-    def list(self, request):
-        products = Product.objects.select_related("category").filter(is_active=False)
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
 
-        serializer = ProductSerializer(products, many=True)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.query_params.get("search")
 
-        return Response(serializer.data)
+        if search:
+            vector = SearchVector("name", weight="A")
+            query = SearchQuery(search)
+
+            queryset = (
+                queryset.annotate(rank=SearchRank(vector, query))
+                .filter(build_transliterated_search_q(["name"], search) | Q(rank__gte=0.1))
+                .order_by("-rank")
+            )
+
+        return queryset

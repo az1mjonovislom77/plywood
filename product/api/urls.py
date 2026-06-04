@@ -15,5 +15,5 @@ urlpatterns = [
     path("product-report/", MaterialReportJsonViewSet.as_view({"get": "list"})),
     path("profit-category/", ProfitByCategoryView.as_view(), name="profit-by-category"),
     path("kromka-profit/", KromkaProfitView.as_view(), name="kromka-profit"),
-    path("deleted-products/", DeletedProductsViewSet.as_view({"get": "list"})),
+    path("deleted-products/", DeletedProductsViewSet.as_view(), name="deleted-products"),
 ]
