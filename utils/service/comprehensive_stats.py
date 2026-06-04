@@ -9,7 +9,7 @@ from employee.models import SalaryPayment
 from order.models import Banding, Cutting, Order, OrderItem
 from product.models import Product
 from supplier.models import Supplier, SupplierTransaction
-from utils.models import Expenses
+from utils.models import Expenses, Services
 
 
 class DateRangeMixin:
@@ -119,6 +119,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         banding_filter = Q()
         cutting_filter = Q()
         salary_filter = Q()
+        services_filter = Q()
 
         if start_dt and end_dt:
             date_filter = cls._range_filter(start_dt, end_dt)
@@ -129,6 +130,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             banding_filter &= date_filter
             cutting_filter &= date_filter
             salary_filter &= Q(paid_at__gte=start_dt, paid_at__lt=end_dt)
+            services_filter &= date_filter
 
         elif end_dt:
             date_filter = Q(created_at__lt=end_dt)
@@ -139,6 +141,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             banding_filter &= date_filter
             cutting_filter &= date_filter
             salary_filter &= Q(paid_at__lt=end_dt)
+            services_filter &= date_filter
 
         elif start_dt:
             date_filter = Q(created_at__gte=start_dt)
@@ -149,6 +152,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             banding_filter &= date_filter
             cutting_filter &= date_filter
             salary_filter &= Q(paid_at__gte=start_dt)
+            services_filter &= date_filter
 
         order_paid = cls.sum(Order.objects.filter(order_filter), "covered_amount")
         banding_paid = cls.sum(Banding.objects.filter(banding_filter), "covered_amount")
@@ -165,12 +169,14 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         expenses = cls.sum(Expenses.objects.filter(expense_filter), "value")
         supplier_payments = cls.sum(SupplierTransaction.objects.filter(supplier_filter), "amount")
         salary_payments = cls.sum(SalaryPayment.objects.filter(salary_filter), "amount")
+        services_total = cls.sum(Services.objects.filter(services_filter), "total_price")
 
         return (
                 order_paid
                 + banding_paid
                 + cutting_paid
                 + debt_paid
+                + services_total
                 - expenses
                 - supplier_payments
                 - salary_payments

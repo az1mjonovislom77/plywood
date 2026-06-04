@@ -56,11 +56,8 @@ class ServicesSerializer(serializers.ModelSerializer):
     services_name = serializers.CharField(source="services_name.name", read_only=True)
     services_name_id = serializers.PrimaryKeyRelatedField(queryset=ServicesName.objects.all(), source="services_name",
                                                           write_only=True)
-    total_price = SerializerMethodField()
+    total_price = serializers.DecimalField(max_digits=20, decimal_places=3, read_only=True)
 
     class Meta:
         model = Services
         fields = "__all__"
-
-    def get_total_price(self, obj):
-        return obj.count * obj.price

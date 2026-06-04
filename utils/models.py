@@ -66,7 +66,12 @@ class Services(models.Model):
     description = models.TextField(blank=True, null=True)
     count = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=20, decimal_places=3)
+    total_price = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def calculate_total_price(self):
+        from decimal import Decimal
+        return Decimal(self.count) * self.price
 
     def __str__(self):
         return str(self.services_name)
