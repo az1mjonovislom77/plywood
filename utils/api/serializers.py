@@ -1,6 +1,6 @@
 from rest_framework.fields import SerializerMethodField
 from utils.base.serializers_base import BaseReadSerializer
-from utils.models import Currency, Expenses, ExpensesHistory
+from utils.models import Currency, Expenses, ExpensesHistory, Services
 from rest_framework import serializers
 from user.models import User
 
@@ -45,3 +45,15 @@ class ExpenseListSerializer(serializers.ModelSerializer):
             return []
 
         return ExpenseHistorySerializer(history, many=True, context=self.context).data
+
+
+class ServicesSerializer(serializers.ModelSerializer):
+    services_name = serializers.CharField(source="services_name.name", read_only=True)
+    total_price = SerializerMethodField()
+
+    class Meta:
+        model = Services
+        fields = "__all__"
+
+    def get_total_price(self, obj):
+        return obj.count * obj.price

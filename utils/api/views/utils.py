@@ -5,8 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.base.views_base import BaseUserViewSet
-from utils.models import Currency
-from utils.api.serializers import CurrencySerializer
+from utils.models import Currency, Services
+from utils.api.serializers import CurrencySerializer, ServicesSerializer
 from utils.service.notification_service import ProductNotificationService
 
 
@@ -57,3 +57,9 @@ class LowStockNotificationView(APIView):
             "low_stock_products": queryset.count(),
             "products": list(queryset),
         })
+
+
+@extend_schema(tags=["Services"])
+class ServicesViewSet(BaseUserViewSet):
+    queryset = Services.objects.select_related("services_name")
+    serializer_class = ServicesSerializer

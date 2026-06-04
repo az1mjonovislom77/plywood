@@ -3,12 +3,13 @@ from rest_framework.routers import DefaultRouter
 from utils.api.views.dashboard import ComprehensiveDashboardStatsAPIView
 from utils.api.views.expenses import ExpenseViewSet, ExpenseHistoryViewSet, CashFlowReportExcelViewSet, \
     FinanceReportJsonViewSet
-from utils.api.views.utils import CurrencyViewSet, LowStockNotificationView
+from utils.api.views.utils import CurrencyViewSet, LowStockNotificationView, ServicesViewSet
 
 router = DefaultRouter()
 router.register('currency', CurrencyViewSet, basename='currency')
 router.register("expenses", ExpenseViewSet)
 router.register("history-expenses", ExpenseHistoryViewSet, basename='expenses-history')
+router.register("services", ServicesViewSet, basename='services')
 
 urlpatterns = [
     path('', include(router.urls)),
