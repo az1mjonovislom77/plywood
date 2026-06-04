@@ -11,9 +11,7 @@ from product.services.export_json import MaterialReportJsonService
 from acceptance.models import CurrencyRate
 from order.models import OrderItem
 from category.models import Category
-from services.total_profit import AllProfitService
 from utils.models import Services, ServicesName
-from utils.service.comprehensive_stats import DashboardStatsService as ComprehensiveDashboard
 
 
 @extend_schema(tags=["Products"], parameters=[
@@ -224,6 +222,7 @@ class KromkaProfitView(APIView):
             product_profit_dollar += profit_dollar
             product_profit_som += profit_som
 
+        from services.total_profit import AllProfitService
         all_profit = AllProfitService.calculate(
             date_from=date_from,
             date_to=date_to,
