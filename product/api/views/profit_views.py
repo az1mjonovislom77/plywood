@@ -11,7 +11,7 @@ from product.services.export_json import MaterialReportJsonService
 from acceptance.models import CurrencyRate
 from order.models import OrderItem
 from category.models import Category
-from utils.models import Services, ServicesName  # Services va ServicesName modellarini import qilish
+from utils.models import Services, ServicesName
 
 
 @extend_schema(tags=["Products"], parameters=[
@@ -137,7 +137,6 @@ class CuttingProfitView(APIView):
         if rate_value and rate_value != Decimal("0"):
             banding_dollar = (banding_som / rate_value).quantize(Decimal("0.01"))
 
-        # Services bo'yicha statistika
         services_names = ServicesName.objects.all()
         services_stats = []
         total_services_profit_som = Decimal("0")
@@ -145,7 +144,7 @@ class CuttingProfitView(APIView):
 
         for service_name in services_names:
             service_total_som = Services.objects.filter(
-                service_name=service_name, created_at__gte=start_dt, created_at__lt=end_dt
+                services_name=service_name, created_at__gte=start_dt, created_at__lt=end_dt
             ).aggregate(
                 total=Coalesce(Sum('total_price'), Value(Decimal('0')), output_field=DecimalField()))['total']
 
