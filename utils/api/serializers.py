@@ -1,6 +1,6 @@
 from rest_framework.fields import SerializerMethodField
 from utils.base.serializers_base import BaseReadSerializer
-from utils.models import Currency, Expenses, ExpensesHistory, Services
+from utils.models import Currency, Expenses, ExpensesHistory, Services, ServicesName
 from rest_framework import serializers
 from user.models import User
 
@@ -49,7 +49,8 @@ class ExpenseListSerializer(serializers.ModelSerializer):
 
 class ServicesSerializer(serializers.ModelSerializer):
     services_name = serializers.CharField(source="services_name.name", read_only=True)
-    services_id = serializers.IntegerField(source="services_name.id", write_only=True)
+    services_id = serializers.PrimaryKeyRelatedField(queryset=ServicesName.objects.all(), source="services_name",
+                                                     write_only=True)
     total_price = SerializerMethodField()
 
     class Meta:
