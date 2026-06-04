@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -148,7 +148,7 @@ class MaterialReportJsonViewSet(ViewSet):
 class DeletedProductsViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related("category").filter(is_active=False)
     serializer_class = ProductSerializer
-    http_method_names = ["get"]
+    http_method_names = ["get", "post"]
     permission_classes = [IsAuthenticated]
     pagination_class = ProductPagination
     filter_backends = [DjangoFilterBackend]
@@ -170,3 +170,12 @@ class DeletedProductsViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    @extend_schema(tags=["Product"])
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore(self, request, pk=None):
+        instance = self.get_object()
+        instance.is_active = True
+        instance.save(update_fields=["is_active"])
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
