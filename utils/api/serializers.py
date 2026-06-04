@@ -47,10 +47,15 @@ class ExpenseListSerializer(serializers.ModelSerializer):
         return ExpenseHistorySerializer(history, many=True, context=self.context).data
 
 
+class ServicesNameSerializer(BaseReadSerializer):
+    class Meta(BaseReadSerializer.Meta):
+        model = ServicesName
+
+
 class ServicesSerializer(serializers.ModelSerializer):
     services_name = serializers.CharField(source="services_name.name", read_only=True)
     services_name_id = serializers.PrimaryKeyRelatedField(queryset=ServicesName.objects.all(), source="services_name",
-                                                     write_only=True)
+                                                          write_only=True)
     total_price = SerializerMethodField()
 
     class Meta:

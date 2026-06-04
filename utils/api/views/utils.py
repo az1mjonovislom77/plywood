@@ -62,6 +62,7 @@ class LowStockNotificationView(APIView):
 @extend_schema(tags=["ServicesName"])
 class ServicesNameView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = ServicesSerializer
 
     def get(self, request):
         queryset = ServicesName.objects.all()
