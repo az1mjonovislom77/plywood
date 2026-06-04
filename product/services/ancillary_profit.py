@@ -4,7 +4,7 @@ from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
 
 from category.models import Category
-from order.models import OrderItem
+from order.models import OrderItem, Banding # Banding modelini import qildim
 from product.services.export_json import MaterialReportJsonService
 from product.services.material_profit import KROMKA_CATEGORY_NAME, MaterialProfitService
 from utils.models import Services, ServicesName
@@ -31,20 +31,14 @@ class AncillaryProfitService:
 
     @classmethod
     def calc_banding_profit(cls, start_dt, end_dt, rate_value: Decimal):
-        # kromka = Category.objects.filter(name__iexact=KROMKA_CATEGORY_NAME).first()
-        # if not kromka:
-        #     return Decimal("0"), Decimal("0")
-
-        banding_qs = OrderItem.objects.filter(
-            MaterialReportJsonService._accepted_order_filter(),
-            MaterialReportJsonService._accepted_order_range_filter(start_dt, end_dt),
-            # product__category=kromka, # Bu qator olib tashlandi
-            banding__isnull=False,
+        banding_qs = Banding.objects.filter( # OrderItem.objects.filter o'rniga Banding.objects.filter
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
         ).aggregate(
             banding_som=Coalesce(
                 Sum(
-                    F("banding__length") * F("banding__thickness")
-                    - Coalesce(F("banding__discount"), Value(Decimal("0")))
+                    F("length") * F("thickness") # F("banding__length") o'rniga F("length")
+                    - Coalesce(F("discount"), Value(Decimal("0"))) # F("banding__discount") o'rniga F("discount")
                 ),
                 Value(Decimal("0")),
                 output_field=cls.money_field(),
