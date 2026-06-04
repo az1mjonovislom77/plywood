@@ -11,6 +11,7 @@ from product.services.export_json import MaterialReportJsonService
 from acceptance.models import CurrencyRate
 from order.models import OrderItem
 from category.models import Category
+from services.total_profit import AllProfitService
 from utils.models import Services, ServicesName
 from utils.service.comprehensive_stats import DashboardStatsService as ComprehensiveDashboard
 
@@ -223,57 +224,12 @@ class KromkaProfitView(APIView):
             product_profit_dollar += profit_dollar
             product_profit_som += profit_som
 
-        stats = ComprehensiveDashboard.get_stats(date_from, date_to)
-        cutting_som = Decimal(str(stats.get("cutting_sales", 0)))
-        cutting_dollar = Decimal("0")
-
-        if rate_value and rate_value != Decimal("0"):
-            cutting_dollar = (cutting_som / rate_value).quantize(Decimal("0.01"))
-
-        banding_qs = OrderItem.objects.filter(
-            MaterialReportJsonService._accepted_order_range_filter(start_dt, end_dt),
-            product__category=kromka, banding__isnull=False,
-        ).aggregate(
-            banding_som=Coalesce(
-                Sum(
-                    F("banding__length") * F("banding__thickness")
-                    - Coalesce(F("banding__discount"), Value(Decimal("0")))
-                ), Value(Decimal("0")), output_field=DecimalField(max_digits=18, decimal_places=2)))
-
-        banding_som = Decimal(str(banding_qs.get("banding_som") or 0))
-        banding_dollar = Decimal("0")
-
-        if rate_value and rate_value != Decimal("0"):
-            banding_dollar = (banding_som / rate_value).quantize(Decimal("0.01"))
-
-        services_names = ServicesName.objects.all()
-        total_services_profit_som = Decimal("0")
-        total_services_profit_dollar = Decimal("0")
-
-        for service_name in services_names:
-            service_total_som = Services.objects.filter(
-                services_name=service_name, created_at__gte=start_dt, created_at__lt=end_dt,
-            ).aggregate(
-                total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=DecimalField()))["total"]
-
-            service_total_dollar = Decimal("0")
-            if rate_value and rate_value != Decimal("0"):
-                service_total_dollar = (service_total_som / rate_value).quantize(Decimal("0.01"))
-            total_services_profit_som += service_total_som
-            total_services_profit_dollar += service_total_dollar
-
-        all_profit_som = (
-                product_profit_som
-                + cutting_som
-                + banding_som
-                + total_services_profit_som
-        )
-
-        all_profit_dollar = (
-                product_profit_dollar
-                + cutting_dollar
-                + banding_dollar
-                + total_services_profit_dollar
+        all_profit = AllProfitService.calculate(
+            date_from=date_from,
+            date_to=date_to,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            end_date=end_date,
         )
 
         return Response({
@@ -281,6 +237,5 @@ class KromkaProfitView(APIView):
             "to": str(end_date),
             "kromka_product_profit_som": float(product_profit_som),
             "kromka_product_profit_dollar": float(product_profit_dollar),
-            "all_profit_som": float(all_profit_som),
-            "all_profit_dollar": float(all_profit_dollar),
+            **all_profit
         })
