@@ -1,6 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
-from django.db.models import Sum, Value, DecimalField, F, ExpressionWrapper, Q, Case, When
+from django.db.models import Sum, Value, F, ExpressionWrapper, Q, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -8,11 +8,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.cell.cell import MergedCell
 from category.models import Category
-from acceptance.models import CurrencyRate
 from product.models import Product
 from acceptance.models import Acceptance
 from order.models import Order, OrderItem
-from product.services.export_json import MaterialReportJsonService
+from product.services.material_profit import MaterialProfitService
 
 
 class MaterialReportService:
@@ -39,14 +38,6 @@ class MaterialReportService:
             order__created_at__gte=start_dt,
             order__created_at__lt=end_dt,
         )
-
-    @staticmethod
-    def _accepted_order_until_filter(end_dt):
-        return Q(order__accepted_at__lt=end_dt) | Q(order__accepted_at__isnull=True, order__created_at__lt=end_dt)
-
-    @staticmethod
-    def _sale_date(row):
-        return row["order__accepted_at"] or row["order__created_at"]
 
     @classmethod
     def _parse_bounds(cls, date_from, date_to):
@@ -81,7 +72,15 @@ class MaterialReportService:
 
     @classmethod
     def build_excel(cls, date_from=None, date_to=None):
-        start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
+        profit_context = MaterialProfitService.build_profit_context(date_from, date_to)
+        start_date = profit_context["start_date"]
+        end_date = profit_context["end_date"]
+        start_dt = profit_context["start_dt"]
+        end_dt = profit_context["end_dt"]
+        open_cogs_map = profit_context["open_cogs_map"]
+        period_cogs_map = profit_context["period_cogs_map"]
+        period_cogs_map_in_dollar = profit_context["period_cogs_map_in_dollar"]
+
         categories = list(Category.objects.all().order_by("name"))
         products = list(Product.objects.select_related("category").order_by("category__name", "name"))
 
@@ -125,25 +124,10 @@ class MaterialReportService:
                 cls._accepted_order_range_filter(start_dt, end_dt),
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(
-                    Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")),
-                    output_field=cls._money_field(),
-                ),
-                total_in_dollar=Coalesce(
-                    Sum(
-                        F("quantity") * Case(
-                            When(new_price_in_dollar__isnull=False, then=F("new_price_in_dollar")),
-                            default=F("price_in_dollar"),
-                            output_field=cls._money_field())),
-                    Value(Decimal("0")),
-                    output_field=cls._money_field()
-                )), extra_fields=['total_in_dollar'])
-
-        open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = MaterialReportJsonService._calc_fifo(start_dt, end_dt, end_date)
-
-        # get currency rate for conversion to sum (use latest rate <= end_date)
-        rate_obj = CurrencyRate.objects.filter(date__lte=end_date).order_by("-date").first()
-        rate_value = Decimal(rate_obj.rate) if rate_obj else Decimal("0")
+            )
+        )
+        revenue_som_map = profit_context["revenue_som_map"]
+        revenue_dollar_map = profit_context["revenue_dollar_map"]
 
         grouped_products = {}
         for product in products:
@@ -213,7 +197,6 @@ class MaterialReportService:
             for c in range(1, 15):
                 cell = ws.cell(r, c)
                 if isinstance(cell, MergedCell) and cell.coordinate != ws.cell(r, c).coordinate:
-                    # skip non top-left merged cells
                     continue
                 cell.font = bold
                 cell.alignment = center
@@ -259,23 +242,24 @@ class MaterialReportService:
                 open_in = open_in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                out_period = out_map.get(product.id,
-                                         {"qty": Decimal("0"), "total": Decimal("0"), "total_in_dollar": Decimal("0")})
+                out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
+                out_revenue = revenue_som_map.get(product.id, Decimal("0"))
+                out_revenue_in_dollar = revenue_dollar_map.get(product.id, Decimal("0"))
+                out_cogs = period_cogs_map.get(product.id, Decimal("0"))
+                out_cogs_in_dollar = period_cogs_map_in_dollar.get(product.id, Decimal("0"))
+                out_qty = out_period["qty"]
+
                 open_qty = open_in["qty"] - open_out["qty"]
                 open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
-                out_qty = out_period["qty"]
-                # revenue (som) and revenue (dollar)
-                out_revenue = out_period.get("total", Decimal("0"))
-                out_revenue_in_dollar = out_period.get("total_in_dollar", Decimal("0"))
-                # cogs in som and in dollar (from FIFO)
-                out_cogs = period_cogs_map.get(product.id, Decimal("0"))
-                out_cogs_in_dollar = period_cogs_map_in_dollar.get(product.id, Decimal("0"))
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_cogs
 
-                # accumulate category totals
+                profit_row = MaterialProfitService.product_profit_row(product, profit_context)
+                profit_som = profit_row["profit_som"]
+                profit_dollar = profit_row["profit_dollar"]
+
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
@@ -284,17 +268,9 @@ class MaterialReportService:
                 cat_out_sum += out_cogs
                 cat_out_revenue_sum += out_revenue
                 cat_out_revenue_sum_in_dollar += out_revenue_in_dollar
-                # accumulate COGS in dollar
                 cat_out_sum_in_dollar += out_cogs_in_dollar
                 cat_end_qty += end_qty
                 cat_end_sum += end_sum
-
-                # profits (compute in dollar then convert to sum using rate)
-                profit_dollar = out_revenue_in_dollar - out_cogs_in_dollar
-                if rate_value and rate_value != Decimal("0"):
-                    profit_som = (profit_dollar * rate_value).quantize(Decimal("0.01"))
-                else:
-                    profit_som = out_revenue - out_cogs
                 cat_profit_sum += profit_som
                 cat_profit_sum_in_dollar += profit_dollar
 
@@ -339,8 +315,6 @@ class MaterialReportService:
             money(ws.cell(row, 8), cat_in_qty)
             money(ws.cell(row, 9), cat_in_sum)
             money(ws.cell(row, 10), cat_out_qty)
-            # Расход (Сумма) should show COGS (out_sum) with its dollar equivalent
-            # show COGS (som) and sold price in parentheses (dollar)
             money_with_dollar(ws.cell(row, 11), cat_out_sum, cat_out_revenue_sum_in_dollar)
             money(ws.cell(row, 12), cat_end_qty)
             money(ws.cell(row, 13), cat_end_sum)
@@ -365,7 +339,6 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                # Расход: show COGS (som) and sold price in parentheses (dollar)
                 money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")), item.get("out_revenue_in_dollar", Decimal("0")))
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
@@ -390,7 +363,6 @@ class MaterialReportService:
         money(ws.cell(row, 8), grand_in_qty)
         money(ws.cell(row, 9), grand_in_sum)
         money(ws.cell(row, 10), grand_out_qty)
-        # Grand Расход shows total COGS and sold price in parentheses (dollar)
         money_with_dollar(ws.cell(row, 11), grand_out_sum, grand_out_revenue_sum_in_dollar)
         money(ws.cell(row, 12), grand_end_qty)
         money(ws.cell(row, 13), grand_end_sum)
