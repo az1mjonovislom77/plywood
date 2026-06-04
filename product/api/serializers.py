@@ -42,3 +42,4 @@ class QualitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Quality
         fields = "__all__"
+

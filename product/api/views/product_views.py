@@ -144,6 +144,7 @@ class MaterialReportJsonViewSet(ViewSet):
 @extend_schema(tags=["Product"])
 class DeletedProductsViewSet(ViewSet):
     permission_classes = [IsAuthenticated]
+    serializers_class = ProductSerializer
 
     def list(self, request):
         products = Product.objects.select_related("category").filter(is_active=False)
