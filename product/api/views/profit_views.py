@@ -53,6 +53,16 @@ class ProfitByCategoryView(APIView):
         total_profit_dollar = Decimal("0")
         total_profit_som = Decimal("0")
 
+        products_count = 0
+
+        for category in categories:
+            if category.name.strip().upper() == "KROMKA":
+                continue
+
+            products = category.products.all()
+
+            products_count += products.count()
+
         for category in categories:
             if category.name.strip().upper() == "KROMKA":
                 continue
@@ -90,6 +100,7 @@ class ProfitByCategoryView(APIView):
             "categories": result_categories,
             "total_profit_som": float(total_profit_som),
             "total_profit_dollar": float(total_profit_dollar),
+            "products_count": products_count
         })
 
 
@@ -236,5 +247,6 @@ class KromkaProfitView(APIView):
             "to": str(end_date),
             "kromka_product_profit_som": float(product_profit_som),
             "kromka_product_profit_dollar": float(product_profit_dollar),
+            "kromka_products_count": cat_products.count(),
             **all_profit
         })
