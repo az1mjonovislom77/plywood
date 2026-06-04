@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from utils.api.views.dashboard import ComprehensiveDashboardStatsAPIView
 from utils.api.views.expenses import ExpenseViewSet, ExpenseHistoryViewSet, CashFlowReportExcelViewSet, \
     FinanceReportJsonViewSet
-from utils.api.views.utils import CurrencyViewSet, LowStockNotificationView, ServicesViewSet
+from utils.api.views.utils import CurrencyViewSet, LowStockNotificationView, ServicesViewSet, ServicesNameView
 
 router = DefaultRouter()
 router.register('currency', CurrencyViewSet, basename='currency')
@@ -17,4 +17,5 @@ urlpatterns = [
     path("all-stats/", ComprehensiveDashboardStatsAPIView.as_view()),
     path("export/", CashFlowReportExcelViewSet.as_view({"get": "list"}), name="cashflow-report"),
     path("finance-report/", FinanceReportJsonViewSet.as_view({"get": "list"})),
+    path("service-name/", ServicesNameView.as_view(), name="services-name"),
 ]
