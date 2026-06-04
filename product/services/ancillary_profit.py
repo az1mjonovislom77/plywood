@@ -31,14 +31,14 @@ class AncillaryProfitService:
 
     @classmethod
     def calc_banding_profit(cls, start_dt, end_dt, rate_value: Decimal):
-        kromka = Category.objects.filter(name__iexact=KROMKA_CATEGORY_NAME).first()
-        if not kromka:
-            return Decimal("0"), Decimal("0")
+        # kromka = Category.objects.filter(name__iexact=KROMKA_CATEGORY_NAME).first()
+        # if not kromka:
+        #     return Decimal("0"), Decimal("0")
 
         banding_qs = OrderItem.objects.filter(
             MaterialReportJsonService._accepted_order_filter(),
             MaterialReportJsonService._accepted_order_range_filter(start_dt, end_dt),
-            product__category=kromka,
+            # product__category=kromka, # Bu qator olib tashlandi
             banding__isnull=False,
         ).aggregate(
             banding_som=Coalesce(
