@@ -368,7 +368,7 @@ class MaterialReportService:
             cell.border = border
             cell.font = bold
 
-        widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 10, "F": 12, "G": 18, "H": 12, "I": 18, "J": 12, "K": 18,
+        widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 18, "F": 12, "G": 18, "H": 12, "I": 18, "J": 18, "K": 18,
                   "L": 12, "M": 18, "N": 18}
 
         for col, width in widths.items():
@@ -389,7 +389,7 @@ class MaterialReportService:
 
         row += 2
 
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
         profit_header = ws.cell(row, 2)
         profit_header.value = "ФОЙДА"
         profit_header.font = bold
@@ -398,7 +398,7 @@ class MaterialReportService:
         for col in range(2, 6):
             ws.cell(row, col).border = border
 
-        ws.merge_cells(start_row=row, start_column=7, end_row=row, end_column=10)
+        ws.merge_cells(start_row=row, start_column=7, end_row=row, end_column=9)
         expense_header = ws.cell(row, 7)
         expense_header.value = "ХАРАЖАТ"
         expense_header.font = bold
