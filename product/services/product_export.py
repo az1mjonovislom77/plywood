@@ -10,7 +10,7 @@ from openpyxl.cell.cell import MergedCell
 from category.models import Category
 from employee.models import SalaryPayment
 from product.models import Product
-from acceptance.models import Acceptance
+from acceptance.models import Acceptance, CurrencyRate
 from order.models import Order, OrderItem
 from product.services.material_profit import MaterialProfitService
 from utils.models import Expenses
@@ -240,18 +240,15 @@ class MaterialReportService:
                 out_cogs = period_cogs_map.get(product.id, Decimal("0"))
                 out_cogs_in_dollar = period_cogs_map_in_dollar.get(product.id, Decimal("0"))
                 out_qty = out_period["qty"]
-
                 open_qty = open_in["qty"] - open_out["qty"]
                 open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 end_qty = open_qty + in_qty - out_qty
                 end_sum = open_sum + in_sum - out_cogs
-
                 profit_row = MaterialProfitService.product_profit_row(product, profit_context)
                 profit_som = profit_row["profit_som"]
                 profit_dollar = profit_row["profit_dollar"]
-
                 cat_open_qty += open_qty
                 cat_open_sum += open_sum
                 cat_in_qty += in_qty
@@ -473,16 +470,43 @@ class MaterialReportService:
             ws.cell(current_row, 10).border = border
             expense_total_sum += amount
 
-        summary_row = row + max(len(profit_rows), len(expense_rows))
+        rate_obj = CurrencyRate.objects.filter(
+            date=timezone.localdate()
+        ).first()
+
+        rate_value = Decimal(str(rate_obj.rate)) if rate_obj else Decimal("0")
+
+        profit_dollar = Decimal("0")
+        expense_dollar = Decimal("0")
+
+        if rate_value:
+            profit_dollar = profit_total / rate_value
+            expense_dollar = expense_total_sum / rate_value
+
+        summary_row = row + max(
+            len(profit_rows),
+            len(expense_rows),
+        )
+
         ws.cell(summary_row, 2, "ЖАМИ ФОЙДА")
-        money(ws.cell(summary_row, 5), profit_total)
+
+        money_with_dollar(
+            ws.cell(summary_row, 5),
+            profit_total,
+            profit_dollar,
+        )
+
         ws.cell(summary_row, 7, "ЖАМИ ХАРАЖАТ")
-        money(ws.cell(summary_row, 10), expense_total_sum)
+
+        money_with_dollar(
+            ws.cell(summary_row, 10),
+            expense_total_sum,
+            expense_dollar,
+        )
 
         for col in [2, 5, 7, 10]:
             ws.cell(summary_row, col).font = bold
             ws.cell(summary_row, col).border = border
-
         summary_row += 2
         output = BytesIO()
         wb.save(output)

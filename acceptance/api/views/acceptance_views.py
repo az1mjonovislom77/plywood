@@ -55,7 +55,8 @@ class AcceptanceViewSet(BaseUserViewSet):
 
     @transaction.atomic
     def perform_update(self, serializer):
-        acceptance = AcceptanceWorkflowService.update(acceptance=serializer.instance, data=serializer.validated_data, user=self.request.user)
+        acceptance = AcceptanceWorkflowService.update(acceptance=serializer.instance, data=serializer.validated_data,
+                                                      user=self.request.user)
         serializer.instance = acceptance
 
     @extend_schema(request=None)
@@ -213,12 +214,9 @@ class AcceptanceExportViewSet(ViewSet):
 
     @extend_schema(tags=["AcceptanceExport"],
                    parameters=[
-                       OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
-                                        description="Format: YYYY-MM-DD"),
-                       OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
-                                        description="Format: YYYY-MM-DD"),
-                       OpenApiParameter(name="supplier_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
-                                        description="Filter by Supplier ID")])
+                       OpenApiParameter(name="from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+                       OpenApiParameter(name="to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+                       OpenApiParameter(name="supplier_id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY)])
     @action(detail=False, methods=["get"], url_path="analytics")
     def analytics_excel(self, request):
         from_date, to_date, supplier_id, error_response = self._parse_analytics_filters(request)
@@ -226,13 +224,8 @@ class AcceptanceExportViewSet(ViewSet):
             return error_response
 
         data = AcceptanceAnalyticsService.get_grouped_supplier_stats(
-            date_field="arrival_date",
-            from_date=from_date,
-            to_date=to_date,
-            supplier_id=supplier_id,
-        )
+            date_field="arrival_date", from_date=from_date, to_date=to_date, supplier_id=supplier_id)
         wb = AcceptanceExportService.build_analytics_excel(data=data, from_date=from_date, to_date=to_date)
-
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = 'attachment; filename="acceptance_analytics.xlsx"'
 
