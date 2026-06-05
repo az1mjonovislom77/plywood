@@ -236,12 +236,6 @@ class MaterialReportService:
                 open_out = open_out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 in_period = in_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
                 out_period = out_map.get(product.id, {"qty": Decimal("0"), "total": Decimal("0")})
-                if (
-                        in_period["qty"] == 0
-                        and
-                        out_period["qty"] == 0
-                ):
-                    continue
                 out_revenue = revenue_som_map.get(product.id, Decimal("0"))
                 out_revenue_in_dollar = revenue_dollar_map.get(product.id, Decimal("0"))
                 out_cogs = period_cogs_map.get(product.id, Decimal("0"))
