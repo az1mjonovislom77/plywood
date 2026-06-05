@@ -375,46 +375,21 @@ class MaterialReportService:
             ws.column_dimensions[col].width = width
 
         salary_total = (
-                SalaryPayment.objects.filter(
-                    paid_at__gte=start_dt,
-                    paid_at__lt=end_dt,
-                ).aggregate(
-                    total=Coalesce(
-                        Sum("amount"),
-                        Value(Decimal("0")),
-                        output_field=cls._money_field(),
-                    )
-                )["total"]
-                or Decimal("0")
-        )
+                SalaryPayment.objects.filter(paid_at__gte=start_dt, paid_at__lt=end_dt)
+                .aggregate(
+                    total=Coalesce(Sum("amount"),
+                                   Value(Decimal("0")), output_field=cls._money_field()))["total"] or Decimal("0"))
 
         row += 4
-
-        # ================= TITLE =================
-
-        ws.merge_cells(
-            start_row=row,
-            start_column=2,
-            end_row=row,
-            end_column=10,
-        )
-
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=10)
         title_cell = ws.cell(row, 2)
         title_cell.value = "ФОЙДА ВА ХАРАЖАТЛАР"
         title_cell.font = Font(name="Arial", size=16, bold=True)
         title_cell.alignment = center
 
-        # ================= HEADERS =================
-
         row += 2
 
-        ws.merge_cells(
-            start_row=row,
-            start_column=2,
-            end_row=row,
-            end_column=5,
-        )
-
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
         profit_header = ws.cell(row, 2)
         profit_header.value = "ФОЙДА"
         profit_header.font = bold
@@ -423,13 +398,7 @@ class MaterialReportService:
         for col in range(2, 6):
             ws.cell(row, col).border = border
 
-        ws.merge_cells(
-            start_row=row,
-            start_column=7,
-            end_row=row,
-            end_column=10,
-        )
-
+        ws.merge_cells(start_row=row, start_column=7, end_row=row, end_column=10)
         expense_header = ws.cell(row, 7)
         expense_header.value = "ХАРАЖАТ"
         expense_header.font = bold
@@ -438,13 +407,10 @@ class MaterialReportService:
         for col in range(7, 11):
             ws.cell(row, col).border = border
 
-        # ================= SUB HEADERS =================
-
         row += 1
 
         ws.cell(row, 2, "НОМИ")
         ws.cell(row, 5, "СУММА")
-
         ws.cell(row, 7, "НОМИ")
         ws.cell(row, 10, "СУММА")
 
@@ -452,8 +418,6 @@ class MaterialReportService:
             ws.cell(row, col).font = bold
             ws.cell(row, col).alignment = center
             ws.cell(row, col).border = border
-
-        # ================= PROFIT DATA =================
 
         row += 1
 
@@ -468,77 +432,35 @@ class MaterialReportService:
             category_profit = Decimal("0")
 
             for product in category_products:
-                profit_row = MaterialProfitService.product_profit_row(
-                    product,
-                    profit_context,
-                )
-
+                profit_row = MaterialProfitService.product_profit_row(product, profit_context)
                 category_profit += profit_row["profit_som"]
-
-            profit_rows.append(
-                (
-                    category.name,
-                    category_profit,
-                )
-            )
+            profit_rows.append((category.name, category_profit))
 
         profit_total = Decimal("0")
 
         for idx, (name, amount) in enumerate(profit_rows):
             current_row = row + idx
-
             ws.cell(current_row, 2, name)
-
-            money(
-                ws.cell(current_row, 5),
-                amount,
-            )
-
+            money(ws.cell(current_row, 5), amount)
             ws.cell(current_row, 2).border = border
             ws.cell(current_row, 5).border = border
-
             profit_total += amount
 
-        # ================= EXPENSE DATA =================
-
         expense_row = row
-
-        ws.cell(
-            expense_row,
-            7,
-            "Ходимлар ойлиги",
-        )
-
-        money(
-            ws.cell(expense_row, 10),
-            salary_total,
-        )
-
+        ws.cell(expense_row, 7, "Ходимлар ойлиги")
+        money(ws.cell(expense_row, 10), salary_total)
         ws.cell(expense_row, 7).border = border
         ws.cell(expense_row, 10).border = border
 
-        # Bo'sh qatorlarni border bilan to'ldirish
         for r in range(row + 1, row + len(profit_rows)):
             ws.cell(r, 7).border = border
             ws.cell(r, 10).border = border
 
-        # ================= TOTALS =================
-
         summary_row = row + len(profit_rows)
-
         ws.cell(summary_row, 2, "ЖАМИ ФОЙДА")
-
-        money(
-            ws.cell(summary_row, 5),
-            profit_total,
-        )
-
+        money(ws.cell(summary_row, 5), profit_total)
         ws.cell(summary_row, 7, "ЖАМИ ХАРАЖАТ")
-
-        money(
-            ws.cell(summary_row, 10),
-            salary_total,
-        )
+        money(ws.cell(summary_row, 10), salary_total)
 
         for col in [2, 5, 7, 10]:
             ws.cell(summary_row, col).font = bold
