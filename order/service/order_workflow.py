@@ -143,6 +143,7 @@ class OrderWorkflowService:
 
         is_accepted_order = order.order_status == Order.OrderStatus.ACCEPT
         description = data.get('description', '')
+
         if is_accepted_order:
             accepted_by_user = order.accepted_by.username if order.accepted_by else 'N/A'
             accepted_info = f"[Tasdiqlangan buyurtma tahrirlandi (Accepted by: {accepted_by_user})] "
@@ -150,125 +151,289 @@ class OrderWorkflowService:
 
         if user.role == User.UserRoles.SELLER and order.user_id != user.id:
             raise ValueError("Siz faqat o'zingizni buyurtmangizni o'zgartira olasiz")
-        elif user.role not in [User.UserRoles.SELLER, User.UserRoles.CASHIER, User.UserRoles.MANAGER]:
+        elif user.role not in [
+            User.UserRoles.SELLER,
+            User.UserRoles.CASHIER,
+            User.UserRoles.MANAGER
+        ]:
             raise ValueError("Sizda bu operatsiyaga ruxsat yo'q")
 
         today = timezone.localdate()
+
         rate_obj = CurrencyRate.objects.filter(date=today).first()
         if not rate_obj:
             raise ValueError("Bugungi dollar kursi kiritilmagan")
+
         rate_value = rate_obj.rate
+
         new_customer = OrderService._get_customer(data.get("customer_id"))
         payment_method = data['payment_method']
-        current_items = {item.id: item for item in order.items.select_related('product', 'cutting', 'banding')}
-        incoming_items_map = {item.get('id'): item for item in data['items'] if item.get('id')}
-        new_items_data = [item for item in data['items'] if not item.get('id')]
-        item_ids_to_delete = set(current_items.keys()) - set(incoming_items_map.keys())
+
+        current_items = {
+            item.id: item
+            for item in order.items.select_related(
+                'product',
+                'cutting',
+                'banding'
+            )
+        }
+
+        incoming_items_map = {
+            item.get('id'): item
+            for item in data['items']
+            if item.get('id')
+        }
+
+        new_items_data = [
+            item for item in data['items']
+            if not item.get('id')
+        ]
+
+        item_ids_to_delete = (
+                set(current_items.keys()) -
+                set(incoming_items_map.keys())
+        )
+
         for item_id in item_ids_to_delete:
             item = current_items[item_id]
-            Product.objects.filter(id=item.product_id).update(count=F("count") + item.quantity)
+
+            Product.objects.filter(
+                id=item.product_id
+            ).update(
+                count=F("count") + item.quantity
+            )
+
             if item.cutting:
                 item.cutting.delete()
+
             if item.banding:
                 item.banding.delete()
+
             item.delete()
 
+        # UPDATE EXISTING ITEMS
         for item_id, item_data in incoming_items_map.items():
+
             item = current_items[item_id]
+
             new_product_id = item_data['product_id']
             new_quantity = Decimal(item_data['quantity'])
 
             if item.product_id != new_product_id:
-                Product.objects.filter(id=item.product_id).update(count=F("count") + item.quantity)
-                new_product = Product.objects.get(id=new_product_id)
+
+                Product.objects.filter(
+                    id=item.product_id
+                ).update(
+                    count=F("count") + item.quantity
+                )
+
+                new_product = Product.objects.get(
+                    id=new_product_id
+                )
+
                 if new_product.count < new_quantity:
-                    raise ValueError(f"{new_product.name} yetarli miqdorda mavjud emas")
-                Product.objects.filter(id=new_product_id).update(count=F("count") - new_quantity)
+                    raise ValueError(
+                        f"{new_product.name} yetarli miqdorda mavjud emas"
+                    )
+
+                Product.objects.filter(
+                    id=new_product_id
+                ).update(
+                    count=F("count") - new_quantity
+                )
+
                 item.product = new_product
+
             else:
                 quantity_diff = new_quantity - item.quantity
+
                 if quantity_diff != 0:
-                    if quantity_diff > 0 and item.product.count < quantity_diff:
-                        raise ValueError(f"{item.product.name} yetarli miqdorda mavjud emas")
-                    Product.objects.filter(id=item.product_id).update(count=F("count") - quantity_diff)
+
+                    if (
+                            quantity_diff > 0 and
+                            item.product.count < quantity_diff
+                    ):
+                        raise ValueError(
+                            f"{item.product.name} yetarli miqdorda mavjud emas"
+                        )
+
+                    Product.objects.filter(
+                        id=item.product_id
+                    ).update(
+                        count=F("count") - quantity_diff
+                    )
 
             original_sell_price = item.product.sale_price
+
             new_sell_price = item_data.get("new_sell_price")
-            actual_sell_price = new_sell_price if new_sell_price is not None else item.price
-            sell_price_difference = actual_sell_price - original_sell_price if new_sell_price is not None else item.sell_price_difference
-            if rate_value is not None and rate_value != Decimal("0"):
+
+            actual_sell_price = (
+                new_sell_price
+                if new_sell_price is not None
+                else item.price
+            )
+
+            sell_price_difference = (
+                actual_sell_price - original_sell_price
+                if new_sell_price is not None
+                else item.sell_price_difference
+            )
+
+            new_price_in_dollar = None
+
+            if rate_value and rate_value != Decimal("0"):
                 if new_sell_price is not None:
-                    new_price_in_dollar = (new_sell_price / rate_value).quantize(
-                        Decimal("0.0001"), rounding=ROUND_HALF_UP
+                    new_price_in_dollar = (
+                            new_sell_price / rate_value
+                    ).quantize(
+                        Decimal("0.0001"),
+                        rounding=ROUND_HALF_UP
                     )
 
-                    item.cutting = OrderWorkflowService._handle_service(Cutting, item.cutting, item_data.get('cutting'),
-                                                                        new_customer, payment_method)
-                    item.banding = OrderWorkflowService._handle_service(Banding, item.banding, item_data.get('banding'),
-                                                                        new_customer, payment_method)
+            item.cutting = OrderWorkflowService._handle_service(
+                Cutting,
+                item.cutting,
+                item_data.get('cutting'),
+                new_customer,
+                payment_method
+            )
 
-                    item.quantity = new_quantity
-                    item.price = actual_sell_price
-                    item.new_sell_price = new_sell_price
-                    item.sell_price_difference = sell_price_difference
-                    item.new_price_in_dollar = new_price_in_dollar
-                    item.save()
+            item.banding = OrderWorkflowService._handle_service(
+                Banding,
+                item.banding,
+                item_data.get('banding'),
+                new_customer,
+                payment_method
+            )
 
-                    new_order_items = []
-                    for item_data in new_items_data:
-                        product = Product.objects.get(id=item_data['product_id'])
-                    quantity = Decimal(item_data['quantity'])
+            item.quantity = new_quantity
+            item.price = actual_sell_price
+            item.new_sell_price = new_sell_price
+            item.sell_price_difference = sell_price_difference
+            item.new_price_in_dollar = new_price_in_dollar
 
-                    if product.count < quantity:
-                        raise ValueError(f"{product.name} yetarli miqdorda mavjud emas")
+            item.save()
 
-            Product.objects.filter(id=product.id).update(count=F("count") - quantity)
+        # CREATE NEW ITEMS
+        new_order_items = []
+
+        for item_data in new_items_data:
+
+            product = Product.objects.get(
+                id=item_data['product_id']
+            )
+
+            quantity = Decimal(item_data['quantity'])
+
+            if product.count < quantity:
+                raise ValueError(
+                    f"{product.name} yetarli miqdorda mavjud emas"
+                )
+
+            Product.objects.filter(
+                id=product.id
+            ).update(
+                count=F("count") - quantity
+            )
 
             original_sell_price = product.sale_price
-            new_sell_price = item_data.get("new_sell_price")
-            actual_sell_price = new_sell_price if new_sell_price is not None else original_sell_price
-            sell_price_difference = actual_sell_price - original_sell_price if new_sell_price is not None else 0
+
+            new_sell_price = item_data.get(
+                "new_sell_price"
+            )
+
+            actual_sell_price = (
+                new_sell_price
+                if new_sell_price is not None
+                else original_sell_price
+            )
+
+            sell_price_difference = (
+                actual_sell_price - original_sell_price
+                if new_sell_price is not None
+                else Decimal("0")
+            )
+
             price_in_dollar = None
             new_price_in_dollar = None
-            if rate_value is not None and rate_value != Decimal("0"):
-                price_in_dollar = (original_sell_price / rate_value).quantize(
-                    Decimal("0.0001"), rounding=ROUND_HALF_UP
+
+            if rate_value and rate_value != Decimal("0"):
+
+                price_in_dollar = (
+                        original_sell_price / rate_value
+                ).quantize(
+                    Decimal("0.0001"),
+                    rounding=ROUND_HALF_UP
                 )
+
                 if new_sell_price is not None:
-                    new_price_in_dollar = (new_sell_price / rate_value).quantize(
-                        Decimal("0.0001"), rounding=ROUND_HALF_UP
+                    new_price_in_dollar = (
+                            new_sell_price / rate_value
+                    ).quantize(
+                        Decimal("0.0001"),
+                        rounding=ROUND_HALF_UP
                     )
 
-            cutting_instance = OrderWorkflowService._handle_service(Cutting, None, item_data.get('cutting'),
-                                                                    new_customer, payment_method)
-            banding_instance = OrderWorkflowService._handle_service(Banding, None, item_data.get('banding'),
-                                                                    new_customer, payment_method)
+            cutting_instance = (
+                OrderWorkflowService._handle_service(
+                    Cutting,
+                    None,
+                    item_data.get('cutting'),
+                    new_customer,
+                    payment_method
+                )
+            )
 
-            new_order_items.append(OrderItem(
-                order=order,
-                product=product,
-                cutting=cutting_instance,
-                banding=banding_instance,
-                quantity=quantity,
-                price=actual_sell_price,
-                original_sell_price=original_sell_price,
-                new_sell_price=new_sell_price,
-                sell_price_difference=sell_price_difference,
-                exchange_rate=rate_value,
-                price_in_dollar=price_in_dollar,
-                new_price_in_dollar=new_price_in_dollar,
-            ))
+            banding_instance = (
+                OrderWorkflowService._handle_service(
+                    Banding,
+                    None,
+                    item_data.get('banding'),
+                    new_customer,
+                    payment_method
+                )
+            )
+
+            new_order_items.append(
+                OrderItem(
+                    order=order,
+                    product=product,
+                    cutting=cutting_instance,
+                    banding=banding_instance,
+                    quantity=quantity,
+                    price=actual_sell_price,
+                    original_sell_price=original_sell_price,
+                    new_sell_price=new_sell_price,
+                    sell_price_difference=sell_price_difference,
+                    exchange_rate=rate_value,
+                    price_in_dollar=price_in_dollar,
+                    new_price_in_dollar=new_price_in_dollar,
+                )
+            )
 
         if new_order_items:
-            OrderItem.objects.bulk_create(new_order_items)
+            OrderItem.objects.bulk_create(
+                new_order_items
+            )
 
         old_customer = order.customer
+
         order.customer = new_customer
         order.is_anonymous = (new_customer is None)
         order.payment_method = payment_method
-        order.discount = Decimal(data.get('discount', 0))
-        order.discount_type = data.get('discount_type', Order.DiscountType.CASH)
-        order.covered_amount = Decimal(data.get('covered_amount', 0))
+
+        order.discount = Decimal(
+            data.get('discount', 0)
+        )
+
+        order.discount_type = data.get(
+            'discount_type',
+            Order.DiscountType.CASH
+        )
+
+        order.covered_amount = Decimal(
+            data.get('covered_amount', 0)
+        )
 
         if order.payment_method != Order.PaymentMethod.NASIYA:
             order.calculate_total()
@@ -280,6 +445,7 @@ class OrderWorkflowService:
 
         if old_customer and old_customer != new_customer:
             old_customer.sync_debt()
+
         if new_customer:
             new_customer.sync_debt()
 
@@ -287,9 +453,11 @@ class OrderWorkflowService:
             order=order,
             user=user,
             action=OrderHistory.Action.UPDATE,
-            visible_for=(OrderHistory.VisibleFor.CASHIER
-                         if user.role == User.UserRoles.CASHIER
-                         else OrderHistory.VisibleFor.SELLER),
+            visible_for=(
+                OrderHistory.VisibleFor.CASHIER
+                if user.role == User.UserRoles.CASHIER
+                else OrderHistory.VisibleFor.SELLER
+            ),
             description=description
         )
 
