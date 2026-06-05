@@ -1,10 +1,8 @@
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
-
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-
 from customer.models import BalanceHistory
 from employee.models import SalaryPayment
 from order.models import Order, Banding, Cutting
@@ -95,15 +93,10 @@ class FinanceReportJsonService:
                 else "Anonim"
             )
 
-            income_map[(c_id, c_name)] += Decimal(
-                str(banding.covered_amount)
-            )
+            income_map[(c_id, c_name)] += Decimal(str(banding.covered_amount))
 
-        for cutting in Cutting.objects.filter(
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-                covered_amount__gt=0,
-        ).select_related("customer"):
+        for cutting in (Cutting.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0)
+                .select_related("customer")):
             c_id = cutting.customer.id if cutting.customer else None
             c_name = (
                 cutting.customer.full_name
@@ -123,9 +116,7 @@ class FinanceReportJsonService:
                 else "Anonim"
             )
 
-            income_map[(c_id, c_name)] += Decimal(
-                str(payment.amount)
-            )
+            income_map[(c_id, c_name)] += Decimal(str(payment.amount))
 
         income = []
         income_total = Decimal("0")
@@ -155,7 +146,7 @@ class FinanceReportJsonService:
         for payment in supplier_payments:
             expense_data.append({
                 "id": payment.id,
-                "description": f"Supplier payment - {payment.supplier.full_name}",
+                "description": f"Ta`minotchiga - {payment.supplier.full_name}",
                 "date": payment.created_at.strftime("%d.%m.%Y"),
                 "value": payment.amount,
             })

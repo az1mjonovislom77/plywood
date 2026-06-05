@@ -98,6 +98,27 @@ class CashFlowReportService:
                 "created_at": payment.created_at,
                 "amount": Decimal(str(payment.amount)),
             })
+        for payment in SupplierTransaction.objects.filter(
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                transaction_type=SupplierTransaction.TransactionType.PAYMENT,
+                amount__gt=0,
+        ).select_related("supplier").order_by("created_at", "id"):
+            expense_rows.append({
+                "description": payment.supplier.full_name if payment.supplier else "Поставщик",
+                "created_at": payment.created_at,
+                "amount": Decimal(str(payment.amount)),
+            })
+
+        for payment in SalaryPayment.objects.filter(
+                paid_at__gte=start_dt,
+                paid_at__lt=end_dt,
+        ).select_related("employee").order_by("paid_at", "id"):
+            expense_rows.append({
+                "description": f"{payment.employee.full_name} (Ходим)",
+                "created_at": payment.paid_at,
+                "amount": Decimal(str(payment.amount)),
+            })
 
         expense_rows.sort(key=lambda x: (x["created_at"], x["description"]))
         opening_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=start_dt)))
