@@ -85,6 +85,7 @@ class MaterialReportService:
 
         categories = list(Category.objects.all().order_by("name"))
         products = list(Product.objects.select_related("category")
+                        .filter(is_active=True)
                         .order_by("category__name", "name"))
 
         open_in_map = cls._to_map(
