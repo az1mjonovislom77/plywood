@@ -9,7 +9,7 @@ from acceptance.models import CurrencyRate
 
 @extend_schema(tags=["UpdateCurrency"])
 class UpdateCurrencyRateView(APIView):
-    CBU_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/"
+    CBU_URL = "https://open.er-api.com/v6/latest/USD"
 
     def get(self, request):
         today = date.today()
@@ -26,7 +26,9 @@ class UpdateCurrencyRateView(APIView):
         try:
             response = requests.get(self.CBU_URL, timeout=15)
             response.raise_for_status()
-            data = response.json()[0]
-            return Decimal(data["Rate"])
+
+            data = response.json()
+            return Decimal(str(data["rates"]["UZS"]))
+
         except (requests.RequestException, KeyError, IndexError) as exc:
             raise RuntimeError(f"Currency API error: {exc}")
