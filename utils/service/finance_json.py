@@ -1,24 +1,39 @@
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
+
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+
 from customer.models import BalanceHistory
+from employee.models import SalaryPayment
 from order.models import Order, Banding, Cutting
+from supplier.models import SupplierTransaction
 from utils.models import Expenses
 from utils.service.comprehensive_stats import DashboardStatsService
-from supplier.models import SupplierTransaction
 
 
 class FinanceReportJsonService:
     @classmethod
     def build(cls, date_from=None, date_to=None):
         today = timezone.localdate()
+
         start_date = parse_date(date_from) if date_from else today
         end_date = parse_date(date_to) if date_to else today
-        start_dt = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+
+        start_dt = timezone.make_aware(
+            timezone.datetime.combine(
+                start_date,
+                timezone.datetime.min.time(),
+            )
+        )
+
         end_dt = timezone.make_aware(
-            timezone.datetime.combine(end_date + timedelta(days=1), timezone.datetime.min.time()))
+            timezone.datetime.combine(
+                end_date + timedelta(days=1),
+                timezone.datetime.min.time(),
+            )
+        )
 
         income_orders = Order.objects.select_related("customer").filter(
             created_at__gte=start_dt,
@@ -28,40 +43,89 @@ class FinanceReportJsonService:
         )
 
         expenses = Expenses.objects.filter(
-            created_at__gte=start_dt, created_at__lt=end_dt,
-            expense_status__in=[Expenses.ExpensesStatus.ACCEPT, Expenses.ExpensesStatus.CREATED]).order_by("created_at")
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
+            expense_status__in=[
+                Expenses.ExpensesStatus.ACCEPT,
+                Expenses.ExpensesStatus.CREATED,
+            ],
+        ).order_by("created_at")
 
-        supplier_payments = SupplierTransaction.objects.filter(
-            created_at__gte=start_dt, created_at__lt=end_dt,
-            transaction_type=SupplierTransaction.TransactionType.PAYMENT).select_related("supplier")
+        supplier_payments = (
+            SupplierTransaction.objects.filter(
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                transaction_type=SupplierTransaction.TransactionType.PAYMENT,
+            )
+            .select_related("supplier")
+        )
+
+        salary_payments = (
+            SalaryPayment.objects.filter(
+                paid_at__gte=start_dt,
+                paid_at__lt=end_dt,
+            )
+            .select_related("employee")
+            .order_by("paid_at")
+        )
 
         income_map = defaultdict(Decimal)
 
         for order in income_orders:
             c_id = order.customer.id if order.customer else None
-            c_name = order.customer.full_name if order.customer else "Anonim"
-            income_map[(c_id, c_name)] += Decimal(str(order.covered_amount))
+            c_name = (
+                order.customer.full_name
+                if order.customer
+                else "Anonim"
+            )
+
+            income_map[(c_id, c_name)] += Decimal(
+                str(order.covered_amount)
+            )
 
         for banding in Banding.objects.filter(
-                created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                covered_amount__gt=0,
         ).select_related("customer"):
             c_id = banding.customer.id if banding.customer else None
-            c_name = banding.customer.full_name if banding.customer else "Anonim"
-            income_map[(c_id, c_name)] += Decimal(str(banding.covered_amount))
+            c_name = (
+                banding.customer.full_name
+                if banding.customer
+                else "Anonim"
+            )
+
+            income_map[(c_id, c_name)] += Decimal(
+                str(banding.covered_amount)
+            )
 
         for cutting in Cutting.objects.filter(
-                created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+                covered_amount__gt=0,
         ).select_related("customer"):
             c_id = cutting.customer.id if cutting.customer else None
-            c_name = cutting.customer.full_name if cutting.customer else "Anonim"
+            c_name = (
+                cutting.customer.full_name
+                if cutting.customer
+                else "Anonim"
+            )
+
             income_map[(c_id, c_name)] += Decimal(str(cutting.covered_amount))
 
         for payment in BalanceHistory.objects.filter(
                 created_at__gte=start_dt, created_at__lt=end_dt, type=BalanceHistory.Type.PAYMENT, amount__gt=0,
         ).select_related("customer"):
             c_id = payment.customer.id if payment.customer else None
-            c_name = payment.customer.full_name if payment.customer else "Anonim"
-            income_map[(c_id, c_name)] += Decimal(str(payment.amount))
+            c_name = (
+                payment.customer.full_name
+                if payment.customer
+                else "Anonim"
+            )
+
+            income_map[(c_id, c_name)] += Decimal(
+                str(payment.amount)
+            )
 
         income = []
         income_total = Decimal("0")
@@ -98,6 +162,17 @@ class FinanceReportJsonService:
 
             expense_total += Decimal(str(payment.amount))
 
+        for payment in salary_payments:
+            expense_data.append({
+                "id": payment.id,
+                "description": f"{payment.employee.full_name} (Ходим)",
+                "date": payment.paid_at.strftime("%d.%m.%Y"),
+                "value": payment.amount,
+            })
+
+            expense_total += Decimal(str(payment.amount))
+        expense_data.sort(key=lambda x: timezone.datetime.strptime(x["date"], "%d.%m.%Y"))
+
         return {
             "from": str(start_date),
             "to": str(end_date),
@@ -107,4 +182,5 @@ class FinanceReportJsonService:
             "expense_total": expense_total,
             "opening_balance": Decimal(
                 str(DashboardStatsService._cashbox_total(end_dt=start_dt - timedelta(microseconds=1)))),
-            "closing_balance": Decimal(str(DashboardStatsService._cashbox_total(end_dt=end_dt)))}
+            "closing_balance": Decimal(str(DashboardStatsService._cashbox_total(end_dt=end_dt))),
+        }
