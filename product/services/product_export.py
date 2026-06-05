@@ -13,6 +13,7 @@ from product.models import Product
 from acceptance.models import Acceptance
 from order.models import Order, OrderItem
 from product.services.material_profit import MaterialProfitService
+from utils.models import Expenses
 
 
 class MaterialReportService:
