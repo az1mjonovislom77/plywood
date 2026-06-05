@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.cell.cell import MergedCell
 from category.models import Category
+from employee.models import SalaryPayment
 from product.models import Product
 from acceptance.models import Acceptance
 from order.models import Order, OrderItem
@@ -100,35 +101,25 @@ class MaterialReportService:
                 cls._accepted_order_filter(), cls._accepted_order_before_filter(start_dt))
             .values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(
-                    Sum(cls._money_expr("quantity", "price")),
-                    Value(Decimal("0")),
-                    output_field=cls._money_field(),
-                ),
-            )
-        )
+                total=Coalesce(Sum(cls._money_expr("quantity", "price")),
+                               Value(Decimal("0")), output_field=cls._money_field())))
 
         in_map = cls._to_map(
             Acceptance.objects.filter(
                 acceptance_status="accept", arrival_date__gte=start_date, arrival_date__lte=end_date,
             ).values("product_id").annotate(
                 qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
-                total=Coalesce(
-                    Sum(cls._money_expr("count", "arrival_price")),
-                    Value(Decimal("0")),
-                    output_field=cls._money_field())))
+                total=Coalesce(Sum(cls._money_expr("count", "arrival_price")),
+                               Value(Decimal("0")), output_field=cls._money_field())))
 
         out_map = cls._to_map(
-            OrderItem.objects.filter(
-                cls._accepted_order_filter(),
-                cls._accepted_order_range_filter(start_dt, end_dt),
-            ).values("product_id").annotate(
+            OrderItem.objects.filter(cls._accepted_order_filter(), cls._accepted_order_range_filter(start_dt, end_dt))
+            .values("product_id").annotate(
                 qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
             )
         )
         revenue_som_map = profit_context["revenue_som_map"]
         revenue_dollar_map = profit_context["revenue_dollar_map"]
-
         grouped_products = {}
         for product in products:
             grouped_products.setdefault(product.category_id, []).append(product)
@@ -339,10 +330,12 @@ class MaterialReportService:
                 money(ws.cell(row, 8), item["in_qty"])
                 money(ws.cell(row, 9), item["in_sum"])
                 money(ws.cell(row, 10), item["out_qty"])
-                money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")), item.get("out_revenue_in_dollar", Decimal("0")))
+                money_with_dollar(ws.cell(row, 11), item.get("out_sum", Decimal("0")),
+                                  item.get("out_revenue_in_dollar", Decimal("0")))
                 money(ws.cell(row, 12), item["end_qty"])
                 money(ws.cell(row, 13), item["end_sum"])
-                money_with_dollar(ws.cell(row, 14), item.get("profit_som", Decimal("0")), item.get("profit_dollar", Decimal("0")))
+                money_with_dollar(ws.cell(row, 14), item.get("profit_som", Decimal("0")),
+                                  item.get("profit_dollar", Decimal("0")))
 
                 for c in range(1, 15):
                     cell = ws.cell(row, c)
@@ -381,6 +374,79 @@ class MaterialReportService:
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
 
+        salary_total = (
+                SalaryPayment.objects.filter(paid_at__gte=start_dt, paid_at__lt=end_dt)
+                .aggregate(total=Coalesce(Sum("amount"), Value(Decimal("0")),
+                                          output_field=cls._money_field()))["total"] or Decimal("0"))
+
+        row += 4
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+        title_cell = ws.cell(row, 1)
+        title_cell.border = border
+        title_cell.value = "ФОЙДА ВА ХАРАЖАТЛАР"
+        title_cell.font = Font(name="Arial", size=14, bold=True)
+        title_cell.alignment = center
+        row += 2
+        ws.cell(row, 1, "ФОЙДА")
+        ws.cell(row, 1).font = bold
+        ws.cell(row, 5, "ХАРАЖАТ")
+        ws.cell(row, 5).font = bold
+
+        for col in [1, 2, 5, 6]:
+            ws.cell(row, col).border = border
+
+        row += 1
+
+        profit_rows = []
+
+        for category in categories:
+            category_products = grouped_products.get(category.id, [])
+
+            if not category_products:
+                continue
+
+            category_profit = Decimal("0")
+            for product in category_products:
+                profit_row = MaterialProfitService.product_profit_row(product, profit_context)
+                category_profit += profit_row["profit_som"]
+
+            profit_rows.append((category.name, category_profit))
+
+        expense_rows = [("Ходимлар ойлиги", salary_total)]
+        profit_total = Decimal("0")
+        expense_total = Decimal("0")
+        max_rows = max(len(profit_rows), len(expense_rows))
+
+        for index in range(max_rows):
+            if index < len(profit_rows):
+                profit_name, profit_amount = profit_rows[index]
+                ws.cell(row + index, 1, profit_name)
+                ws.cell(row + index, 2, float(profit_amount))
+                ws.cell(row + index, 1).border = border
+                ws.cell(row + index, 2).border = border
+                profit_total += profit_amount
+
+            if index < len(expense_rows):
+                expense_name, expense_amount = expense_rows[index]
+                ws.cell(row + index, 5, expense_name)
+                ws.cell(row + index, 6, float(expense_amount))
+                ws.cell(row + index, 5).border = border
+                ws.cell(row + index, 6).border = border
+                expense_total += expense_amount
+
+        summary_row = row + max_rows + 1
+        ws.cell(summary_row, 1, "ЖАМИ ФОЙДА")
+        money(ws.cell(summary_row, 2), profit_total)
+        ws.cell(summary_row, 5, "ЖАМИ ХАРАЖАТ")
+        money(ws.cell(summary_row, 6), expense_total)
+        for col in [1, 2, 5, 6]:
+            ws.cell(summary_row, col).alignment = right
+
+        for col in [1, 2, 5, 6]:
+            ws.cell(summary_row, col).font = bold
+            ws.cell(summary_row, col).border = border
+
+        summary_row += 2
         output = BytesIO()
         wb.save(output)
         output.seek(0)

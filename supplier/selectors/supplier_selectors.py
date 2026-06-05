@@ -9,9 +9,7 @@ class SupplierSelector:
     @staticmethod
     def debt_stats():
         stats = Supplier.objects.aggregate(
-            total_customers=Count("id"),
-            total_debt=Coalesce(Sum("debt"), Decimal("0.00")),
-        )
+            total_customers=Count("id"), total_debt=Coalesce(Sum("debt"), Decimal("0.00")))
 
         return {
             "total_customers": stats["total_customers"],
@@ -22,7 +20,6 @@ class SupplierSelector:
     def transactions_with_stats(supplier_id):
         supplier = get_object_or_404(Supplier, id=supplier_id)
         transactions = supplier.transactions.all()
-
         total_purchases = transactions.filter(
             transaction_type=SupplierTransaction.TransactionType.PURCHASE
         ).aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")))["total"]

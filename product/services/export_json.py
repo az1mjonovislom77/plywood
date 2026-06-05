@@ -30,10 +30,7 @@ class MaterialReportJsonService:
     @staticmethod
     def _accepted_order_range_filter(start_dt, end_dt):
         return Q(order__accepted_at__gte=start_dt, order__accepted_at__lt=end_dt) | Q(
-            order__accepted_at__isnull=True,
-            order__created_at__gte=start_dt,
-            order__created_at__lt=end_dt,
-        )
+            order__accepted_at__isnull=True, order__created_at__gte=start_dt, order__created_at__lt=end_dt)
 
     @staticmethod
     def _accepted_order_until_filter(end_dt):
@@ -86,14 +83,10 @@ class MaterialReportJsonService:
 
         sale_rows = list(
             OrderItem.objects
-            .filter(
-                cls._accepted_order_filter(),
-                cls._accepted_order_until_filter(end_dt),
-            )
+            .filter(cls._accepted_order_filter(), cls._accepted_order_until_filter(end_dt))
             .values("product_id", "quantity", "order__created_at", "order__accepted_at", "id")
         )
         sale_rows.sort(key=lambda r: (r["product_id"], cls._sale_date(r), r["id"]))
-
         open_cogs_map = defaultdict(lambda: Decimal("0"))
         period_cogs_map = defaultdict(lambda: Decimal("0"))
         open_cogs_map_in_dollar = defaultdict(lambda: Decimal("0"))
@@ -141,19 +134,15 @@ class MaterialReportJsonService:
             "qty",
         )
         open_in_sum_map = {}
-        for row in (
-                Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
-                        .values("product_id")
-                        .annotate(total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
-                                                 output_field=cls._money_field()))
-        ):
+        for row in (Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
+                .values("product_id")
+                .annotate(total=Coalesce(
+            Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")),
+            output_field=cls._money_field()))):
             open_in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 
         open_out_qty_map = cls._to_qty_map(
-            OrderItem.objects.filter(
-                cls._accepted_order_filter(),
-                cls._accepted_order_before_filter(start_dt),
-            )
+            OrderItem.objects.filter(cls._accepted_order_filter(), cls._accepted_order_before_filter(start_dt))
             .values("product_id")
             .annotate(qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field())),
             "qty",
@@ -161,9 +150,7 @@ class MaterialReportJsonService:
 
         in_qty_map = cls._to_qty_map(
             Acceptance.objects.filter(
-                acceptance_status="accept",
-                arrival_date__gte=start_date,
-                arrival_date__lte=end_date)
+                acceptance_status="accept", arrival_date__gte=start_date, arrival_date__lte=end_date)
             .values("product_id")
             .annotate(qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field())),
             "qty",
@@ -179,16 +166,14 @@ class MaterialReportJsonService:
             in_sum_map[row["product_id"]] = Decimal(str(row["total"] or 0))
 
         out_qty_map = cls._to_qty_map(
-            OrderItem.objects.filter(
-                cls._accepted_order_filter(),
-                cls._accepted_order_range_filter(start_dt, end_dt),
-            )
+            OrderItem.objects.filter(cls._accepted_order_filter(), cls._accepted_order_range_filter(start_dt, end_dt))
             .values("product_id")
             .annotate(qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field())),
             "qty",
         )
 
-        open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = cls._calc_fifo(start_dt, end_dt, end_date)
+        open_cogs_map, period_cogs_map, open_cogs_map_in_dollar, period_cogs_map_in_dollar = (
+            cls._calc_fifo(start_dt, end_dt, end_date))
 
         grouped_products = {}
         for product in products:

@@ -1,6 +1,5 @@
 from django.db.models import Prefetch, Sum, ExpressionWrapper, F, DecimalField
 from django.db.models.functions import TruncDate
-
 from acceptance.models import Acceptance, AcceptanceHistory
 
 
@@ -38,14 +37,14 @@ class AcceptanceSelector:
     @staticmethod
     def grouped_supplier_stats_queryset(date_field="created_at", from_date=None, to_date=None, supplier_id=None):
         qs = Acceptance.objects.filter(acceptance_status=Acceptance.AcceptanceStatus.ACCEPT, supplier__isnull=False)
-        
+
         if from_date:
             qs = qs.filter(**{f"{date_field}__gte": from_date})
         if to_date:
             qs = qs.filter(**{f"{date_field}__lte": to_date})
         if supplier_id:
             qs = qs.filter(supplier_id=supplier_id)
-            
+
         return (
             qs
             .annotate(date=AcceptanceSelector._date_annotation(date_field))
@@ -60,14 +59,14 @@ class AcceptanceSelector:
     @staticmethod
     def grouped_supplier_stats(date_field="created_at", from_date=None, to_date=None, supplier_id=None):
         qs = Acceptance.objects.filter(supplier__isnull=False)
-        
+
         if from_date:
             qs = qs.filter(**{f"{date_field}__gte": from_date})
         if to_date:
             qs = qs.filter(**{f"{date_field}__lte": to_date})
         if supplier_id:
             qs = qs.filter(supplier_id=supplier_id)
-            
+
         return (
             qs
             .annotate(date=AcceptanceSelector._date_annotation(date_field))

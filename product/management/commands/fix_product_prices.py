@@ -28,8 +28,7 @@ class Command(BaseCommand):
 
         for product in products:
             last_acceptance = Acceptance.objects.filter(
-                product=product, acceptance_status=Acceptance.AcceptanceStatus.ACCEPT
-            ).order_by('-accepted_at').first()
+                product=product, acceptance_status=Acceptance.AcceptanceStatus.ACCEPT).order_by('-accepted_at').first()
 
             if last_acceptance:
                 product.arrival_price = last_acceptance.arrival_price_in_dollar

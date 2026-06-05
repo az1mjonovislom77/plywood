@@ -16,9 +16,7 @@ class AcceptanceWorkflowService:
         sale_price_input = data.get("sale_price", 0)
         arrival_date = data.get("arrival_date", timezone.localdate())
 
-        rate = CurrencyRate.objects.filter(
-            date__lte=arrival_date
-        ).order_by("-date").first()
+        rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
 
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
@@ -27,16 +25,11 @@ class AcceptanceWorkflowService:
 
         data["arrival_price_in_dollar"] = arrival_price_input
         data["sale_price_in_dollar"] = sale_price_input
-        data["arrival_price_in_sum"] = (
-                Decimal(arrival_price_input) * rate_value
-        ).quantize(Decimal("0.01"))
-        data["sale_price_in_sum"] = (
-                Decimal(sale_price_input) * rate_value
-        ).quantize(Decimal("0.01"))
+        data["arrival_price_in_sum"] = (Decimal(arrival_price_input) * rate_value).quantize(Decimal("0.01"))
+        data["sale_price_in_sum"] = (Decimal(sale_price_input) * rate_value).quantize(Decimal("0.01"))
         data["price_type"] = Acceptance.PriceType.DOLLAR
 
         acceptance = Acceptance.objects.create(**data)
-
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,
@@ -61,36 +54,22 @@ class AcceptanceWorkflowService:
         old_debt = Decimal(acceptance.arrival_price_in_sum) * old_count
         is_accepted = str(acceptance.acceptance_status) == "accept"
 
-        new_arrival_price = Decimal(
-            data.get("arrival_price", acceptance.arrival_price)
-        )
-        new_sale_price = Decimal(
-            data.get("sale_price", acceptance.sale_price)
-        )
+        new_arrival_price = Decimal(data.get("arrival_price", acceptance.arrival_price))
+        new_sale_price = Decimal(data.get("sale_price", acceptance.sale_price))
         new_count = Decimal(data.get("count", acceptance.count))
         arrival_date = data.get("arrival_date", acceptance.arrival_date)
-
-        rate = CurrencyRate.objects.filter(
-            date__lte=arrival_date
-        ).order_by("-date").first()
+        rate = CurrencyRate.objects.filter(date__lte=arrival_date).order_by("-date").first()
 
         if not rate:
             raise ValueError(f"Currency rate for {arrival_date} or earlier not found.")
 
         rate_value = rate.rate
-
-        new_arrival_price_in_sum = (
-                new_arrival_price * rate_value
-        ).quantize(Decimal("0.01"))
-
-        new_sale_price_in_sum = (
-                new_sale_price * rate_value
-        ).quantize(Decimal("0.01"))
+        new_arrival_price_in_sum = (new_arrival_price * rate_value).quantize(Decimal("0.01"))
+        new_sale_price_in_sum = (new_sale_price * rate_value).quantize(Decimal("0.01"))
 
         if is_accepted:
             count_difference = new_count - old_count
             new_debt = new_arrival_price_in_sum * new_count
-
             Product.objects.filter(pk=acceptance.product_id).update(
                 count=F("count") + count_difference,
                 arrival_price=new_arrival_price,
@@ -101,7 +80,6 @@ class AcceptanceWorkflowService:
 
             old_supplier = acceptance.supplier
             new_supplier = data.get("supplier", old_supplier)
-
             suppliers_to_update = set()
             if old_supplier:
                 suppliers_to_update.add(old_supplier.id)
@@ -116,14 +94,13 @@ class AcceptanceWorkflowService:
 
             if old_supplier and old_supplier.id in locked_suppliers:
                 old_supplier = locked_suppliers[old_supplier.id]
-            
+
             if new_supplier and new_supplier.id in locked_suppliers:
                 new_supplier = locked_suppliers[new_supplier.id]
 
             purchase_txn = SupplierTransaction.objects.filter(
                 transaction_type=SupplierTransaction.TransactionType.PURCHASE,
-                description=f"Acceptance #{acceptance.id}"
-            ).first()
+                description=f"Acceptance #{acceptance.id}").first()
 
             if new_supplier:
                 if purchase_txn:
@@ -223,11 +200,7 @@ class AcceptanceWorkflowService:
         acceptance.acceptance_status = Acceptance.AcceptanceStatus.ACCEPT
         acceptance.accepted_by = user
         acceptance.accepted_at = timezone.now()
-
-        acceptance.save(
-            update_fields=["acceptance_status", "accepted_by", "accepted_at"]
-        )
-
+        acceptance.save(update_fields=["acceptance_status", "accepted_by", "accepted_at"])
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,
@@ -253,7 +226,6 @@ class AcceptanceWorkflowService:
 
         acceptance.acceptance_status = Acceptance.AcceptanceStatus.CANCEL
         acceptance.save(update_fields=["acceptance_status"])
-
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,

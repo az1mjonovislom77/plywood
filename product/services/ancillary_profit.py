@@ -1,12 +1,8 @@
 from decimal import Decimal
-
 from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
-
-from category.models import Category
-from order.models import OrderItem, Banding # Banding modelini import qildim
-from product.services.export_json import MaterialReportJsonService
-from product.services.material_profit import KROMKA_CATEGORY_NAME, MaterialProfitService
+from order.models import Banding
+from product.services.material_profit import MaterialProfitService
 from utils.models import Services, ServicesName
 from utils.service.comprehensive_stats import DashboardStatsService
 
@@ -31,19 +27,11 @@ class AncillaryProfitService:
 
     @classmethod
     def calc_banding_profit(cls, start_dt, end_dt, rate_value: Decimal):
-        banding_qs = Banding.objects.filter( # OrderItem.objects.filter o'rniga Banding.objects.filter
-            created_at__gte=start_dt,
-            created_at__lt=end_dt,
-        ).aggregate(
+        banding_qs = (Banding.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
+        .aggregate(
             banding_som=Coalesce(
-                Sum(
-                    F("length") * F("thickness") # F("banding__length") o'rniga F("length")
-                    - Coalesce(F("discount"), Value(Decimal("0"))) # F("banding__discount") o'rniga F("discount")
-                ),
-                Value(Decimal("0")),
-                output_field=cls.money_field(),
-            )
-        )
+                Sum(F("length") * F("thickness") - Coalesce(F("discount"), Value(Decimal("0")))),
+                Value(Decimal("0")), output_field=cls.money_field())))
         banding_som = Decimal(str(banding_qs.get("banding_som") or 0))
         banding_dollar = cls._som_to_dollar(banding_som, rate_value)
         return banding_som, banding_dollar
@@ -56,16 +44,9 @@ class AncillaryProfitService:
 
         for service_name in ServicesName.objects.all():
             service_total_som = Services.objects.filter(
-                services_name=service_name,
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
+                services_name=service_name, created_at__gte=start_dt, created_at__lt=end_dt
             ).aggregate(
-                total=Coalesce(
-                    Sum("total_price"),
-                    Value(Decimal("0")),
-                    output_field=cls.money_field(),
-                )
-            )["total"]
+                total=Coalesce(Sum("total_price"), Value(Decimal("0")), output_field=cls.money_field()))["total"]
             service_total_som = Decimal(str(service_total_som or 0))
             service_total_dollar = cls._som_to_dollar(service_total_som, rate_value)
             services_stats.append({
@@ -83,9 +64,7 @@ class AncillaryProfitService:
         rate_value = MaterialProfitService.get_rate_for_date(end_date)
         cutting_som, cutting_dollar = cls.calc_cutting_profit(date_from, date_to, rate_value)
         banding_som, banding_dollar = cls.calc_banding_profit(start_dt, end_dt, rate_value)
-        services_som, services_dollar, services_stats = cls.calc_services_profit(
-            start_dt, end_dt, rate_value
-        )
+        services_som, services_dollar, services_stats = cls.calc_services_profit(start_dt, end_dt, rate_value)
         return {
             "rate_value": rate_value,
             "cutting_som": cutting_som,

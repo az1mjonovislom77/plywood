@@ -45,21 +45,10 @@ class EmployeeSalaryHistoryAPIView(APIView):
     @extend_schema(
         tags=["Salary"],
         parameters=[
-            OpenApiParameter(
-                name="employee_id",
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH
-            ),
-            OpenApiParameter(
-                name="month",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                required=False,
-                description="Format: YYYY-MM"
-            )
-        ],
-        responses={200: SalaryPaymentSerializer(many=True)}
-    )
+            OpenApiParameter(name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
+            OpenApiParameter(name="month", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False, description="Format: YYYY-MM")],
+        responses={200: SalaryPaymentSerializer(many=True)})
     def get(self, request, employee_id):
         month = request.query_params.get("month")
         payments = SalarySelector.get_employee_salary_history(employee_id=employee_id, month=month)
@@ -85,20 +74,9 @@ class EmployeeSalaryMonthlyReportAPIView(APIView):
     @extend_schema(
         tags=["Salary"],
         parameters=[
-            OpenApiParameter(
-                name="employee_id",
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH
-            ),
-            OpenApiParameter(
-                name="year",
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.QUERY,
-                required=False,
-                description="Default: current year"
-            )
-        ]
-    )
+            OpenApiParameter(name="employee_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
+            OpenApiParameter(name="year", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                             required=False, description="Default: current year")])
     def get(self, request, employee_id):
         year = request.query_params.get("year")
         report = SalarySelector.get_employee_monthly_report(employee_id=employee_id, year=year)
@@ -109,14 +87,12 @@ class EmployeeSalaryMonthlyReportAPIView(APIView):
 @extend_schema(tags=["Salary"],
                parameters=[OpenApiParameter(
                    name="month", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False,
-                   description="Format: YYYY-MM")],
-               responses={200: EmployeeSalaryTotalSerializer(many=True)})
+                   description="Format: YYYY-MM")], responses={200: EmployeeSalaryTotalSerializer(many=True)})
 class AllEmployeesTotalSalaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         month = request.query_params.get("month")
-
         employees = SalarySelector.get_all_employees_total_salary(month=month)
         serializer = EmployeeSalaryTotalSerializer(employees, many=True)
 
