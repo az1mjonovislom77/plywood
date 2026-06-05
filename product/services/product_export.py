@@ -84,7 +84,9 @@ class MaterialReportService:
         period_cogs_map_in_dollar = profit_context["period_cogs_map_in_dollar"]
 
         categories = list(Category.objects.all().order_by("name"))
-        products = list(Product.objects.select_related("category").order_by("category__name", "name"))
+        products = list(Product.objects.select_related("category")
+                        .filter(arrival_price__gt=0)
+                        .order_by("category__name", "name"))
 
         open_in_map = cls._to_map(
             Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
