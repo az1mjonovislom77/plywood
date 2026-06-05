@@ -432,10 +432,6 @@ class MaterialReportService:
                 ws.cell(row + index, 6, float(expense_amount))
                 ws.cell(row + index, 5).border = border
                 ws.cell(row + index, 6).border = border
-                ws.column_dimensions["A"].width = 35
-                ws.column_dimensions["B"].width = 25
-                ws.column_dimensions["E"].width = 35
-                ws.column_dimensions["F"].width = 20
                 expense_total += expense_amount
 
         summary_row = row + max_rows + 1
