@@ -366,7 +366,7 @@ class MaterialReportService:
             cell.border = border
             cell.font = bold
 
-        widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 18, "F": 12, "G": 18, "H": 12, "I": 18, "J": 18, "K": 18,
+        widths = {"A": 12, "B": 42, "C": 2, "D": 2, "E": 25, "F": 12, "G": 18, "H": 12, "I": 18, "J": 25, "K": 18,
                   "L": 12, "M": 18, "N": 18}
 
         for col, width in widths.items():
