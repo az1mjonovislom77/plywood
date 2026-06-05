@@ -5,6 +5,7 @@ from django.utils.dateparse import parse_date
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from customer.models import BalanceHistory
+from employee.models import SalaryPayment
 from order.models import Order, Banding, Cutting
 from supplier.models import SupplierTransaction
 from utils.models import Expenses
@@ -110,10 +111,8 @@ class CashFlowReportService:
                 "amount": Decimal(str(payment.amount)),
             })
 
-        for payment in SalaryPayment.objects.filter(
-                paid_at__gte=start_dt,
-                paid_at__lt=end_dt,
-        ).select_related("employee").order_by("paid_at", "id"):
+        for payment in (SalaryPayment.objects.filter(paid_at__gte=start_dt, paid_at__lt=end_dt)
+                .select_related("employee").order_by("paid_at", "id")):
             expense_rows.append({
                 "description": f"{payment.employee.full_name} (Ходим)",
                 "created_at": payment.paid_at,
