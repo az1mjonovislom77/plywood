@@ -433,109 +433,51 @@ class MaterialReportService:
             category_profit = Decimal("0")
 
             for product in category_products:
-                profit_row = MaterialProfitService.product_profit_row(
-                    product,
-                    profit_context,
-                )
-
+                profit_row = MaterialProfitService.product_profit_row(product, profit_context)
                 category_profit += profit_row["profit_som"]
-
-            profit_rows.append(
-                (
-                    category.name,
-                    category_profit,
-                )
-            )
-
+            profit_rows.append((category.name, category_profit))
         profit_total = Decimal("0")
 
         for idx, (name, amount) in enumerate(profit_rows):
             current_row = row + idx
-
             ws.cell(current_row, 2, name)
-
-            money(
-                ws.cell(current_row, 5),
-                amount,
-            )
-
+            money(ws.cell(current_row, 5), amount)
             ws.cell(current_row, 2).border = border
             ws.cell(current_row, 5).border = border
-
             profit_total += amount
 
         salary_total = (
-                SalaryPayment.objects.filter(
-                    paid_at__gte=start_dt,
-                    paid_at__lt=end_dt,
-                ).aggregate(
-                    total=Coalesce(
-                        Sum("amount"),
-                        Value(Decimal("0")),
-                        output_field=cls._money_field(),
-                    )
-                )["total"]
-                or Decimal("0")
+                SalaryPayment.objects.filter(paid_at__gte=start_dt, paid_at__lt=end_dt)
+                .aggregate(
+                    total=Coalesce(Sum("amount"), Value(Decimal("0")), output_field=cls._money_field())
+                )["total"] or Decimal("0")
         )
 
         expense_total = (
                 Expenses.objects.filter(
-                    created_at__gte=start_dt,
-                    created_at__lt=end_dt,
-                    expense_status__in=[
-                        Expenses.ExpensesStatus.CREATED,
-                        Expenses.ExpensesStatus.ACCEPT,
-                    ],
-                ).aggregate(
+                    created_at__gte=start_dt, created_at__lt=end_dt,
+                    expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT])
+                .aggregate(
                     total=Coalesce(
-                        Sum("value"),
-                        Value(Decimal("0")),
-                        output_field=cls._money_field(),
-                    )
-                )["total"]
-                or Decimal("0")
+                        Sum("value"), Value(Decimal("0")), output_field=cls._money_field()))["total"] or Decimal("0")
         )
 
-        expense_rows = [
-            ("Ходимлар ойлиги", salary_total),
-            ("Бошқа харажатлар", expense_total),
-        ]
-
+        expense_rows = [("Ходимлар ойлиги", salary_total), ("Бошқа харажатлар", expense_total)]
         expense_total_sum = Decimal("0")
 
         for idx, (name, amount) in enumerate(expense_rows):
             current_row = row + idx
-
             ws.cell(current_row, 7, name)
-
-            money(
-                ws.cell(current_row, 10),
-                amount,
-            )
-
+            money(ws.cell(current_row, 10), amount)
             ws.cell(current_row, 7).border = border
             ws.cell(current_row, 10).border = border
-
             expense_total_sum += amount
 
-        summary_row = row + max(
-            len(profit_rows),
-            len(expense_rows),
-        )
-
+        summary_row = row + max(len(profit_rows), len(expense_rows))
         ws.cell(summary_row, 2, "ЖАМИ ФОЙДА")
-
-        money(
-            ws.cell(summary_row, 5),
-            profit_total,
-        )
-
+        money(ws.cell(summary_row, 5), profit_total)
         ws.cell(summary_row, 7, "ЖАМИ ХАРАЖАТ")
-
-        money(
-            ws.cell(summary_row, 10),
-            expense_total_sum,
-        )
+        money(ws.cell(summary_row, 10), expense_total_sum)
 
         for col in [2, 5, 7, 10]:
             ws.cell(summary_row, col).font = bold

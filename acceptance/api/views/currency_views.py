@@ -24,7 +24,7 @@ class UpdateCurrencyRateView(APIView):
 
     def _fetch_rate(self) -> Decimal:
         try:
-            response = requests.get(self.CBU_URL, timeout=10)
+            response = requests.get(self.CBU_URL, timeout=15)
             response.raise_for_status()
             data = response.json()[0]
             return Decimal(data["Rate"])
