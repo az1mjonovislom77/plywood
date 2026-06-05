@@ -454,4 +454,5 @@ class MaterialReportService:
         output = BytesIO()
         wb.save(output)
         output.seek(0)
+
         return output
