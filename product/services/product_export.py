@@ -468,19 +468,6 @@ class MaterialReportService:
 
             banding_profit += total
 
-        services_profit = (
-                Services.objects.filter(
-                    created_at__gte=start_dt,
-                    created_at__lt=end_dt
-                ).aggregate(
-                    total=Coalesce(
-                        Sum("total_price"),
-                        Value(Decimal("0")),
-                        output_field=cls._money_field()
-                    )
-                )["total"] or Decimal("0")
-        )
-
         profit_rows.append(("Kesish", cutting_profit))
         profit_rows.append(("Kromkalash (Xizmat)", banding_profit))
         for service_name in ServicesName.objects.all().order_by("name"):
@@ -499,7 +486,7 @@ class MaterialReportService:
                     )["total"] or Decimal("0")
             )
 
-            if service_profit > 0:
+            if service_profit >= 0:
                 profit_rows.append(
                     (f"Xizmat - {service_name.name}", service_profit)
                 )
