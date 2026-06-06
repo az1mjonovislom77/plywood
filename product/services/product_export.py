@@ -8,12 +8,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.cell.cell import MergedCell
 from category.models import Category
+from customer.models import Customer
 from employee.models import SalaryPayment
 from product.models import Product
 from acceptance.models import Acceptance, CurrencyRate
 from order.models import Order, OrderItem, Banding, Cutting
 from product.services.material_profit import MaterialProfitService
 from utils.models import Expenses, Services, ServicesName
+from utils.service.comprehensive_stats import DashboardStatsService
 
 
 class MaterialReportService:
@@ -621,6 +623,99 @@ class MaterialReportService:
         )
 
         ws.cell(result_row, 12, "Прибыль / Убыток")
+
+        inventory_total = (
+                Product.objects.filter(
+                    is_active=True,
+                    count__gt=0
+                ).aggregate(
+                    total=Coalesce(
+                        Sum(
+                            ExpressionWrapper(
+                                F("count") * F("arrival_price_in_sum"),
+                                output_field=cls._money_field()
+                            )
+                        ),
+                        Value(Decimal("0")),
+                        output_field=cls._money_field()
+                    )
+                )["total"] or Decimal("0")
+        )
+
+        customer_debt_total = (
+                Customer.objects.aggregate(
+                    total=Coalesce(
+                        Sum("debt"),
+                        Value(Decimal("0")),
+                        output_field=cls._money_field()
+                    )
+                )["total"] or Decimal("0")
+        )
+
+        cashbox_total = DashboardStatsService._cashbox_total()
+
+        assets_row = result_row + 2
+
+        # Склад
+        ws.merge_cells(
+            start_row=assets_row,
+            start_column=12,
+            end_row=assets_row,
+            end_column=13
+        )
+
+        ws.cell(assets_row, 12, "Склад")
+        money(ws.cell(assets_row, 14), inventory_total)
+
+        # Қарздорлик
+        assets_row += 1
+
+        ws.merge_cells(
+            start_row=assets_row,
+            start_column=12,
+            end_row=assets_row,
+            end_column=13
+        )
+
+        ws.cell(assets_row, 12, "Қарздорлик")
+        money(ws.cell(assets_row, 14), customer_debt_total)
+
+        # Касса
+        assets_row += 1
+
+        ws.merge_cells(
+            start_row=assets_row,
+            start_column=12,
+            end_row=assets_row,
+            end_column=13
+        )
+
+        ws.cell(assets_row, 12, "Касса")
+        money(ws.cell(assets_row, 14), cashbox_total)
+
+        # Жами
+        assets_row += 1
+
+        total_assets = (
+                inventory_total +
+                customer_debt_total +
+                cashbox_total
+        )
+
+        ws.merge_cells(
+            start_row=assets_row,
+            start_column=12,
+            end_row=assets_row,
+            end_column=13
+        )
+
+        ws.cell(assets_row, 12, "Жами:")
+        money(ws.cell(assets_row, 14), total_assets)
+
+        for r in range(assets_row - 3, assets_row + 1):
+            for c in range(12, 15):
+                ws.cell(r, c).border = border
+                ws.cell(r, c).font = bold
 
         money_with_dollar(
             ws.cell(result_row, 14),
