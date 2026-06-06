@@ -13,7 +13,7 @@ from product.models import Product
 from acceptance.models import Acceptance, CurrencyRate
 from order.models import Order, OrderItem, Banding, Cutting
 from product.services.material_profit import MaterialProfitService
-from utils.models import Expenses, Services
+from utils.models import Expenses, Services, ServicesName
 
 
 class MaterialReportService:
@@ -481,9 +481,28 @@ class MaterialReportService:
                 )["total"] or Decimal("0")
         )
 
-        profit_rows.append(("CUTTING", cutting_profit))
-        profit_rows.append(("BANDING", banding_profit))
-        profit_rows.append(("SERVICES", services_profit))
+        profit_rows.append(("Kesish", cutting_profit))
+        profit_rows.append(("Kromkalash (Xizmat)", banding_profit))
+        for service_name in ServicesName.objects.all().order_by("name"):
+
+            service_profit = (
+                    Services.objects.filter(
+                        services_name=service_name,
+                        created_at__gte=start_dt,
+                        created_at__lt=end_dt
+                    ).aggregate(
+                        total=Coalesce(
+                            Sum("total_price"),
+                            Value(Decimal("0")),
+                            output_field=cls._money_field()
+                        )
+                    )["total"] or Decimal("0")
+            )
+
+            if service_profit > 0:
+                profit_rows.append(
+                    (f"Xizmat - {service_name.name}", service_profit)
+                )
         profit_total = Decimal("0")
 
         for idx, (name, amount) in enumerate(profit_rows):
