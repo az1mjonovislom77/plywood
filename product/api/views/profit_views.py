@@ -1,3 +1,7 @@
+from decimal import Decimal
+
+from django.db.models import Value, Sum, DecimalField
+from django.db.models.functions import Coalesce
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework.permissions import IsAuthenticated
@@ -5,9 +9,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 from category.models import Category
+from employee.models import SalaryPayment
 from product.services.ancillary_profit import AncillaryProfitService
 from product.services.material_profit import KROMKA_CATEGORY_NAME, MaterialProfitService
 from product.services.total_profit import AllProfitService
+from utils.models import Expenses
 
 
 @extend_schema(tags=["Products"], parameters=[
@@ -94,11 +100,47 @@ class KromkaProfitView(APIView):
             context=context,
         )
 
+        salary_total = (
+                SalaryPayment.objects.filter(
+                    paid_at__gte=context["start_dt"],
+                    paid_at__lt=context["end_dt"]
+                ).aggregate(
+                    total=Coalesce(
+                        Sum("amount"),
+                        Value(Decimal("0")),
+                        output_field=DecimalField(max_digits=18, decimal_places=2)
+                    )
+                )["total"] or Decimal("0")
+        )
+
+        expense_total = (
+                Expenses.objects.filter(
+                    created_at__gte=context["start_dt"],
+                    created_at__lt=context["end_dt"],
+                    expense_status__in=[
+                        Expenses.ExpensesStatus.CREATED,
+                        Expenses.ExpensesStatus.ACCEPT,
+                    ]
+                ).aggregate(
+                    total=Coalesce(
+                        Sum("value"),
+                        Value(Decimal("0")),
+                        output_field=DecimalField(max_digits=18, decimal_places=2)
+                    )
+                )["total"] or Decimal("0")
+        )
+
+        total_expenses = salary_total + expense_total
+
+        net_profit = Decimal(str(all_profit["total_profit_som"])) - total_expenses
+
         return Response({
             "from": str(context["start_date"]),
             "to": str(context["end_date"]),
             "kromka_product_profit_som": float(product_profit_som),
             "kromka_product_profit_dollar": float(product_profit_dollar),
             "kromka_products_count": products_count,
+            "net_profit": float(net_profit),
             **all_profit,
+
         })
