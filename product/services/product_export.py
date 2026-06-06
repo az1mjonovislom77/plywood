@@ -664,8 +664,23 @@ class MaterialReportService:
             end_column=13
         )
 
+        inventory_dollar = Decimal("0")
+        customer_debt_dollar = Decimal("0")
+        cashbox_dollar = Decimal("0")
+
+        if rate_value:
+            inventory_dollar = inventory_total / rate_value
+            customer_debt_dollar = customer_debt_total / rate_value
+            cashbox_dollar = cashbox_total / rate_value
+
+        # Склад
         ws.cell(assets_row, 12, "Склад")
-        money(ws.cell(assets_row, 14), inventory_total)
+
+        money_with_dollar(
+            ws.cell(assets_row, 14),
+            inventory_total,
+            inventory_dollar,
+        )
 
         # Қарздорлик
         assets_row += 1
@@ -678,7 +693,12 @@ class MaterialReportService:
         )
 
         ws.cell(assets_row, 12, "Қарздорлик")
-        money(ws.cell(assets_row, 14), customer_debt_total)
+
+        money_with_dollar(
+            ws.cell(assets_row, 14),
+            customer_debt_total,
+            customer_debt_dollar,
+        )
 
         # Касса
         assets_row += 1
@@ -691,7 +711,12 @@ class MaterialReportService:
         )
 
         ws.cell(assets_row, 12, "Касса")
-        money(ws.cell(assets_row, 14), cashbox_total)
+
+        money_with_dollar(
+            ws.cell(assets_row, 14),
+            cashbox_total,
+            cashbox_dollar,
+        )
 
         # Жами
         assets_row += 1
@@ -702,6 +727,11 @@ class MaterialReportService:
                 cashbox_total
         )
 
+        total_assets_dollar = Decimal("0")
+
+        if rate_value:
+            total_assets_dollar = total_assets / rate_value
+
         ws.merge_cells(
             start_row=assets_row,
             start_column=12,
@@ -710,7 +740,12 @@ class MaterialReportService:
         )
 
         ws.cell(assets_row, 12, "Жами:")
-        money(ws.cell(assets_row, 14), total_assets)
+
+        money_with_dollar(
+            ws.cell(assets_row, 14),
+            total_assets,
+            total_assets_dollar,
+        )
 
         for r in range(assets_row - 3, assets_row + 1):
             for c in range(12, 15):
