@@ -132,8 +132,10 @@ class KromkaProfitView(APIView):
 
         total_expenses = salary_total + expense_total
 
-        net_profit = Decimal(str(all_profit["total_profit_som"])) - total_expenses
-
+        net_profit = (
+                Decimal(str(all_profit["all_profit_som"]))
+                - total_expenses
+        )
         return Response({
             "from": str(context["start_date"]),
             "to": str(context["end_date"]),
