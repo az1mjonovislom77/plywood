@@ -125,6 +125,7 @@ class MaterialReportJsonService:
     @classmethod
     def build(cls, date_from=None, date_to=None):
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
+        use_current_stock = end_date >= timezone.localdate()
         categories = list(Category.objects.all().order_by("name"))
         products = list(
             Product.objects.select_related("category")
@@ -183,6 +184,14 @@ class MaterialReportJsonService:
         for product in products:
             grouped_products.setdefault(product.category_id, []).append(product)
 
+        category_groups = [
+            (category.id, category.name, grouped_products.get(category.id, []))
+            for category in categories
+        ]
+        uncategorized_products = grouped_products.get(None, [])
+        if uncategorized_products:
+            category_groups.append((None, "Без категории", uncategorized_products))
+
         result = {
             "from": str(start_date),
             "to": str(end_date),
@@ -199,14 +208,13 @@ class MaterialReportJsonService:
             },
         }
 
-        for category in categories:
-            category_products = grouped_products.get(category.id, [])
+        for category_id, category_name, category_products in category_groups:
             if not category_products:
                 continue
 
             cat_data = {
-                "id": category.id,
-                "name": category.name,
+                "id": category_id,
+                "name": category_name,
                 "opening_balance_quantity": 0,
                 "opening_balance_sum": 0,
                 "received_quantity": 0,
@@ -231,7 +239,8 @@ class MaterialReportJsonService:
                 product_arrival_price = Decimal(str(product.arrival_price or 0))
                 open_quantity = open_in_qty - open_out_qty
                 open_sum = open_in_sum - open_out_sum
-                end_quantity = open_quantity + in_qty - out_qty
+                calculated_end_quantity = open_quantity + in_qty - out_qty
+                end_quantity = Decimal(str(product.count or 0)) if use_current_stock else calculated_end_quantity
                 end_sum = end_quantity * product_arrival_price
 
                 item = {

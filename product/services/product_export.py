@@ -81,6 +81,7 @@ class MaterialReportService:
         end_date = profit_context["end_date"]
         start_dt = profit_context["start_dt"]
         end_dt = profit_context["end_dt"]
+        use_current_stock = end_date >= timezone.localdate()
         open_cogs_map = profit_context["open_cogs_map"]
         period_cogs_map = profit_context["period_cogs_map"]
         period_cogs_map_in_dollar = profit_context["period_cogs_map_in_dollar"]
@@ -128,6 +129,14 @@ class MaterialReportService:
         grouped_products = {}
         for product in products:
             grouped_products.setdefault(product.category_id, []).append(product)
+
+        category_groups = [
+            (category.name, grouped_products.get(category.id, []))
+            for category in categories
+        ]
+        uncategorized_products = grouped_products.get(None, [])
+        if uncategorized_products:
+            category_groups.append(("Без категории", uncategorized_products))
 
         wb = Workbook()
         ws = wb.active
@@ -213,8 +222,7 @@ class MaterialReportService:
         grand_profit_sum = Decimal("0")
         grand_profit_sum_in_dollar = Decimal("0")
 
-        for category in categories:
-            category_products = grouped_products.get(category.id, [])
+        for category_name, category_products in category_groups:
             if not category_products:
                 continue
 
@@ -249,7 +257,8 @@ class MaterialReportService:
                 open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
-                end_qty = open_qty + in_qty - out_qty
+                calculated_end_qty = open_qty + in_qty - out_qty
+                end_qty = Decimal(str(product.count or 0)) if use_current_stock else calculated_end_qty
                 end_sum = end_qty * product_arrival_price
                 profit_row = MaterialProfitService.product_profit_row(product, profit_context)
                 profit_som = profit_row["profit_som"]
@@ -301,7 +310,7 @@ class MaterialReportService:
             grand_profit_sum += cat_profit_sum
             grand_profit_sum_in_dollar += cat_profit_sum_in_dollar
             ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
-            ws.cell(row, 2, category.name)
+            ws.cell(row, 2, category_name)
             ws.cell(row, 2).font = bold
             ws.cell(row, 2).alignment = left
             money(ws.cell(row, 6), cat_open_qty)
