@@ -11,9 +11,9 @@ from category.models import Category
 from employee.models import SalaryPayment
 from product.models import Product
 from acceptance.models import Acceptance, CurrencyRate
-from order.models import Order, OrderItem
+from order.models import Order, OrderItem, Banding, Cutting
 from product.services.material_profit import MaterialProfitService
-from utils.models import Expenses
+from utils.models import Expenses, Services
 
 
 class MaterialReportService:
@@ -435,6 +435,55 @@ class MaterialReportService:
                 profit_row = MaterialProfitService.product_profit_row(product, profit_context)
                 category_profit += profit_row["profit_som"]
             profit_rows.append((category.name, category_profit))
+
+        cutting_profit = Decimal("0")
+
+        for item in Cutting.objects.filter(
+                created_at__gte=start_dt,
+                created_at__lt=end_dt
+        ):
+            total = item.calculate_price()
+
+            if item.discount > 0:
+                if item.discount_type == item.DiscountType.PERCENTAGE:
+                    total -= total * (item.discount / Decimal("100"))
+                else:
+                    total -= item.discount
+
+            cutting_profit += total
+
+        banding_profit = Decimal("0")
+
+        for item in Banding.objects.filter(
+                created_at__gte=start_dt,
+                created_at__lt=end_dt
+        ):
+            total = item.calculate_price()
+
+            if item.discount > 0:
+                if item.discount_type == item.DiscountType.PERCENTAGE:
+                    total -= total * (item.discount / Decimal("100"))
+                else:
+                    total -= item.discount
+
+            banding_profit += total
+
+        services_profit = (
+                Services.objects.filter(
+                    created_at__gte=start_dt,
+                    created_at__lt=end_dt
+                ).aggregate(
+                    total=Coalesce(
+                        Sum("total_price"),
+                        Value(Decimal("0")),
+                        output_field=cls._money_field()
+                    )
+                )["total"] or Decimal("0")
+        )
+
+        profit_rows.append(("CUTTING", cutting_profit))
+        profit_rows.append(("BANDING", banding_profit))
+        profit_rows.append(("SERVICES", services_profit))
         profit_total = Decimal("0")
 
         for idx, (name, amount) in enumerate(profit_rows):
