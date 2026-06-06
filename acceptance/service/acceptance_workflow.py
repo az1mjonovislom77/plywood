@@ -76,6 +76,8 @@ class AcceptanceWorkflowService:
                 sale_price=new_sale_price,
                 arrival_price_in_sum=new_arrival_price_in_sum,
                 sale_price_in_sum=new_sale_price_in_sum
+
+
             )
 
             old_supplier = acceptance.supplier
