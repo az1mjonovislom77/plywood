@@ -243,13 +243,14 @@ class MaterialReportService:
                 out_revenue_in_dollar = revenue_dollar_map.get(product.id, Decimal("0"))
                 out_cogs = period_cogs_map.get(product.id, Decimal("0"))
                 out_cogs_in_dollar = period_cogs_map_in_dollar.get(product.id, Decimal("0"))
+                product_arrival_price = Decimal(str(product.arrival_price or 0))
                 out_qty = out_period["qty"]
                 open_qty = open_in["qty"] - open_out["qty"]
                 open_sum = open_in["total"] - open_cogs_map.get(product.id, Decimal("0"))
                 in_qty = in_period["qty"]
                 in_sum = in_period["total"]
                 end_qty = open_qty + in_qty - out_qty
-                end_sum = open_sum + in_sum - out_cogs
+                end_sum = end_qty * product_arrival_price
                 profit_row = MaterialProfitService.product_profit_row(product, profit_context)
                 profit_som = profit_row["profit_som"]
                 profit_dollar = profit_row["profit_dollar"]
@@ -624,23 +625,7 @@ class MaterialReportService:
 
         ws.cell(result_row, 12, "Прибыль / Убыток")
 
-        inventory_total = (
-                Product.objects.filter(
-                    is_active=True,
-                    count__gt=0
-                ).aggregate(
-                    total=Coalesce(
-                        Sum(
-                            ExpressionWrapper(
-                                F("count") * F("arrival_price_in_sum"),
-                                output_field=cls._money_field()
-                            )
-                        ),
-                        Value(Decimal("0")),
-                        output_field=cls._money_field()
-                    )
-                )["total"] or Decimal("0")
-        )
+        inventory_total = grand_end_sum
 
         customer_debt_total = (
                 Customer.objects.aggregate(
@@ -668,8 +653,9 @@ class MaterialReportService:
         customer_debt_dollar = Decimal("0")
         cashbox_dollar = Decimal("0")
 
+        inventory_dollar = inventory_total
+
         if rate_value:
-            inventory_dollar = inventory_total / rate_value
             customer_debt_dollar = customer_debt_total / rate_value
             cashbox_dollar = cashbox_total / rate_value
 
@@ -721,16 +707,8 @@ class MaterialReportService:
         # Жами
         assets_row += 1
 
-        total_assets = (
-                inventory_total +
-                customer_debt_total +
-                cashbox_total
-        )
-
-        total_assets_dollar = Decimal("0")
-
-        if rate_value:
-            total_assets_dollar = total_assets / rate_value
+        total_assets_dollar = inventory_dollar + customer_debt_dollar + cashbox_dollar
+        total_assets = total_assets_dollar
 
         ws.merge_cells(
             start_row=assets_row,

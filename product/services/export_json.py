@@ -126,7 +126,11 @@ class MaterialReportJsonService:
     def build(cls, date_from=None, date_to=None):
         start_date, end_date, start_dt, end_dt = cls._parse_bounds(date_from, date_to)
         categories = list(Category.objects.all().order_by("name"))
-        products = list(Product.objects.select_related("category").order_by("category__name", "name"))
+        products = list(
+            Product.objects.select_related("category")
+            .filter(is_active=True)
+            .order_by("category__name", "name")
+        )
         open_in_qty_map = cls._to_qty_map(
             Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
             .values("product_id")
@@ -224,10 +228,11 @@ class MaterialReportJsonService:
                 in_sum = in_sum_map.get(pid, Decimal("0"))
                 out_qty = out_qty_map.get(pid, Decimal("0"))
                 out_sum = period_cogs_map[pid]
+                product_arrival_price = Decimal(str(product.arrival_price or 0))
                 open_quantity = open_in_qty - open_out_qty
                 open_sum = open_in_sum - open_out_sum
                 end_quantity = open_quantity + in_qty - out_qty
-                end_sum = open_sum + in_sum - out_sum
+                end_sum = end_quantity * product_arrival_price
 
                 item = {
                     "id": pid,
