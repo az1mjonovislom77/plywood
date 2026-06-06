@@ -468,8 +468,8 @@ class MaterialReportService:
 
             banding_profit += total
 
-        profit_rows.append(("Kesish", cutting_profit))
-        profit_rows.append(("Kromkalash (Xizmat)", banding_profit))
+        profit_rows.append(("KESISH (Xizmat)", cutting_profit))
+        profit_rows.append(("KROMKA (Xizmat)", banding_profit))
         for service_name in ServicesName.objects.all().order_by("name"):
 
             service_profit = (
@@ -564,6 +564,74 @@ class MaterialReportService:
         for col in [2, 5, 7, 10]:
             ws.cell(summary_row, col).font = bold
             ws.cell(summary_row, col).border = border
+
+        itog_natsenka = profit_total
+        itog_rasxod = expense_total_sum
+        itog_pribil = itog_natsenka - itog_rasxod
+
+        itog_natsenka_dollar = Decimal("0")
+        itog_rasxod_dollar = Decimal("0")
+        itog_pribil_dollar = Decimal("0")
+
+        if rate_value:
+            itog_natsenka_dollar = itog_natsenka / rate_value
+            itog_rasxod_dollar = itog_rasxod / rate_value
+            itog_pribil_dollar = itog_pribil / rate_value
+
+        result_row = row + 1
+        ws.merge_cells(
+            start_row=result_row,
+            start_column=12,
+            end_row=result_row,
+            end_column=13
+        )
+
+        ws.cell(result_row, 12, "Итог Наценка")
+
+        money_with_dollar(
+            ws.cell(result_row, 14),
+            itog_natsenka,
+            itog_natsenka_dollar,
+        )
+
+        result_row += 1
+
+        ws.merge_cells(
+            start_row=result_row,
+            start_column=12,
+            end_row=result_row,
+            end_column=13
+        )
+
+        ws.cell(result_row, 12, "Итог расход")
+
+        money_with_dollar(
+            ws.cell(result_row, 14),
+            itog_rasxod,
+            itog_rasxod_dollar,
+        )
+
+        result_row += 1
+
+        ws.merge_cells(
+            start_row=result_row,
+            start_column=12,
+            end_row=result_row,
+            end_column=13
+        )
+
+        ws.cell(result_row, 12, "Прибыль / Убыток")
+
+        money_with_dollar(
+            ws.cell(result_row, 14),
+            itog_pribil,
+            itog_pribil_dollar,
+        )
+
+        for r in range(result_row - 2, result_row + 1):
+            for c in range(12, 15):
+                ws.cell(r, c).border = border
+                ws.cell(r, c).font = bold
         summary_row += 2
         output = BytesIO()
         wb.save(output)
