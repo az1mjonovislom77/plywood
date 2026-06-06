@@ -50,12 +50,12 @@ class ProductExcelExportService:
 
         for product in queryset:
             category_name = product.category.name if product.category else ""
-            arrival_price = float(product.arrival_price) if product.arrival_price else 0
-            arrival_price_in_dollar = float(product.arrival_price_in_dollar) if product.arrival_price_in_dollar else 0
-            sale_price = float(product.sale_price) if product.sale_price else 0
-            sale_price_in_dollar = float(product.sale_price_in_dollar) if product.sale_price_in_dollar else 0
+            arrival_price_uzs = float(product.arrival_price_in_sum) if product.arrival_price_in_sum else 0
+            arrival_price_usd = float(product.arrival_price) if product.arrival_price else 0
+            sale_price_uzs = float(product.sale_price_in_sum) if product.sale_price_in_sum else 0
+            sale_price_usd = float(product.sale_price) if product.sale_price else 0
             count = float(product.count) if product.count else 0
-            investment_in_dollar = count * arrival_price_in_dollar
+            investment_in_dollar = count * arrival_price_usd
             total_investment += investment_in_dollar
             total_count += count
 
@@ -68,11 +68,11 @@ class ProductExcelExportService:
                 float(product.width) if product.width else 0,
                 float(product.height) if product.height else 0,
                 float(product.thick) if product.thick else 0,
-                arrival_price,
-                arrival_price_in_dollar,
+                arrival_price_uzs,
+                arrival_price_usd,
                 investment_in_dollar,
-                sale_price,
-                sale_price_in_dollar,
+                sale_price_uzs,
+                sale_price_usd,
                 count,
                 product.arrival_date.strftime('%Y-%m-%d') if product.arrival_date else "",
                 product.description if product.description else ""
