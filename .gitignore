@@ -29,3 +29,8 @@ settings_local.py # Or any other file containing local/sensitive settings
 .idea/
 .vscode/
 Thumbs.db
+
+
+
+.claude
+

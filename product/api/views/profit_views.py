@@ -1,5 +1,4 @@
 from decimal import Decimal
-
 from django.db.models import Value, Sum, DecimalField
 from django.db.models.functions import Coalesce
 from drf_spectacular.utils import extend_schema, OpenApiParameter

@@ -4,6 +4,7 @@ from django.contrib import admin
 
 class BasketAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "is_active")
+    list_select_related = ("user",)
 
 
 class CuttingAdmin(admin.ModelAdmin):
@@ -20,10 +21,12 @@ class BandingAdmin(admin.ModelAdmin):
 
 class OrderAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "payment_method")
+    list_select_related = ("user",)
 
 
 class OrderHistoryAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "order")
+    list_select_related = ("user", "order")
 
 
 admin.site.register(Banding, BandingAdmin)

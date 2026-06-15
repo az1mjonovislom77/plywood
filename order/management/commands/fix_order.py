@@ -24,7 +24,7 @@ class Command(BaseCommand):
         items = OrderItem.objects.filter(
             Q(exchange_rate__isnull=True) |
             Q(new_sell_price__isnull=False, new_price_in_dollar__isnull=True)
-        )
+        ).select_related("order")
 
         for item in items:
             d = item.order.created_at.date()
