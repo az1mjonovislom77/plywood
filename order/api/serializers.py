@@ -44,7 +44,7 @@ class BasketAddItemSerializer(serializers.Serializer):
 
     def validate_product_id(self, value):
         if not Product.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Product does not exist")
+            raise serializers.ValidationError("Mahsulot mavjud emas")
 
         return value
 
@@ -141,12 +141,12 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
 
     def validate_product_id(self, value):
         if not Product.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Product not found")
+            raise serializers.ValidationError("Mahsulot topilmadi")
         return value
 
     def validate_new_sell_price(self, value):
         if value <= 0:
-            raise serializers.ValidationError("New sell price must be greater than 0")
+            raise serializers.ValidationError("Yangi sotuv narxi 0 dan katta bo'lishi kerak")
         return value
 
 
@@ -228,12 +228,12 @@ class OrderItemUpdateSerializer(serializers.ModelSerializer):
 
     def validate_product_id(self, value):
         if not Product.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Product not found")
+            raise serializers.ValidationError("Mahsulot topilmadi")
         return value
 
     def validate_new_sell_price(self, value):
         if value is not None and value <= 0:
-            raise serializers.ValidationError("New sell price must be greater than 0")
+            raise serializers.ValidationError("Yangi sotuv narxi 0 dan katta bo'lishi kerak")
         return value
 
 

@@ -1,6 +1,9 @@
+import logging
 from django.db import transaction
 from utils.models import Expenses, ExpensesHistory
 from utils.service.comprehensive_stats import DashboardStatsService
+
+logger = logging.getLogger(__name__)
 
 
 class ExpensesWorkflowService:
@@ -23,7 +26,7 @@ class ExpensesWorkflowService:
 
         ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.CREATE,
                                        value=expense.value, description=expense.description)
-
+        logger.info("Expense #%s created by user %s (value: %s, status: %s)", expense.id, user.id, value, status)
         return expense
 
     @staticmethod
@@ -38,7 +41,7 @@ class ExpensesWorkflowService:
     def accept(expense_id, user):
         expense = Expenses.objects.select_for_update().get(id=expense_id)
         if expense.expense_status != Expenses.ExpensesStatus.WAITING:
-            raise ValueError("Expense already processed")
+            raise ValueError("Xarajat allaqachon qayta ishlangan")
 
         ExpensesWorkflowService._apply_cashbox(expense.value)
         expense.expense_status = Expenses.ExpensesStatus.ACCEPT
@@ -53,7 +56,7 @@ class ExpensesWorkflowService:
     def cancel(expense_id, user, description=None):
         expense = Expenses.objects.select_for_update().get(id=expense_id)
         if expense.expense_status != Expenses.ExpensesStatus.WAITING:
-            raise ValueError("Expense already processed")
+            raise ValueError("Xarajat allaqachon qayta ishlangan")
 
         expense.expense_status = Expenses.ExpensesStatus.CANCEL
         expense.save(update_fields=["expense_status"])

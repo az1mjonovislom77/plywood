@@ -37,7 +37,6 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    'debug_toolbar'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -54,7 +53,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -87,7 +85,37 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20
+    'PAGE_SIZE': 20,
+    'EXCEPTION_HANDLER': 'utils.exception_handler.custom_exception_handler',
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'order': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'acceptance': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'customer': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'supplier': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'employee': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'utils': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
 }
 
 SPECTACULAR_SETTINGS = {

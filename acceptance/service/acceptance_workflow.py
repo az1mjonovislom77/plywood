@@ -1,3 +1,4 @@
+import logging
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
@@ -6,6 +7,8 @@ from acceptance.models import Acceptance, AcceptanceHistory, CurrencyRate
 from product.models import Product
 from supplier.models import Supplier, SupplierTransaction
 from supplier.service.supplier import SupplierService
+
+logger = logging.getLogger(__name__)
 
 
 class AcceptanceWorkflowService:
@@ -45,6 +48,7 @@ class AcceptanceWorkflowService:
             description=acceptance.description,
         )
 
+        logger.info("Acceptance #%s created by user %s (product: %s)", acceptance.id, user.id, acceptance.product_id)
         return acceptance
 
     @staticmethod
@@ -203,6 +207,7 @@ class AcceptanceWorkflowService:
         acceptance.accepted_by = user
         acceptance.accepted_at = timezone.now()
         acceptance.save(update_fields=["acceptance_status", "accepted_by", "accepted_at"])
+        logger.info("Acceptance #%s accepted by user %s", acceptance.id, user.id)
         AcceptanceHistory.objects.create(
             acceptance=acceptance,
             user=user,

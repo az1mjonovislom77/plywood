@@ -1,15 +1,19 @@
+import logging
+from decimal import Decimal
 from django.db import transaction
 from django.db.models import F
 from django.core.exceptions import ValidationError
 from customer.models import Customer, BalanceHistory
 from customer.service.customer_balance import CustomerBalanceService
 
+logger = logging.getLogger(__name__)
+
 
 class DebtService:
 
     @staticmethod
     @transaction.atomic
-    def cover_debt(customer_id: int, amount):
+    def cover_debt(customer_id: int, amount: Decimal) -> Customer:
 
         if amount <= 0:
             raise ValidationError("Amount must be positive")
@@ -32,7 +36,7 @@ class DebtService:
         )
 
         customer.refresh_from_db()
-
+        logger.info("Debt covered: customer %s, amount %s", customer_id, amount)
         return customer
 
     @staticmethod

@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.db.models import F
@@ -8,6 +9,8 @@ from user.models import User
 from order.models import OrderHistory, OrderItem
 from acceptance.models import CurrencyRate
 from order.service.order import OrderService
+
+logger = logging.getLogger(__name__)
 
 
 class OrderWorkflowService:
@@ -44,16 +47,16 @@ class OrderWorkflowService:
     def seller_cancel(order_id, user, description=None):
 
         if user.role != User.UserRoles.SELLER:
-            raise ValueError("Only seller can cancel")
+            raise ValueError("Faqat sotuvchi bekor qila oladi")
 
         order = Order.objects.select_for_update().get(id=order_id)
 
         if order.user_id != user.id:
-            raise ValueError("Not your order")
+            raise ValueError("Bu sizning buyurtmangiz emas")
         if order.source != Order.OrderSource.SELLER:
-            raise ValueError("Seller cannot cancel cashier order")
+            raise ValueError("Sotuvchi kassir buyurtmasini bekor qila olmaydi")
         if order.order_status != Order.OrderStatus.WAITING:
-            raise ValueError("Order already closed")
+            raise ValueError("Buyurtma allaqachon yopilgan")
 
         order.order_status = Order.OrderStatus.CANCEL
         order.save(update_fields=["order_status"])
@@ -71,19 +74,19 @@ class OrderWorkflowService:
             visible_for=OrderHistory.VisibleFor.SELLER,
             description=description
         )
-
+        logger.info("Order #%s cancelled by seller %s", order.id, user.id)
         return order
 
     @staticmethod
     @transaction.atomic
     def cashier_accept(order_id, user):
         if user.role != User.UserRoles.CASHIER:
-            raise ValueError("Only cashier can accept")
+            raise ValueError("Faqat kassir qabul qila oladi")
 
         order = Order.objects.select_for_update().get(id=order_id)
 
         if order.order_status != Order.OrderStatus.WAITING:
-            raise ValueError("Order already processed")
+            raise ValueError("Buyurtma allaqachon qayta ishlangan")
 
         order.order_status = Order.OrderStatus.ACCEPT
         order.accepted_by = user
@@ -100,7 +103,7 @@ class OrderWorkflowService:
             action=OrderHistory.Action.ACCEPT,
             visible_for=OrderHistory.VisibleFor.CASHIER
         )
-
+        logger.info("Order #%s accepted by cashier %s", order.id, user.id)
         return order
 
     @staticmethod
@@ -108,12 +111,12 @@ class OrderWorkflowService:
     def cashier_cancel(order_id, user, description=None):
 
         if user.role != User.UserRoles.CASHIER:
-            raise ValueError("Only cashier can cancel")
+            raise ValueError("Faqat kassir bekor qila oladi")
 
         order = Order.objects.select_for_update().get(id=order_id)
 
         if order.order_status != Order.OrderStatus.WAITING:
-            raise ValueError("Order already processed")
+            raise ValueError("Buyurtma allaqachon qayta ishlangan")
 
         order.order_status = Order.OrderStatus.CANCEL
         order.save(update_fields=["order_status"])

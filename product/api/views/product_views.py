@@ -13,6 +13,7 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from product.api.serializers import ProductSerializer
 from product.models import Product
+from product.selectors import ProductSelector
 from product.services.export_json import MaterialReportJsonService
 from product.services.product_export import MaterialReportService
 from product.services.product_excel_export import ProductExcelExportService
@@ -52,7 +53,7 @@ class ProductPagination(PageNumberPagination):
     parameters=[OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR)],
 )
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related("category").filter(is_active=True)
+    queryset = ProductSelector.active_products()
     serializer_class = ProductSerializer
     http_method_names = ["get", "post", "put", "delete"]
     permission_classes = [IsAuthenticated]
@@ -146,7 +147,7 @@ class MaterialReportJsonViewSet(ViewSet):
     parameters=[OpenApiParameter(name="search", description="Product search", required=False, type=OpenApiTypes.STR)],
 )
 class DeletedProductsViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related("category").filter(is_active=False)
+    queryset = ProductSelector.inactive_products()
     serializer_class = ProductSerializer
     http_method_names = ["get", "post"]
     permission_classes = [IsAuthenticated]

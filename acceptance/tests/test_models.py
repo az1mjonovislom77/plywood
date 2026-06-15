@@ -108,6 +108,7 @@ class SupplierAcceptanceAPIViewTest(TestCase):
         self.product = Product.objects.create(name="Test Product")
         self.supplier = Supplier.objects.create(full_name="Test Supplier")
         self.other_supplier = Supplier.objects.create(full_name="Other Supplier")
+        CurrencyRate.objects.get_or_create(date=timezone.localdate(), defaults={"rate": Decimal("12500.00")})
 
     def test_supplier_acceptances_returns_date_filtered_acceptances_with_history(self):
         acceptance = AcceptanceWorkflowService.create(
@@ -186,8 +187,8 @@ class SupplierAcceptanceAPIViewTest(TestCase):
         AcceptanceWorkflowService.accept(acceptance.id, self.user)
         self.product.refresh_from_db()
 
-        self.assertEqual(self.product.arrival_price, Decimal("250000.00"))
-        self.assertEqual(self.product.arrival_price_in_dollar, Decimal("20.00"))
+        self.assertEqual(self.product.arrival_price, Decimal("20.00"))
+        self.assertEqual(self.product.arrival_price_in_sum, Decimal("250000.00"))
 
 
 class AcceptanceAnalyticsExportServiceTest(TestCase):
@@ -212,7 +213,7 @@ class AcceptanceAnalyticsExportServiceTest(TestCase):
 
         self.assertEqual(ws.title, "Analytics")
         self.assertEqual([ws["A3"].value, ws["B3"].value, ws["C3"].value, ws["D3"].value],
-                         ["Sana", "Yetkazib beruvchi", "Miqdor", "Investitsiya"])
+                         ["Sana", "Yetkazib beruvchi", "Miqdor", "Investitsiya ($)"])
         self.assertEqual(ws["A4"].value, "20.04.2026")
         self.assertEqual(ws["B4"].value, "1 ta yetkazib beruvchi")
         self.assertEqual(ws["B5"].value, "Mirmuhsin")

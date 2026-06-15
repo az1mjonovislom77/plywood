@@ -70,14 +70,14 @@ class OrderViewSet(viewsets.GenericViewSet):
         if date_from:
             parsed_from = parse_date(date_from)
             if not parsed_from:
-                raise ValidationError({"from": "Invalid date format. Use YYYY-MM-DD"})
+                raise ValidationError({"from": "Noto'g'ri sana formati. YYYY-MM-DD formatidan foydalaning"})
         else:
             parsed_from = timezone.localdate()
 
         if date_to:
             parsed_to = parse_date(date_to)
             if not parsed_to:
-                raise ValidationError({"to": "Invalid date format. Use YYYY-MM-DD"})
+                raise ValidationError({"to": "Noto'g'ri sana formati. YYYY-MM-DD formatidan foydalaning"})
         else:
             parsed_to = parsed_from
 
@@ -106,7 +106,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         order = self.get_queryset().filter(id=pk).first()
 
         if not order:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Buyurtma topilmadi"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(order, context={"request": request})
         return Response(serializer.data)
@@ -141,7 +141,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Order.DoesNotExist:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Buyurtma topilmadi"}, status=status.HTTP_404_NOT_FOUND)
 
         response = OrderSerializer(order, context={"request": request})
         return Response(response.data)
@@ -150,7 +150,7 @@ class OrderViewSet(viewsets.GenericViewSet):
         order = OrderService.get_by_id(order_id=pk)
 
         if not order:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Buyurtma topilmadi"}, status=status.HTTP_404_NOT_FOUND)
 
         order.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -159,7 +159,7 @@ class OrderViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
         if request.user.role != User.UserRoles.CASHIER:
-            return Response({"detail": "Only cashier can accept orders"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Faqat kassir buyurtmalarni qabul qila oladi"}, status=status.HTTP_403_FORBIDDEN)
         try:
             order = OrderWorkflowService.cashier_accept(order_id=pk, user=request.user)
         except ValueError as e:

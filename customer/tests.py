@@ -68,6 +68,23 @@ class DebtServiceTest(TestCase):
                 amount=Decimal("150.00")).exists()
         )
 
+    def test_cover_debt_serializer_rejects_negative_amount(self):
+        from customer.api.serializers import CoverDebtSerializer
+        serializer = CoverDebtSerializer(data={"amount": "-10"})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("amount", serializer.errors)
+
+    def test_cover_debt_serializer_rejects_zero_amount(self):
+        from customer.api.serializers import CoverDebtSerializer
+        serializer = CoverDebtSerializer(data={"amount": "0"})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("amount", serializer.errors)
+
+    def test_cover_debt_serializer_accepts_positive_amount(self):
+        from customer.api.serializers import CoverDebtSerializer
+        serializer = CoverDebtSerializer(data={"amount": "50.00"})
+        self.assertTrue(serializer.is_valid())
+
     def test_bulk_customer_debt_matches_single_customer_debt(self):
         today = self.order.created_at.date()
 

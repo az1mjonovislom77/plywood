@@ -190,6 +190,51 @@ class OrderSerializerTest(TestCase):
         self.assertEqual(response.data["items"], [])
 
 
+class OrderModelValidationTest(TestCase):
+    def test_banding_covered_amount_cannot_be_negative(self):
+        from order.models import Banding
+        from django.core.exceptions import ValidationError
+        banding = Banding(thickness=Decimal("2.0"), length=Decimal("5.0"), covered_amount=Decimal("-1"))
+        with self.assertRaises(ValidationError):
+            banding.clean()
+
+    def test_banding_covered_amount_cannot_exceed_total(self):
+        from order.models import Banding
+        from django.core.exceptions import ValidationError
+        banding = Banding(thickness=Decimal("2.0"), length=Decimal("5.0"), covered_amount=Decimal("20.00"))
+        with self.assertRaises(ValidationError):
+            banding.clean()
+
+    def test_cutting_covered_amount_cannot_be_negative(self):
+        from order.models import Cutting
+        from django.core.exceptions import ValidationError
+        cutting = Cutting(count=Decimal("2.0"), price=Decimal("10.0"), covered_amount=Decimal("-5"))
+        with self.assertRaises(ValidationError):
+            cutting.clean()
+
+    def test_cutting_covered_amount_cannot_exceed_total(self):
+        from order.models import Cutting
+        from django.core.exceptions import ValidationError
+        cutting = Cutting(count=Decimal("2.0"), price=Decimal("10.0"), covered_amount=Decimal("30.00"))
+        with self.assertRaises(ValidationError):
+            cutting.clean()
+
+    def test_order_workflow_seller_cannot_cancel_others_order(self):
+        seller1 = User.objects.create_user(username="seller1", password="123", role=User.UserRoles.SELLER)
+        seller2 = User.objects.create_user(username="seller2", password="123", role=User.UserRoles.SELLER)
+        CurrencyRate.objects.create(date=timezone.localdate(), rate=Decimal("12500.00"))
+        order = Order.objects.create(user=seller1, payment_method=Order.PaymentMethod.CASH)
+        with self.assertRaises(ValueError):
+            OrderWorkflowService.seller_cancel(order.id, seller2)
+
+    def test_order_workflow_non_cashier_cannot_accept(self):
+        seller = User.objects.create_user(username="seller3", password="123", role=User.UserRoles.SELLER)
+        CurrencyRate.objects.create(date=timezone.localdate(), rate=Decimal("12500.00"))
+        order = Order.objects.create(user=seller, payment_method=Order.PaymentMethod.CASH)
+        with self.assertRaises(ValueError):
+            OrderWorkflowService.cashier_accept(order.id, seller)
+
+
 class OrderUpdateTest(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()

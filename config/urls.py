@@ -1,12 +1,13 @@
-import debug_toolbar
 from django.contrib import admin
 from django.conf import settings
 from django.urls import path, include
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from utils.api.views.health import HealthCheckView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/', HealthCheckView.as_view(), name='health-check'),
     path('user/', include('user.api.urls')),
     path('product/', include('product.api.urls')),
     path('category/', include('category.api.urls')),
@@ -19,9 +20,10 @@ urlpatterns = [
 
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path("__debug__/", include(debug_toolbar.urls)),
 ]
 
 if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns += [path("__debug__/", include(debug_toolbar.urls))]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -135,7 +135,7 @@ class MaterialProfitService:
 
     @classmethod
     def calc_profits_by_category(cls, context, *, exclude_kromka=False, only_kromka=False):
-        categories = list(Category.objects.all().order_by("name"))
+        categories = list(Category.objects.prefetch_related("products").order_by("name"))
         result_categories = []
         total_profit_som = Decimal("0")
         total_profit_dollar = Decimal("0")
@@ -172,7 +172,7 @@ class MaterialProfitService:
 
     @classmethod
     def calc_grand_total(cls, context, *, exclude_kromka=False):
-        categories = Category.objects.all().order_by("name")
+        categories = Category.objects.prefetch_related("products").order_by("name")
         grand_profit_som = Decimal("0")
         grand_profit_dollar = Decimal("0")
 
@@ -193,7 +193,7 @@ class MaterialProfitService:
 
     @classmethod
     def calc_kromka_product_profit(cls, context):
-        kromka = Category.objects.filter(name__iexact=KROMKA_CATEGORY_NAME).first()
+        kromka = Category.objects.prefetch_related("products").filter(name__iexact=KROMKA_CATEGORY_NAME).first()
         if not kromka:
             return Decimal("0"), Decimal("0"), 0
         profit_som, profit_dollar = cls.calc_category_profit(kromka, context)

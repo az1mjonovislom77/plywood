@@ -58,11 +58,11 @@ class Banding(models.Model):
 
     def clean(self):
         if self.covered_amount < 0:
-            raise ValidationError("Covered amount cannot be negative")
+            raise ValidationError("To'langan summa manfiy bo'lishi mumkin emas")
 
         total = self.calculate_price().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if self.covered_amount > total:
-            raise ValidationError("Covered amount cannot exceed total price")
+            raise ValidationError("To'langan summa umumiy narxdan oshmasligi kerak")
 
     def __str__(self):
         return f"{self.length}"
@@ -95,11 +95,11 @@ class Cutting(models.Model):
 
     def clean(self):
         if self.covered_amount < 0:
-            raise ValidationError("Covered amount cannot be negative")
+            raise ValidationError("To'langan summa manfiy bo'lishi mumkin emas")
 
         total = self.calculate_price().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if self.covered_amount > total:
-            raise ValidationError("Covered amount cannot exceed total price")
+            raise ValidationError("To'langan summa umumiy narxdan oshmasligi kerak")
 
     def __str__(self):
         return str(self.count)
@@ -188,7 +188,7 @@ class Order(models.Model):
 
     def clean(self):
         if self.covered_amount < 0:
-            raise ValidationError("Covered amount cannot be negative")
+            raise ValidationError("To'langan summa manfiy bo'lishi mumkin emas")
 
         if not self.pk:
             return
@@ -215,7 +215,7 @@ class Order(models.Model):
         total = max(total, Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         if self.covered_amount > total:
-            raise ValidationError("Covered amount cannot exceed total price")
+            raise ValidationError("To'langan summa umumiy narxdan oshmasligi kerak")
 
 
 class OrderItem(models.Model):

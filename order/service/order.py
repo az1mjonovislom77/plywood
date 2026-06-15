@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.db.models import F
@@ -8,6 +9,8 @@ from order.models import Banding, Basket, Cutting, Order, OrderHistory, OrderIte
 from order.service.basket import BasketService
 from product.models import Product
 from user.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class OrderService:
@@ -45,7 +48,7 @@ class OrderService:
         try:
             return Customer.objects.get(id=customer_id)
         except Customer.DoesNotExist as exc:
-            raise ValueError("Customer not found") from exc
+            raise ValueError("Mijoz topilmadi") from exc
 
     @staticmethod
     def _calculate_service_total(instance):
@@ -100,7 +103,15 @@ class OrderService:
 
     @staticmethod
     @transaction.atomic
-    def checkout(user, payment_method, items, customer_id=None, covered_amount=0, discount=0, discount_type="c"):
+    def checkout(
+        user: User,
+        payment_method: str,
+        items: list,
+        customer_id: int | None = None,
+        covered_amount: Decimal = Decimal("0"),
+        discount: Decimal = Decimal("0"),
+        discount_type: str = "c",
+    ) -> Order:
         today = timezone.localdate()
         rate_obj = CurrencyRate.objects.filter(date=today).first()
 
@@ -111,13 +122,13 @@ class OrderService:
 
         basket = BasketService.get_basket(user)
         if not basket:
-            raise ValueError("Basket not found")
+            raise ValueError("Savat topilmadi")
 
         basket = Basket.objects.select_for_update().get(id=basket.id)
         basket_items = basket.items.select_related("product")
 
         if not basket_items.exists():
-            raise ValueError("Basket empty")
+            raise ValueError("Savat bo'sh")
 
         items_map = {item["product_id"]: item for item in items}
 
@@ -125,7 +136,7 @@ class OrderService:
 
         for product_id in items_map.keys():
             if product_id not in basket_product_ids:
-                raise ValueError("Product not in basket")
+                raise ValueError("Mahsulot savatda mavjud emas")
 
         customer = OrderService._get_customer(customer_id)
         source = Order.OrderSource.CASHIER if user.role == user.UserRoles.CASHIER else Order.OrderSource.SELLER
@@ -162,12 +173,12 @@ class OrderService:
             quantity = item_data["quantity"]
 
             if quantity <= 0:
-                raise ValueError("Invalid quantity")
+                raise ValueError("Noto'g'ri miqdor")
 
             updated = Product.objects.filter(id=product.id, count__gte=quantity).update(count=F("count") - quantity)
 
             if not updated:
-                raise ValueError(f"{product.name} stock not enough")
+                raise ValueError(f"{product.name} yetarli miqdorda mavjud emas")
 
             original_sell_price = product.sale_price
             new_sell_price = item_data.get("new_sell_price")
@@ -229,6 +240,7 @@ class OrderService:
             created_product_ids.append(product.id)
 
         OrderItem.objects.bulk_create(order_items)
+        logger.info("Order #%s created by user %s (%d items)", order.id, user.id, len(order_items))
 
         basket.items.filter(product_id__in=created_product_ids).delete()
 
