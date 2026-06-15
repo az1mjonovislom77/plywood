@@ -4,7 +4,9 @@ from django.test import TestCase
 from unittest.mock import MagicMock
 from product.api.serializers import ProductSerializer
 from product.models import Product
+from product.selectors import ProductSelector
 from product.utils import check_image_size, check_image_content
+from category.models import Category
 
 
 class ProductSerializerTest(TestCase):
@@ -52,3 +54,42 @@ class ImageContentValidatorTest(TestCase):
         buf.name = "fake.png"
         with self.assertRaises(ValidationError):
             check_image_content(buf)
+
+
+class ProductSelectorTest(TestCase):
+    def setUp(self):
+        self.category = Category.objects.create(name="Test Category")
+        self.active1 = Product.objects.create(name="Active 1", is_active=True, category=self.category)
+        self.active2 = Product.objects.create(name="Active 2", is_active=True, category=self.category)
+        self.inactive = Product.objects.create(name="Inactive", is_active=False, category=self.category)
+        self.other_category = Category.objects.create(name="Other Category")
+        self.other = Product.objects.create(name="Other Cat", is_active=True, category=self.other_category)
+
+    def test_active_products_returns_only_active(self):
+        qs = ProductSelector.active_products()
+        ids = list(qs.values_list("id", flat=True))
+        self.assertIn(self.active1.id, ids)
+        self.assertIn(self.active2.id, ids)
+        self.assertNotIn(self.inactive.id, ids)
+
+    def test_inactive_products_returns_only_inactive(self):
+        qs = ProductSelector.inactive_products()
+        ids = list(qs.values_list("id", flat=True))
+        self.assertIn(self.inactive.id, ids)
+        self.assertNotIn(self.active1.id, ids)
+
+    def test_products_by_category_filters_correctly(self):
+        qs = ProductSelector.products_by_category(self.category.id)
+        ids = list(qs.values_list("id", flat=True))
+        self.assertIn(self.active1.id, ids)
+        self.assertIn(self.active2.id, ids)
+        self.assertNotIn(self.inactive.id, ids)
+        self.assertNotIn(self.other.id, ids)
+
+    def test_product_by_id_returns_correct_active_product(self):
+        result = ProductSelector.product_by_id(self.active1.id)
+        self.assertEqual(result, self.active1)
+
+    def test_product_by_id_returns_none_for_inactive(self):
+        result = ProductSelector.product_by_id(self.inactive.id)
+        self.assertIsNone(result)

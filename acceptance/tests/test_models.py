@@ -191,6 +191,59 @@ class SupplierAcceptanceAPIViewTest(TestCase):
         self.assertEqual(self.product.arrival_price_in_sum, Decimal("250000.00"))
 
 
+class AcceptanceWorkflowCancelUpdateTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="manager2", password="123", role=User.UserRoles.MANAGER)
+        self.product = Product.objects.create(name="Cancel Test Product")
+        self.supplier = Supplier.objects.create(full_name="Cancel Test Supplier")
+        CurrencyRate.objects.get_or_create(date=date(2026, 1, 1), defaults={"rate": Decimal("12500.00")})
+
+    def _make_waiting_acceptance(self):
+        return AcceptanceWorkflowService.create(
+            data={
+                "product": self.product,
+                "supplier": self.supplier,
+                "arrival_price": Decimal("10.00"),
+                "sale_price": Decimal("15.00"),
+                "price_type": Acceptance.PriceType.DOLLAR,
+                "count": Decimal("5.000"),
+                "arrival_date": date(2026, 1, 1),
+            },
+            user=self.user,
+        )
+
+    def test_cancel_waiting_acceptance_changes_status(self):
+        acceptance = self._make_waiting_acceptance()
+        result = AcceptanceWorkflowService.cancel(acceptance.id, self.user)
+        self.assertEqual(result.acceptance_status, Acceptance.AcceptanceStatus.CANCEL)
+
+    def test_cancel_already_processed_acceptance_raises_error(self):
+        acceptance = self._make_waiting_acceptance()
+        AcceptanceWorkflowService.cancel(acceptance.id, self.user)
+        with self.assertRaises(ValueError):
+            AcceptanceWorkflowService.cancel(acceptance.id, self.user)
+
+    def test_update_waiting_acceptance_prices(self):
+        acceptance = self._make_waiting_acceptance()
+        updated = AcceptanceWorkflowService.update(
+            acceptance,
+            {"arrival_price": Decimal("20.00"), "sale_price": Decimal("30.00")},
+            self.user,
+        )
+        self.assertEqual(updated.arrival_price, Decimal("20.00"))
+        self.assertEqual(updated.sale_price, Decimal("30.00"))
+        self.assertEqual(updated.arrival_price_in_sum, Decimal("20.00") * Decimal("12500.00"))
+
+    def test_update_acceptance_without_currency_rate_raises_error(self):
+        acceptance = self._make_waiting_acceptance()
+        with self.assertRaises(ValueError):
+            AcceptanceWorkflowService.update(
+                acceptance,
+                {"arrival_date": date(2000, 1, 1)},
+                self.user,
+            )
+
+
 class AcceptanceAnalyticsExportServiceTest(TestCase):
     def test_build_analytics_excel_groups_suppliers_by_date(self):
         report_date = date(2026, 4, 20)

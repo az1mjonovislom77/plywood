@@ -1,6 +1,6 @@
 from .base import *
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     host.strip() for host in config('ALLOWED_HOSTS').split(',')

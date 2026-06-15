@@ -1,119 +1,116 @@
-# Plywood Project
+# Plywood Inventory Management System
 
-## Description
-The Plywood Project is a comprehensive web application built using Django and Django REST Framework, designed for e-commerce or inventory management. It provides a robust backend for managing users, products, categories, orders, customers, and suppliers. The system is equipped with a powerful API, asynchronous task processing, and potential integration with external services like a Telegram bot for enhanced functionality and user interaction.
+Backend API for managing plywood sales operations — products, orders, customers, suppliers, employees, and financial reporting.
 
-## Features
-*   **User Management**: Secure user authentication and authorization using JWT (JSON Web Tokens).
-*   **Product Catalog**: Comprehensive management of products, categories, and suppliers.
-*   **Order Processing**: Efficient handling of customer orders.
-*   **RESTful API**: A well-documented API for all core functionalities, built with Django REST Framework.
-*   **Asynchronous Tasks**: Background task processing using Celery and Redis for improved performance (e.g., sending notifications, report generation).
-*   **Telegram Bot Integration**: Potential integration with a Telegram bot for real-time updates, order notifications, or customer support.
-*   **Custom Admin Interface**: Enhanced and user-friendly Django administration panel powered by Django Jazzmin.
-*   **Multi-language Support**: Internationalization capabilities for a broader audience.
-*   **API Documentation**: Interactive API documentation (Swagger/OpenAPI) generated using `drf-spectacular` and `drf-yasg`.
-*   **Reporting & Data Export**: Functionality to generate and export data in various formats (e.g., Excel, Word, PDF).
-*   **Image Processing**: Handling and optimization of product images.
+## Overview
 
-## Technologies Used
-*   Python
-*   Django
-*   Django REST Framework
-*   Celery
-*   Redis
-*   PostgreSQL (via `psycopg2-binary`)
-*   `django-filter`
-*   `aiofiles`, `aiogram`, `aiohttp` (for async operations, potentially Telegram bot)
-*   `django-cors-headers`
-*   `django-jazzmin`
-*   `django-modeltranslation`
-*   `django-redis`
-*   `djangorestframework_simplejwt`
-*   `drf-spectacular`, `drf-yasg` (for API documentation)
-*   `gunicorn` (for production deployment)
-*   `openpyxl`, `python-docx`, `reportlab`, `lxml` (for document generation)
-*   `pillow`, `pillow_heif` (for image processing)
-*   `python-decouple` (for environment variable management)
-*   `requests`
-*   `django-debug-toolbar` (for development)
-*   `escpos` (potentially for receipt printing)
+This system handles the full lifecycle of a plywood business:
+- Warehouse acceptance of goods (with USD/UZS multi-currency support)
+- Sales orders with cutting and banding services
+- Customer debt tracking and overpayment management
+- Supplier debt and payment management
+- Employee salary payments
+- Expense approval workflow
+- Financial dashboard and analytics
 
-## Setup and Installation
+## Tech Stack
 
-### Prerequisites
-*   Python 3.x
-*   pip
-*   PostgreSQL database server
+| Layer | Technology |
+|---|---|
+| Framework | Django 5.2 + Django REST Framework |
+| Auth | JWT (djangorestframework-simplejwt) |
+| Database | PostgreSQL (production), SQLite (development) |
+| Cache / Queue | Redis + Celery |
+| Export | openpyxl, python-docx, reportlab |
+| Image processing | Pillow |
+| Admin UI | django-jazzmin |
 
-### Steps
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/az1mjonovislom77/plywood.git
-    cd plywood
-    ```
-2.  **Create and activate a virtual environment**:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
-    ```
-3.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  **Configure Environment Variables**:
-    Create a `.env` file in the project root based on a `.env.example` (if available) or set environment variables for database connection, secret key, etc.
-    Example `.env` content:
-    ```
-    SECRET_KEY='your_django_secret_key'
-    DEBUG=True
-    DATABASE_URL='postgres://user:password@host:port/database_name'
-    REDIS_URL='redis://localhost:6379/0'
-    TELEGRAM_BOT_TOKEN='your_telegram_bot_token'
-    ```
-5.  **Apply database migrations**:
-    ```bash
-    python manage.py migrate
-    ```
-6.  **Create a superuser** (optional, for admin access):
-    ```bash
-    python manage.py createsuperuser
-    ```
-7.  **Run the development server**:
-    ```bash
-    python manage.py runserver
-    ```
-    The application will be accessible at `http://127.0.0.1:8000/`.
-    The Django Admin panel will be at `http://127.0.0.1:8000/admin/`.
-    API documentation (Swagger UI) will be available at `http://127.0.0.1:8000/swagger/` or `http://127.0.0.1:8000/redoc/`.
+## Role System
 
-## Usage
+The system has 4 roles with separate permissions:
 
-### Web Interface
-Access the main application and Django Admin panel through your web browser after running the development server.
+| Role | Access |
+|---|---|
+| `manager` | Full access |
+| `seller` | Orders, basket, customers |
+| `cashier` | Order acceptance, payments |
+| `warehouseman` | Product acceptance, warehouse |
 
-### API Endpoints
-The project exposes a comprehensive set of RESTful API endpoints. You can explore them via the interactive API documentation:
-*   **Swagger UI**: `http://127.0.0.1:8000/swagger/`
-*   **ReDoc**: `http://127.0.0.1:8000/redoc/`
+## Key Features
 
-Common API patterns include:
-*   `/api/users/`
-*   `/api/products/`
-*   `/api/categories/`
-*   `/api/orders/`
-*   `/api/customers/`
-*   `/api/suppliers/`
+- **Multi-currency**: Arrival prices stored in both USD and UZS using daily exchange rates
+- **FIFO pricing**: Product prices update on each accepted acceptance
+- **Order workflow**: Seller creates → Cashier accepts/cancels
+- **Expense workflow**: Small expenses auto-approved, large ones (≥1,000,000) require manager approval
+- **Acceptance workflow**: Create → Accept (updates stock and supplier debt) or Cancel
+- **Rate limiting**: 50 req/min (anonymous), 400 req/min (authenticated)
+- **Health check**: `GET /health/` — checks DB and cache connectivity
 
-Authentication is typically handled via JWT tokens obtained from an authentication endpoint (e.g., `/api/token/`).
+## Project Structure
 
-### Telegram Bot (if configured)
-If the Telegram bot integration is active, users can interact with the system through the bot for specific functionalities (e.g., checking order status, receiving notifications).
+```
+config/          - Django settings (base / local / production)
+user/            - Custom user model with roles
+product/         - Products, categories, image validation
+category/        - Product categories
+acceptance/      - Goods acceptance from suppliers
+order/           - Sales orders, basket, cutting, banding
+customer/        - Customer management and debt tracking
+supplier/        - Supplier management and payments
+employee/        - Employee salary payments
+utils/           - Expenses, notifications, shared services
+```
 
-## Contributing
-We welcome contributions to the Plywood Project! If you'd like to contribute, please follow these steps:
-1.  Fork the repository.
-2.  Create a new branch for your feature or bug fix.
-3.  Make your changes and ensure they adhere to the project's coding standards.
-4.  Write appropriate tests for your changes.
-5.  Submit a pull request with a clear description of your changes.
+## Setup
+
+### Requirements
+
+- Python 3.11+
+- PostgreSQL
+- Redis
+
+### Installation
+
+```bash
+git clone https://github.com/az1mjonovislom77/plywood.git
+cd plywood
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Linux / macOS
+pip install -r requirements.txt
+```
+
+### Environment variables
+
+Create a `.env` file in the project root:
+
+```env
+SECRET_KEY=your_django_secret_key
+DEBUG=True
+DATABASE_URL=postgres://user:password@localhost:5432/plywood
+REDIS_URL=redis://localhost:6379/0
+```
+
+### Run
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+API documentation: `http://127.0.0.1:8000/api/schema/swagger-ui/`
+
+Health check: `http://127.0.0.1:8000/health/`
+
+### Run tests
+
+```bash
+python manage.py test
+```
+
+### Run Celery worker (for background tasks)
+
+```bash
+celery -A config worker -l info
+```
