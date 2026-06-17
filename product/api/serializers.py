@@ -4,9 +4,9 @@ from utils.base.serializers_base import TrimmedDecimalField
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    count = TrimmedDecimalField(max_digits=10, decimal_places=3, read_only=True)
-    arrival_price_in_sum = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
-    sale_price_in_sum = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    count = TrimmedDecimalField(max_digits=10, decimal_places=4, read_only=True)
+    arrival_price_in_sum = serializers.DecimalField(max_digits=15, decimal_places=4, read_only=True)
+    sale_price_in_sum = serializers.DecimalField(max_digits=15, decimal_places=4, read_only=True)
     investment_in_dollar = serializers.SerializerMethodField()
 
     class Meta:

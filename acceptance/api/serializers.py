@@ -4,16 +4,16 @@ from utils.base.serializers_base import TrimmedDecimalField
 
 
 class AcceptanceSerializer(serializers.ModelSerializer):
-    count = TrimmedDecimalField(max_digits=20, decimal_places=3)
+    count = TrimmedDecimalField(max_digits=20, decimal_places=4)
     product_name = serializers.CharField(source="product.name", read_only=True)
     accepted_by_name = serializers.CharField(source="accepted_by.username", read_only=True)
     history = serializers.SerializerMethodField()
     investment = serializers.SerializerMethodField()
     investment_in_dollar = serializers.SerializerMethodField()
-    arrival_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    arrival_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    sale_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    sale_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
+    arrival_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
+    arrival_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
+    sale_price_in_dollar = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
+    sale_price_in_sum = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
 
     class Meta:
         model = Acceptance
@@ -51,7 +51,7 @@ class AcceptanceSerializer(serializers.ModelSerializer):
 
 class AcceptanceHistorySerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
-    count = TrimmedDecimalField(max_digits=20, decimal_places=3)
+    count = TrimmedDecimalField(max_digits=20, decimal_places=4)
     product_name = serializers.CharField(source="product.name", read_only=True)
 
     class Meta:

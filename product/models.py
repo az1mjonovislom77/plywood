@@ -30,16 +30,16 @@ class Product(models.Model):
             allowed_extensions=['jpg', 'jpeg', 'png', 'svg', 'webp', 'JPG', 'JPEG', 'PNG', 'SVG', 'WEBP']),
         check_image_size,
         check_image_content], blank=True, null=True)
-    width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    thick = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    arrival_price = models.DecimalField(verbose_name="Arrival Price in USD", max_digits=10, decimal_places=2, default=0)
-    sale_price = models.DecimalField(verbose_name="Sale Price in USD", max_digits=10, decimal_places=2, default=0)
-    arrival_price_in_sum = models.DecimalField(verbose_name="Arrival Price in UZS", max_digits=15, decimal_places=2,
+    width = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+    height = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+    thick = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+    arrival_price = models.DecimalField(verbose_name="Arrival Price in USD", max_digits=10, decimal_places=4, default=0)
+    sale_price = models.DecimalField(verbose_name="Sale Price in USD", max_digits=10, decimal_places=4, default=0)
+    arrival_price_in_sum = models.DecimalField(verbose_name="Arrival Price in UZS", max_digits=15, decimal_places=4,
                                                default=0, editable=False)
-    sale_price_in_sum = models.DecimalField(verbose_name="Sale Price in UZS", max_digits=15, decimal_places=2,
+    sale_price_in_sum = models.DecimalField(verbose_name="Sale Price in UZS", max_digits=15, decimal_places=4,
                                             default=0, editable=False)
-    count = models.DecimalField(max_digits=20, decimal_places=3, default=0)
+    count = models.DecimalField(max_digits=20, decimal_places=4, default=0)
     arrival_date = models.DateField(default=timezone.localdate)
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
