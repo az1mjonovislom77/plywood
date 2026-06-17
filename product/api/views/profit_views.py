@@ -153,8 +153,6 @@ class KromkaProfitView(APIView):
             "kromka_product_profit_som": float(product_profit_som),
             "kromka_product_profit_dollar": float(product_profit_dollar),
             "kromka_products_count": products_count,
-            "itog_natsenka": float(itog_natsenka),
-            "itog_natsenka_in_dollar": float(itog_natsenka_dollar),
             "itog_rasxod": float(total_expenses),
             "itog_rasxod_in_dollar": float(itog_rasxod_dollar),
             "net_profit": float(net_profit),
