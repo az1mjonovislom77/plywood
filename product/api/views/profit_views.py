@@ -8,11 +8,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 from category.models import Category
+from customer.models import Customer
 from employee.models import SalaryPayment
 from product.services.ancillary_profit import AncillaryProfitService
 from product.services.material_profit import KROMKA_CATEGORY_NAME, MaterialProfitService
+from product.services.product_export import MaterialReportService
 from product.services.total_profit import AllProfitService
 from utils.models import Expenses
+from utils.service.comprehensive_stats import DashboardStatsService
 
 
 @extend_schema(tags=["Products"], parameters=[
@@ -98,14 +101,15 @@ class KromkaProfitView(APIView):
             context=context,
         )
 
+        money_field = DecimalField(max_digits=18, decimal_places=2)
+
         salary_total = (
                 SalaryPayment.objects.filter(
                     paid_at__gte=context["start_dt"],
                     paid_at__lt=context["end_dt"]
                 ).aggregate(
-                    total=Coalesce(
-                        Sum("amount"), Value(Decimal("0")), output_field=DecimalField(max_digits=18, decimal_places=2)
-                    ))["total"] or Decimal("0"))
+                    total=Coalesce(Sum("amount"), Value(Decimal("0")), output_field=money_field)
+                )["total"] or Decimal("0"))
 
         expense_total = (
                 Expenses.objects.filter(
@@ -116,20 +120,52 @@ class KromkaProfitView(APIView):
                         Expenses.ExpensesStatus.ACCEPT,
                     ]
                 ).aggregate(
-                    total=Coalesce(Sum("value"), Value(Decimal("0")),
-                                   output_field=DecimalField(max_digits=18, decimal_places=2))
+                    total=Coalesce(Sum("value"), Value(Decimal("0")), output_field=money_field)
                 )["total"] or Decimal("0"))
 
         total_expenses = salary_total + expense_total
+        itog_natsenka = Decimal(str(all_profit["all_profit_som"]))
+        net_profit = itog_natsenka - total_expenses
 
-        net_profit = (Decimal(str(all_profit["all_profit_som"])) - total_expenses)
+        sklad = MaterialReportService.calc_inventory_total(context)
+
+        qarzdorlik = (
+            Customer.objects.aggregate(
+                total=Coalesce(Sum("debt"), Value(Decimal("0")), output_field=money_field)
+            )["total"] or Decimal("0")
+        )
+
+        kassa = Decimal(str(DashboardStatsService._cashbox_total()))
+        jami = sklad + qarzdorlik + kassa
+
+        rate_value = context["rate_value"]
+        itog_natsenka_dollar = (itog_natsenka / rate_value) if rate_value else Decimal("0")
+        itog_rasxod_dollar = (total_expenses / rate_value) if rate_value else Decimal("0")
+        net_profit_dollar = (net_profit / rate_value) if rate_value else Decimal("0")
+        sklad_dollar = sklad
+        qarzdorlik_dollar = (qarzdorlik / rate_value) if rate_value else Decimal("0")
+        kassa_dollar = (kassa / rate_value) if rate_value else Decimal("0")
+        jami_dollar = sklad_dollar + qarzdorlik_dollar + kassa_dollar
+
         return Response({
             "from": str(context["start_date"]),
             "to": str(context["end_date"]),
             "kromka_product_profit_som": float(product_profit_som),
             "kromka_product_profit_dollar": float(product_profit_dollar),
             "kromka_products_count": products_count,
+            "itog_natsenka": float(itog_natsenka),
+            "itog_natsenka_in_dollar": float(itog_natsenka_dollar),
+            "itog_rasxod": float(total_expenses),
+            "itog_rasxod_in_dollar": float(itog_rasxod_dollar),
             "net_profit": float(net_profit),
+            "net_profit_in_dollar": float(net_profit_dollar),
+            "sklad": float(sklad),
+            "sklad_in_dollar": float(sklad_dollar),
+            "qarzdorlik": float(qarzdorlik),
+            "qarzdorlik_in_dollar": float(qarzdorlik_dollar),
+            "kassa": float(kassa),
+            "kassa_in_dollar": float(kassa_dollar),
+            "jami": float(jami),
+            "jami_in_dollar": float(jami_dollar),
             **all_profit,
-
         })

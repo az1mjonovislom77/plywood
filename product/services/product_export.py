@@ -75,6 +75,61 @@ class MaterialReportService:
         return data
 
     @classmethod
+    def calc_inventory_total(cls, profit_context):
+        start_date = profit_context["start_date"]
+        end_date = profit_context["end_date"]
+        start_dt = profit_context["start_dt"]
+        end_dt = profit_context["end_dt"]
+        open_cogs_map = profit_context["open_cogs_map"]
+        use_current_stock = end_date >= timezone.localdate()
+
+        products = list(Product.objects.filter(is_active=True))
+
+        open_in_map = cls._to_map(
+            Acceptance.objects.filter(acceptance_status="accept", arrival_date__lt=start_date)
+            .values("product_id").annotate(
+                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
+                total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")), output_field=cls._money_field()),
+            )
+        )
+        open_out_map = cls._to_map(
+            OrderItem.objects.filter(
+                cls._accepted_order_filter(), cls._accepted_order_before_filter(start_dt))
+            .values("product_id").annotate(
+                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
+                total=Coalesce(Sum(cls._money_expr("quantity", "price")), Value(Decimal("0")), output_field=cls._money_field()),
+            )
+        )
+        in_map = cls._to_map(
+            Acceptance.objects.filter(
+                acceptance_status="accept", arrival_date__gte=start_date, arrival_date__lte=end_date,
+            ).values("product_id").annotate(
+                qty=Coalesce(Sum("count"), Value(Decimal("0")), output_field=cls._money_field()),
+                total=Coalesce(Sum(cls._money_expr("count", "arrival_price")), Value(Decimal("0")), output_field=cls._money_field()),
+            )
+        )
+        out_map = cls._to_map(
+            OrderItem.objects.filter(
+                cls._accepted_order_filter(), cls._accepted_order_range_filter(start_dt, end_dt))
+            .values("product_id").annotate(
+                qty=Coalesce(Sum("quantity"), Value(Decimal("0")), output_field=cls._money_field()),
+            )
+        )
+
+        grand_end_sum = Decimal("0")
+        for product in products:
+            open_qty = (
+                open_in_map.get(product.id, {"qty": Decimal("0")})["qty"]
+                - open_out_map.get(product.id, {"qty": Decimal("0")})["qty"]
+            )
+            in_qty = in_map.get(product.id, {"qty": Decimal("0")})["qty"]
+            out_qty = out_map.get(product.id, {"qty": Decimal("0")})["qty"]
+            end_qty = Decimal(str(product.count or 0)) if use_current_stock else (open_qty + in_qty - out_qty)
+            grand_end_sum += end_qty * Decimal(str(product.arrival_price or 0))
+
+        return grand_end_sum
+
+    @classmethod
     def build_excel(cls, date_from=None, date_to=None):
         profit_context = MaterialProfitService.build_profit_context(date_from, date_to)
         start_date = profit_context["start_date"]
