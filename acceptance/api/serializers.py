@@ -68,6 +68,12 @@ class SupplierAcceptanceSerializer(AcceptanceSerializer):
     def get_history(self, obj):
         return AcceptanceHistorySerializer(obj.histories.all(), many=True, context=self.context).data
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["investment"] = instance.count * instance.arrival_price
+        data["investment_in_dollar"] = instance.count * instance.arrival_price_in_dollar
+        return data
+
 
 class AcceptanceGroupedSerializer(serializers.Serializer):
     date = serializers.DateField()
