@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_HALF_UP
+from django.core.exceptions import ValidationError
 from django.db import models
 from user.models import User
 
@@ -62,16 +64,38 @@ class ServicesName(models.Model):
 
 
 class Services(models.Model):
+    class DiscountType(models.TextChoices):
+        PERCENTAGE = "p", "Foiz"
+        CASH = "c", "Naqd"
+
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Naqd"
+        CARD = "card", "Kart"
+        NASIYA = "nasiya", "Nasiya"
+
     services_name = models.ForeignKey(ServicesName, on_delete=models.CASCADE, related_name="services")
+    customer = models.ForeignKey("customer.Customer", on_delete=models.PROTECT, related_name="services", null=True,
+                                 blank=True)
     description = models.TextField(blank=True, null=True)
     count = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=20, decimal_places=3)
     total_price = models.DecimalField(max_digits=20, decimal_places=3, default=0)
+    discount_type = models.CharField(choices=DiscountType.choices, max_length=1, default=DiscountType.CASH)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_method = models.CharField(choices=PaymentMethod.choices, max_length=20, default=PaymentMethod.CASH)
+    covered_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def calculate_total_price(self):
-        from decimal import Decimal
+    def calculate_price(self):
         return Decimal(self.count) * self.price
+
+    def clean(self):
+        if self.covered_amount < 0:
+            raise ValidationError("To'langan summa manfiy bo'lishi mumkin emas")
+
+        total = self.calculate_price().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if self.covered_amount > total:
+            raise ValidationError("To'langan summa umumiy narxdan oshmasligi kerak")
 
     def __str__(self):
         return str(self.services_name)
