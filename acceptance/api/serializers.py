@@ -70,6 +70,7 @@ class SupplierAcceptanceSerializer(AcceptanceSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        data["arrival_price"] = str(instance.arrival_price)
         data["investment"] = instance.count * instance.arrival_price
         return data
 
