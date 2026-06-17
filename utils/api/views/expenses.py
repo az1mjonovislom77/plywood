@@ -7,15 +7,17 @@ from django.db.models import Prefetch, Sum
 from rest_framework.viewsets import ViewSet
 from utils.base.views_base import BaseUserViewSet
 from utils.models import Expenses, ExpensesHistory
-from utils.api.serializers import ExpenseCreateSerializer, ExpenseListSerializer, \
-    ExpenseHistorySerializer
+from utils.api.serializers import ExpenseCreateSerializer, ExpenseListSerializer, ExpenseHistorySerializer
 from utils.service.expense_export import CashFlowReportService
 from utils.service.expenses_service import ExpensesWorkflowService
 from rest_framework import status, viewsets
 from utils.service.finance_json import FinanceReportJsonService
 
 
-@extend_schema(tags=["Expenses"])
+@extend_schema(tags=["Expenses"], parameters=[
+    OpenApiParameter(name="from", required=False, type=str),
+    OpenApiParameter(name="to", required=False, type=str),
+])
 class ExpenseViewSet(BaseUserViewSet):
     queryset = (Expenses.objects.select_related("user")
                 .prefetch_related(Prefetch("histories", queryset=ExpensesHistory.objects.select_related("user"))))
@@ -27,6 +29,12 @@ class ExpenseViewSet(BaseUserViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         serializer = self.get_serializer(queryset, many=True)
         total_expense = queryset.filter(
             expense_status__in=[Expenses.ExpensesStatus.CREATED, Expenses.ExpensesStatus.ACCEPT]

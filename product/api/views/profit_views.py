@@ -88,8 +88,7 @@ class KromkaProfitView(APIView):
             return Response({"error": "KROMKA category not found"}, status=404)
 
         product_profit_som, product_profit_dollar, products_count = (
-            MaterialProfitService.calc_kromka_product_profit(context)
-        )
+            MaterialProfitService.calc_kromka_product_profit(context))
         all_profit = AllProfitService.calculate(
             date_from=date_from,
             date_to=date_to,
@@ -105,12 +104,8 @@ class KromkaProfitView(APIView):
                     paid_at__lt=context["end_dt"]
                 ).aggregate(
                     total=Coalesce(
-                        Sum("amount"),
-                        Value(Decimal("0")),
-                        output_field=DecimalField(max_digits=18, decimal_places=2)
-                    )
-                )["total"] or Decimal("0")
-        )
+                        Sum("amount"), Value(Decimal("0")), output_field=DecimalField(max_digits=18, decimal_places=2)
+                    ))["total"] or Decimal("0"))
 
         expense_total = (
                 Expenses.objects.filter(
@@ -121,20 +116,13 @@ class KromkaProfitView(APIView):
                         Expenses.ExpensesStatus.ACCEPT,
                     ]
                 ).aggregate(
-                    total=Coalesce(
-                        Sum("value"),
-                        Value(Decimal("0")),
-                        output_field=DecimalField(max_digits=18, decimal_places=2)
-                    )
-                )["total"] or Decimal("0")
-        )
+                    total=Coalesce(Sum("value"), Value(Decimal("0")),
+                                   output_field=DecimalField(max_digits=18, decimal_places=2))
+                )["total"] or Decimal("0"))
 
         total_expenses = salary_total + expense_total
 
-        net_profit = (
-                Decimal(str(all_profit["all_profit_som"]))
-                - total_expenses
-        )
+        net_profit = (Decimal(str(all_profit["all_profit_som"])) - total_expenses)
         return Response({
             "from": str(context["start_date"]),
             "to": str(context["end_date"]),
