@@ -3,6 +3,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from decimal import Decimal
 from order.models import Banding, Cutting
+from utils.models import Services
 
 
 class DashboardStatsService:
@@ -18,6 +19,11 @@ class DashboardStatsService:
 
         banding_expr = ExpressionWrapper(
             F("length") * F("thickness"),
+            output_field=DecimalField(max_digits=14, decimal_places=2)
+        )
+
+        services_expr = ExpressionWrapper(
+            F("price") * F("count"),
             output_field=DecimalField(max_digits=14, decimal_places=2)
         )
 
@@ -37,19 +43,30 @@ class DashboardStatsService:
             ),
         )
 
+        services_stats = Services.objects.aggregate(
+            total_services_income=Coalesce(Sum(services_expr), Decimal("0.00")),
+            today_services_income=Coalesce(
+                Sum(services_expr, filter=Q(created_at__date=today)),
+                Decimal("0.00")
+            ),
+        )
+
         stats = {
             **cutting_stats,
-            **banding_stats
+            **banding_stats,
+            **services_stats,
         }
 
         stats["total_income"] = (
                 stats["total_cutting_income"] +
-                stats["total_banding_income"]
+                stats["total_banding_income"] +
+                stats["total_services_income"]
         )
 
         stats["today_income"] = (
                 stats["today_cutting_income"] +
-                stats["today_banding_income"]
+                stats["today_banding_income"] +
+                stats["today_services_income"]
         )
 
         return stats

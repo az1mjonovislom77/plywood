@@ -71,5 +71,30 @@ class ServicesNameView(APIView):
 
 @extend_schema(tags=["Services"])
 class ServicesViewSet(BaseUserViewSet):
-    queryset = Services.objects.select_related("services_name")
+    queryset = Services.objects.select_related("services_name", "customer")
     serializer_class = ServicesSerializer
+
+    def _sync_debt(self, instance):
+        if instance.customer:
+            instance.customer.sync_debt()
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        instance.total_price = instance.calculate_price()
+        instance.save(update_fields=["total_price"])
+        self._sync_debt(instance)
+
+    def perform_update(self, serializer):
+        old_customer = serializer.instance.customer
+        instance = serializer.save()
+        instance.total_price = instance.calculate_price()
+        instance.save(update_fields=["total_price"])
+        if old_customer and old_customer != instance.customer:
+            old_customer.sync_debt()
+        self._sync_debt(instance)
+
+    def perform_destroy(self, instance):
+        customer = instance.customer
+        instance.delete()
+        if customer:
+            customer.sync_debt()

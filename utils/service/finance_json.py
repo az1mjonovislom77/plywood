@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_date
 from customer.models import BalanceHistory
 from employee.models import SalaryPayment
 from order.models import Order, Banding, Cutting
+from utils.models import Services
 from supplier.models import SupplierTransaction
 from utils.models import Expenses
 from utils.service.comprehensive_stats import DashboardStatsService
@@ -105,6 +106,12 @@ class FinanceReportJsonService:
             )
 
             income_map[(c_id, c_name)] += Decimal(str(cutting.covered_amount))
+
+        for service in (Services.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0)
+                .select_related("customer")):
+            c_id = service.customer.id if service.customer else None
+            c_name = service.customer.full_name if service.customer else "Anonim"
+            income_map[(c_id, c_name)] += Decimal(str(service.covered_amount))
 
         for payment in BalanceHistory.objects.filter(
                 created_at__gte=start_dt, created_at__lt=end_dt, type=BalanceHistory.Type.PAYMENT, amount__gt=0,

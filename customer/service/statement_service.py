@@ -48,6 +48,7 @@ class CustomerStatementService:
     @classmethod
     def _opening_balance(cls, customer_id, start_dt):
         from order.models import Banding, Cutting
+        from utils.models import Services
 
         active_orders = Order.objects.filter(
             customer_id=customer_id, created_at__lt=start_dt
@@ -65,6 +66,10 @@ class CustomerStatementService:
             customer_id=customer_id, created_at__lt=start_dt, orders__isnull=True, order_items__isnull=True
         )
 
+        standalone_services = Services.objects.filter(
+            customer_id=customer_id, created_at__lt=start_dt
+        )
+
         manual_payments = BalanceHistory.objects.filter(
             customer_id=customer_id, type=BalanceHistory.Type.PAYMENT, created_at__lt=start_dt
         )
@@ -74,8 +79,9 @@ class CustomerStatementService:
         active_order_balance = sum(o.covered_amount - o.total_price for o in active_orders)
         banding_balance = sum(b.covered_amount - cls._service_total(b) for b in standalone_bandings)
         cutting_balance = sum(c.covered_amount - cls._service_total(c) for c in standalone_cuttings)
+        services_balance = sum(s.covered_amount - cls._service_total(s) for s in standalone_services)
 
-        return total_payments + total_cancelled_covered + active_order_balance + banding_balance + cutting_balance
+        return total_payments + total_cancelled_covered + active_order_balance + banding_balance + cutting_balance + services_balance
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
@@ -93,6 +99,7 @@ class CustomerStatementService:
         )
 
         from order.models import Banding, Cutting
+        from utils.models import Services
 
         standalone_bandings = (
             Banding.objects
@@ -105,6 +112,13 @@ class CustomerStatementService:
             Cutting.objects
             .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt, orders__isnull=True,
                     order_items__isnull=True)
+            .order_by("created_at", "id")
+        )
+
+        standalone_services = (
+            Services.objects
+            .filter(customer_id=customer_id, created_at__gte=start_dt, created_at__lt=end_dt)
+            .select_related("services_name")
             .order_by("created_at", "id")
         )
 
@@ -292,6 +306,34 @@ class CustomerStatementService:
                     "expense_amount": None,
                 })
             events.append((cutting.created_at, 0, rows))
+
+        for service in standalone_services:
+            rows = []
+            registrator = f"Хизмат {service.id:09d} от {service.created_at:%d.%m.%Y %H:%M:%S}"
+            rows.append({
+                "date": service.created_at.date(),
+                "registrator": registrator,
+                "payment_type": None,
+                "purpose": None,
+                "product": f"Хизмат ({service.services_name.name})",
+                "income_qty": None,
+                "income_amount": None,
+                "expense_qty": service.count,
+                "expense_amount": cls._service_total(service),
+            })
+            if service.covered_amount > 0:
+                rows.append({
+                    "date": service.created_at.date(),
+                    "registrator": registrator,
+                    "payment_type": cls.PAYMENT_LABELS.get(service.payment_method, service.payment_method),
+                    "purpose": None,
+                    "product": None,
+                    "income_qty": None,
+                    "income_amount": service.covered_amount,
+                    "expense_qty": None,
+                    "expense_amount": None,
+                })
+            events.append((service.created_at, 0, rows))
 
         for payment in manual_payments:
             events.append(

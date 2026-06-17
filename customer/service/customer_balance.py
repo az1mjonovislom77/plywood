@@ -4,6 +4,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from customer.models import BalanceHistory, Customer
 from order.models import Order, Banding, Cutting
+from utils.models import Services
 
 
 class CustomerBalanceService:
@@ -67,6 +68,11 @@ class CustomerBalanceService:
 
         cutting_total = sum(cls.service_total(c) for c in standalone_cuttings)
         cutting_paid = sum((c.covered_amount or Decimal("0")) for c in standalone_cuttings)
+
+        standalone_services = Services.objects.filter(customer_id=customer_id)
+        services_total = sum(cls.service_total(s) for s in standalone_services)
+        services_paid = sum((s.covered_amount or Decimal("0")) for s in standalone_services)
+
         manual_paid = (
                 BalanceHistory.objects
                 .filter(customer_id=customer_id, type=BalanceHistory.Type.PAYMENT)
@@ -75,13 +81,15 @@ class CustomerBalanceService:
         total_orders = (
                 orders_total +
                 banding_total +
-                cutting_total
+                cutting_total +
+                services_total
         )
 
         total_paid = (
                 orders_paid +
                 banding_paid +
                 cutting_paid +
+                services_paid +
                 manual_paid +
                 cancelled_refund
         )
@@ -112,27 +120,31 @@ class CustomerBalanceService:
         return totals
 
     @classmethod
-    def _build_stats(cls, customer_ids, orders, cancelled_orders, bandings, cuttings, manual_payments):
+    def _build_stats(cls, customer_ids, orders, cancelled_orders, bandings, cuttings, services, manual_payments):
         order_total = cls._sum_by_customer(orders, "total_price")
         order_paid = cls._sum_by_customer(orders, "covered_amount")
         cancelled_refund = cls._sum_by_customer(cancelled_orders, "covered_amount")
         manual_paid = cls._sum_by_customer(manual_payments, "amount")
         banding_totals = cls._service_totals_by_customer(bandings)
         cutting_totals = cls._service_totals_by_customer(cuttings)
+        services_totals = cls._service_totals_by_customer(services)
 
         stats = {}
         for customer_id in customer_ids:
             banding = banding_totals[customer_id]
             cutting = cutting_totals[customer_id]
+            service = services_totals[customer_id]
             total_orders = (
                 order_total.get(customer_id, Decimal("0")) +
                 banding["total"] +
-                cutting["total"]
+                cutting["total"] +
+                service["total"]
             )
             total_paid = (
                 order_paid.get(customer_id, Decimal("0")) +
                 banding["paid"] +
                 cutting["paid"] +
+                service["paid"] +
                 manual_paid.get(customer_id, Decimal("0")) +
                 cancelled_refund.get(customer_id, Decimal("0"))
             )
@@ -170,6 +182,7 @@ class CustomerBalanceService:
             orders__isnull=True,
             order_items__isnull=True,
         )
+        standalone_services = Services.objects.filter(customer_id__in=customer_ids)
         manual_payments = BalanceHistory.objects.filter(
             customer_id__in=customer_ids,
             type=BalanceHistory.Type.PAYMENT,
@@ -181,6 +194,7 @@ class CustomerBalanceService:
             cancelled_orders=cancelled_orders,
             bandings=standalone_bandings,
             cuttings=standalone_cuttings,
+            services=standalone_services,
             manual_payments=manual_payments,
         )
 
@@ -238,6 +252,11 @@ class CustomerBalanceService:
             orders__isnull=True,
             order_items__isnull=True,
         )
+        standalone_services = Services.objects.filter(
+            customer_id__in=customer_ids,
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
+        )
         manual_payments = BalanceHistory.objects.filter(
             customer_id__in=customer_ids,
             created_at__gte=start_dt,
@@ -251,6 +270,7 @@ class CustomerBalanceService:
             cancelled_orders=cancelled_orders,
             bandings=standalone_bandings,
             cuttings=standalone_cuttings,
+            services=standalone_services,
             manual_payments=manual_payments,
         )
 
@@ -310,6 +330,15 @@ class CustomerBalanceService:
 
         cutting_total = sum(cls.service_total(c) for c in standalone_cuttings)
         cutting_paid = sum((c.covered_amount or Decimal("0")) for c in standalone_cuttings)
+
+        standalone_services = Services.objects.filter(
+            customer=customer,
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
+        )
+        services_total = sum(cls.service_total(s) for s in standalone_services)
+        services_paid = sum((s.covered_amount or Decimal("0")) for s in standalone_services)
+
         manual_paid = (
                 BalanceHistory.objects
                 .filter(
@@ -323,13 +352,15 @@ class CustomerBalanceService:
         total_orders = (
                 orders_total +
                 banding_total +
-                cutting_total
+                cutting_total +
+                services_total
         )
 
         total_paid = (
                 orders_paid +
                 banding_paid +
                 cutting_paid +
+                services_paid +
                 manual_paid +
                 cancelled_refund
         )

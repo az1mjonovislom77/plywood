@@ -57,7 +57,12 @@ class ServicesSerializer(serializers.ModelSerializer):
     services_name_id = serializers.PrimaryKeyRelatedField(queryset=ServicesName.objects.all(), source="services_name",
                                                           write_only=True)
     total_price = serializers.DecimalField(max_digits=20, decimal_places=3, read_only=True)
+    customer_name = serializers.CharField(source="customer.full_name", read_only=True)
 
     class Meta:
         model = Services
-        fields = "__all__"
+        fields = [
+            "id", "services_name", "services_name_id", "customer", "customer_name",
+            "description", "count", "price", "total_price",
+            "discount_type", "discount", "payment_method", "covered_amount", "created_at"
+        ]

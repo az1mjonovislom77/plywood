@@ -8,7 +8,7 @@ from customer.models import BalanceHistory
 from employee.models import SalaryPayment
 from order.models import Order, Banding, Cutting
 from supplier.models import SupplierTransaction
-from utils.models import Expenses
+from utils.models import Expenses, Services
 from utils.service.comprehensive_stats import DashboardStatsService
 
 
@@ -63,6 +63,15 @@ class CashFlowReportService:
                 "name": cutting.customer.full_name if cutting.customer else "Аноним",
                 "amount": Decimal(str(cutting.covered_amount)),
                 "created_at": cutting.created_at,
+            })
+
+        for service in Services.objects.filter(
+                created_at__gte=start_dt, created_at__lt=end_dt, covered_amount__gt=0,
+        ).select_related("customer").order_by("created_at", "id"):
+            income_rows.append({
+                "name": service.customer.full_name if service.customer else "Аноним",
+                "amount": Decimal(str(service.covered_amount)),
+                "created_at": service.created_at,
             })
 
         for payment in BalanceHistory.objects.filter(

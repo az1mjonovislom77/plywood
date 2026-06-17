@@ -169,14 +169,14 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
         expenses = cls.sum(Expenses.objects.filter(expense_filter), "value")
         supplier_payments = cls.sum(SupplierTransaction.objects.filter(supplier_filter), "amount")
         salary_payments = cls.sum(SalaryPayment.objects.filter(salary_filter), "amount")
-        services_total = cls.sum(Services.objects.filter(services_filter), "total_price")
+        services_paid = cls.sum(Services.objects.filter(services_filter), "covered_amount")
 
         return (
                 order_paid
                 + banding_paid
                 + cutting_paid
                 + debt_paid
-                + services_total
+                + services_paid
                 - expenses
                 - supplier_payments
                 - salary_payments
@@ -207,13 +207,19 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             cls._cutting_sales_expr("cutting__"),
         ) + cls.sum(Cutting.objects.filter(standalone_cutting_filter), cls._cutting_sales_expr()))
 
+        services_sales = cls.sum(
+            Services.objects.filter(cls._range_filter(start_dt, end_dt)),
+            cls._cutting_sales_expr()
+        )
+
         return {
             "product_sales": product_sales,
             "product_profit": product_profit,
             "banding_sales": banding_sales,
             "cutting_sales": cutting_sales,
-            "total_sales": product_sales + banding_sales + cutting_sales,
-            "net_profit": product_profit + banding_sales + cutting_sales,
+            "services_sales": services_sales,
+            "total_sales": product_sales + banding_sales + cutting_sales + services_sales,
+            "net_profit": product_profit + banding_sales + cutting_sales + services_sales,
         }
 
     @classmethod
@@ -257,16 +263,28 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
                 cls.zero(),
                 output_field=cls.money_field()))
 
+        services_payment = Services.objects.filter(cls._range_filter(start_dt, end_dt)).aggregate(
+            cash=Coalesce(Sum("covered_amount",
+                              filter=Q(payment_method__in=[
+                                  Services.PaymentMethod.CASH,
+                                  Services.PaymentMethod.NASIYA,
+                              ])), cls.zero(), output_field=cls.money_field()),
+            card=Coalesce(Sum("covered_amount",
+                              filter=Q(payment_method=Services.PaymentMethod.CARD)),
+                          cls.zero(), output_field=cls.money_field()))
+
         return {
             "cash_sales": (
                     sales_by_payment["cash"]
                     + banding_payment["cash"]
                     + cutting_payment["cash"]
+                    + services_payment["cash"]
             ),
             "card_sales": (
                     sales_by_payment["card"]
                     + banding_payment["card"]
                     + cutting_payment["card"]
+                    + services_payment["card"]
             ),
         }
 
