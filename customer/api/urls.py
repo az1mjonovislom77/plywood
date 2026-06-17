@@ -4,7 +4,7 @@ from customer.api.views.stats_views import CustomerStatsView
 from customer.api.views.customer import CustomerViewSet, CustomerStatementExcelViewSet, CustomerDebtExcelAPIView, \
     CustomerDebtReportJsonAPIView
 from customer.api.views.debt import CoverDebtAPIView, CustomerHistoryAPIView, CustomerStatementExcelAPIView, \
-    CustomerStatementJsonAPIView
+    CustomerStatementJsonAPIView, RefundAPIView
 
 router = DefaultRouter()
 router.register('customer', CustomerViewSet, basename='customer')
@@ -14,6 +14,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('stats/customers/', CustomerStatsView.as_view(), name='customers_stats'),
     path("cover-debt/<int:pk>/", CoverDebtAPIView.as_view()),
+    path("refund/<int:pk>/", RefundAPIView.as_view()),
     path("payment-history/<int:pk>/", CustomerHistoryAPIView.as_view()),
     path("statement-excel/<int:pk>/", CustomerStatementExcelAPIView.as_view()),
     path("statement-json/<int:pk>/", CustomerStatementJsonAPIView.as_view()),

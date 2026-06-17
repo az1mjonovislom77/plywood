@@ -78,6 +78,11 @@ class CustomerBalanceService:
                 .filter(customer_id=customer_id, type=BalanceHistory.Type.PAYMENT)
                 .aggregate(total=Sum("amount"))["total"] or Decimal("0"))
 
+        refunds = (
+                BalanceHistory.objects
+                .filter(customer_id=customer_id, type=BalanceHistory.Type.REFUND)
+                .aggregate(total=Sum("amount"))["total"] or Decimal("0"))
+
         total_orders = (
                 orders_total +
                 banding_total +
@@ -91,7 +96,8 @@ class CustomerBalanceService:
                 cutting_paid +
                 services_paid +
                 manual_paid +
-                cancelled_refund
+                cancelled_refund -
+                refunds
         )
 
         remaining_debt = (total_orders - total_paid)
@@ -120,11 +126,12 @@ class CustomerBalanceService:
         return totals
 
     @classmethod
-    def _build_stats(cls, customer_ids, orders, cancelled_orders, bandings, cuttings, services, manual_payments):
+    def _build_stats(cls, customer_ids, orders, cancelled_orders, bandings, cuttings, services, manual_payments, refunds):
         order_total = cls._sum_by_customer(orders, "total_price")
         order_paid = cls._sum_by_customer(orders, "covered_amount")
         cancelled_refund = cls._sum_by_customer(cancelled_orders, "covered_amount")
         manual_paid = cls._sum_by_customer(manual_payments, "amount")
+        refund_amounts = cls._sum_by_customer(refunds, "amount")
         banding_totals = cls._service_totals_by_customer(bandings)
         cutting_totals = cls._service_totals_by_customer(cuttings)
         services_totals = cls._service_totals_by_customer(services)
@@ -146,7 +153,8 @@ class CustomerBalanceService:
                 cutting["paid"] +
                 service["paid"] +
                 manual_paid.get(customer_id, Decimal("0")) +
-                cancelled_refund.get(customer_id, Decimal("0"))
+                cancelled_refund.get(customer_id, Decimal("0")) -
+                refund_amounts.get(customer_id, Decimal("0"))
             )
 
             stats[customer_id] = {
@@ -187,6 +195,10 @@ class CustomerBalanceService:
             customer_id__in=customer_ids,
             type=BalanceHistory.Type.PAYMENT,
         )
+        refunds = BalanceHistory.objects.filter(
+            customer_id__in=customer_ids,
+            type=BalanceHistory.Type.REFUND,
+        )
 
         return cls._build_stats(
             customer_ids=customer_ids,
@@ -196,6 +208,7 @@ class CustomerBalanceService:
             cuttings=standalone_cuttings,
             services=standalone_services,
             manual_payments=manual_payments,
+            refunds=refunds,
         )
 
     @classmethod
@@ -263,6 +276,12 @@ class CustomerBalanceService:
             created_at__lt=end_dt,
             type=BalanceHistory.Type.PAYMENT,
         )
+        refunds = BalanceHistory.objects.filter(
+            customer_id__in=customer_ids,
+            created_at__gte=start_dt,
+            created_at__lt=end_dt,
+            type=BalanceHistory.Type.REFUND,
+        )
 
         stats = cls._build_stats(
             customer_ids=customer_ids,
@@ -272,6 +291,7 @@ class CustomerBalanceService:
             cuttings=standalone_cuttings,
             services=standalone_services,
             manual_payments=manual_payments,
+            refunds=refunds,
         )
 
         return {
@@ -349,6 +369,16 @@ class CustomerBalanceService:
                 ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
         )
 
+        refunds = (
+                BalanceHistory.objects
+                .filter(
+                    customer=customer,
+                    created_at__gte=start_dt,
+                    created_at__lt=end_dt,
+                    type=BalanceHistory.Type.REFUND
+                ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        )
+
         total_orders = (
                 orders_total +
                 banding_total +
@@ -362,7 +392,8 @@ class CustomerBalanceService:
                 cutting_paid +
                 services_paid +
                 manual_paid +
-                cancelled_refund
+                cancelled_refund -
+                refunds
         )
 
         remaining_debt = (total_orders - total_paid)

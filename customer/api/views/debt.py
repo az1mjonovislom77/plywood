@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from customer.api.serializers import CoverDebtSerializer, CustomerHistoryResponseSerializer
+from customer.api.serializers import CoverDebtSerializer, CustomerHistoryResponseSerializer, RefundSerializer
 from customer.models import Customer
 from customer.service.cover_debt import DebtService
 from customer.service.statement_service import CustomerStatementService
@@ -25,6 +25,27 @@ class CoverDebtAPIView(APIView):
         try:
             customer = DebtService.cover_debt(customer_id=pk, amount=serializer.validated_data["amount"])
             return Response({"message": "Debt covered", "current_debt": customer.debt}, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=["CustomerDebt"])
+class RefundAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = RefundSerializer
+
+    def post(self, request, pk):
+        serializer = RefundSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            customer = DebtService.refund_overpayment(
+                customer_id=pk, amount=serializer.validated_data["amount"]
+            )
+            return Response(
+                {"message": "Qaytarildi", "overpayment": customer.overpayment},
+                status=status.HTTP_200_OK,
+            )
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

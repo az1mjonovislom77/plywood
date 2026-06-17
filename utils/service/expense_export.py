@@ -117,6 +117,16 @@ class CashFlowReportService:
                 "amount": Decimal(str(payment.amount)),
             })
 
+        for refund in BalanceHistory.objects.filter(
+                created_at__gte=start_dt, created_at__lt=end_dt, type=BalanceHistory.Type.REFUND, amount__gt=0,
+        ).select_related("customer").order_by("created_at", "id"):
+            c_name = refund.customer.full_name if refund.customer else "Аноним"
+            expense_rows.append({
+                "description": f"Qaytarish - {c_name}",
+                "created_at": refund.created_at,
+                "amount": Decimal(str(refund.amount)),
+            })
+
         expense_rows.sort(key=lambda x: (x["created_at"], x["description"]))
         opening_balance = Decimal(str(DashboardStatsService._cashbox_total(end_dt=start_dt)))
         income_total = sum((row["amount"] for row in income_rows), Decimal("0"))

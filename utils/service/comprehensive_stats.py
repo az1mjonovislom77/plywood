@@ -166,6 +166,14 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             "amount"
         )
 
+        customer_refunds = cls.sum(
+            BalanceHistory.objects.filter(
+                balance_filter,
+                type=BalanceHistory.Type.REFUND
+            ),
+            "amount"
+        )
+
         expenses = cls.sum(Expenses.objects.filter(expense_filter), "value")
         supplier_payments = cls.sum(SupplierTransaction.objects.filter(supplier_filter), "amount")
         salary_payments = cls.sum(SalaryPayment.objects.filter(salary_filter), "amount")
@@ -177,6 +185,7 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
                 + cutting_paid
                 + debt_paid
                 + services_paid
+                - customer_refunds
                 - expenses
                 - supplier_payments
                 - salary_payments
@@ -301,7 +310,9 @@ class DashboardStatsService(DateRangeMixin, MoneyQueryMixin):
             "paid_debt": stats["paid"],
             "added_debt": stats["added"],
             "total_customer_debt": cls.sum(Customer.objects.all(), "debt"),
+            "total_customer_overpayment": cls.sum(Customer.objects.all(), "overpayment"),
             "total_supplier_debt": cls.sum(Supplier.objects.all(), "debt"),
+            "total_supplier_overpayment": cls.sum(Supplier.objects.all(), "overpayment"),
         }
 
     @classmethod

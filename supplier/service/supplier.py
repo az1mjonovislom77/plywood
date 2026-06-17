@@ -14,7 +14,7 @@ class SupplierService:
 
     @staticmethod
     def recalculate_debt(supplier):
-        debt = supplier.transactions.aggregate(
+        net = supplier.transactions.aggregate(
             total=Coalesce(
                 Sum(
                     Case(
@@ -24,8 +24,9 @@ class SupplierService:
                         output_field=DecimalField(max_digits=14, decimal_places=2),
                     )), Decimal("0.00")))["total"]
 
-        supplier.debt = debt
-        supplier.save(update_fields=["debt"])
+        supplier.debt = max(net, Decimal("0"))
+        supplier.overpayment = max(-net, Decimal("0"))
+        supplier.save(update_fields=["debt", "overpayment"])
 
         return supplier
 
@@ -34,13 +35,8 @@ class SupplierService:
     def make_payment(supplier_id: int, amount: Decimal) -> Supplier:
         supplier = Supplier.objects.select_for_update().get(id=supplier_id)
 
-        supplier = SupplierService.recalculate_debt(supplier)
-
         if amount <= 0:
             raise ValidationError("To'lov musbat bo'lishi kerak")
-
-        if amount > supplier.debt:
-            raise ValidationError("To'lov joriy qarzdan oshib ketdi")
 
         stats = DashboardStatsService.get_stats()
         if amount > stats["cashbox_total"]:

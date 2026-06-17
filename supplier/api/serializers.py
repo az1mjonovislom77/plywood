@@ -5,8 +5,8 @@ from supplier.models import Supplier, SupplierTransaction
 class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
-        fields = ["id", "full_name", "phone_number", "company", "debt", "is_active"]
-        read_only_fields = ["debt", "is_active"]
+        fields = ["id", "full_name", "phone_number", "company", "debt", "overpayment", "is_active"]
+        read_only_fields = ["debt", "overpayment", "is_active"]
 
 
 class SupplierTransactionSerializer(serializers.ModelSerializer):

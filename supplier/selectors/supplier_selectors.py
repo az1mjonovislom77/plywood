@@ -9,11 +9,15 @@ class SupplierSelector:
     @staticmethod
     def debt_stats():
         stats = Supplier.objects.aggregate(
-            total_customers=Count("id"), total_debt=Coalesce(Sum("debt"), Decimal("0.00")))
+            total_customers=Count("id"),
+            total_debt=Coalesce(Sum("debt"), Decimal("0.00")),
+            total_overpayment=Coalesce(Sum("overpayment"), Decimal("0.00")),
+        )
 
         return {
             "total_customers": stats["total_customers"],
             "total_debt": stats["total_debt"],
+            "total_overpayment": stats["total_overpayment"],
         }
 
     @staticmethod
@@ -32,6 +36,7 @@ class SupplierSelector:
             "total_purchases": total_purchases,
             "total_paid": total_paid,
             "remaining_debt": supplier.debt,
+            "overpayment": supplier.overpayment,
         }
 
         return supplier, transactions, stats

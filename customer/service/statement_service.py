@@ -74,14 +74,19 @@ class CustomerStatementService:
             customer_id=customer_id, type=BalanceHistory.Type.PAYMENT, created_at__lt=start_dt
         )
 
+        refunds = BalanceHistory.objects.filter(
+            customer_id=customer_id, type=BalanceHistory.Type.REFUND, created_at__lt=start_dt
+        )
+
         total_payments = sum(p.amount for p in manual_payments)
+        total_refunds = sum(r.amount for r in refunds)
         total_cancelled_covered = sum(o.covered_amount for o in cancelled_orders)
         active_order_balance = sum(o.covered_amount - o.total_price for o in active_orders)
         banding_balance = sum(b.covered_amount - cls._service_total(b) for b in standalone_bandings)
         cutting_balance = sum(c.covered_amount - cls._service_total(c) for c in standalone_cuttings)
         services_balance = sum(s.covered_amount - cls._service_total(s) for s in standalone_services)
 
-        return total_payments + total_cancelled_covered + active_order_balance + banding_balance + cutting_balance + services_balance
+        return total_payments - total_refunds + total_cancelled_covered + active_order_balance + banding_balance + cutting_balance + services_balance
 
     @classmethod
     def build_statement(cls, customer_id, date_from=None, date_to=None):
@@ -127,6 +132,16 @@ class CustomerStatementService:
             .filter(
                 customer_id=customer_id,
                 type=BalanceHistory.Type.PAYMENT,
+                created_at__gte=start_dt,
+                created_at__lt=end_dt,
+            ).order_by("created_at", "id")
+        )
+
+        refund_payments = (
+            BalanceHistory.objects
+            .filter(
+                customer_id=customer_id,
+                type=BalanceHistory.Type.REFUND,
                 created_at__gte=start_dt,
                 created_at__lt=end_dt,
             ).order_by("created_at", "id")
@@ -347,6 +362,20 @@ class CustomerStatementService:
                     "income_amount": payment.amount,
                     "expense_qty": None,
                     "expense_amount": None
+                }]))
+
+        for refund in refund_payments:
+            events.append(
+                (refund.created_at, 1, [{
+                    "date": refund.created_at.date(),
+                    "registrator": f"Qaytarish {refund.id} от {refund.created_at:%d.%m.%Y %H:%M:%S}",
+                    "payment_type": "Наличная",
+                    "purpose": None,
+                    "product": "Ortiqcha to'lov qaytarildi",
+                    "income_qty": None,
+                    "income_amount": None,
+                    "expense_qty": None,
+                    "expense_amount": refund.amount,
                 }]))
 
         cancelled_orders_current_period = (

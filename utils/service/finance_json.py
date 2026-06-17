@@ -169,6 +169,19 @@ class FinanceReportJsonService:
             })
 
             expense_total += Decimal(str(payment.amount))
+
+        for refund in BalanceHistory.objects.filter(
+                created_at__gte=start_dt, created_at__lt=end_dt, type=BalanceHistory.Type.REFUND, amount__gt=0,
+        ).select_related("customer"):
+            c_name = refund.customer.full_name if refund.customer else "Anonim"
+            expense_data.append({
+                "id": refund.id,
+                "description": f"Qaytarish - {c_name}",
+                "date": refund.created_at.strftime("%d.%m.%Y"),
+                "value": refund.amount,
+            })
+            expense_total += Decimal(str(refund.amount))
+
         expense_data.sort(key=lambda x: timezone.datetime.strptime(x["date"], "%d.%m.%Y"))
 
         return {

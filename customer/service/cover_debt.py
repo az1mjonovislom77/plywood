@@ -40,6 +40,32 @@ class DebtService:
         return customer
 
     @staticmethod
+    @transaction.atomic
+    def refund_overpayment(customer_id: int, amount: Decimal) -> Customer:
+        if amount <= 0:
+            raise ValidationError("Summa musbat bo'lishi kerak")
+
+        customer = Customer.objects.select_for_update().get(pk=customer_id)
+
+        if amount > customer.overpayment:
+            raise ValidationError("Qaytarish summasi ortiqcha to'lovdan oshib ketdi")
+
+        from utils.service.comprehensive_stats import DashboardStatsService
+        stats = DashboardStatsService.get_stats()
+        if amount > Decimal(str(stats["cashbox_total"])):
+            raise ValidationError("Kassa qoldig'i yetarli emas")
+
+        BalanceHistory.objects.create(
+            customer=customer,
+            type=BalanceHistory.Type.REFUND,
+            amount=amount
+        )
+
+        customer.sync_debt()
+        logger.info("Refund: customer %s, amount %s", customer_id, amount)
+        return customer
+
+    @staticmethod
     def get_customer_history(customer_id: int):
 
         history_qs = (

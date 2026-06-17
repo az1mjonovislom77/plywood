@@ -27,3 +27,12 @@ class BalanceHistorySerializer(serializers.ModelSerializer):
 class CustomerHistoryResponseSerializer(serializers.Serializer):
     history = BalanceHistorySerializer(many=True)
     stats = serializers.DictField()
+
+
+class RefundSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Summa musbat bo'lishi kerak")
+        return value
