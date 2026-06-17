@@ -78,17 +78,21 @@ class ServicesViewSet(BaseUserViewSet):
         if instance.customer:
             instance.customer.sync_debt()
 
+    def _set_totals(self, instance):
+        instance.total_price = instance.calculate_price()
+        if instance.payment_method != Services.PaymentMethod.NASIYA:
+            instance.covered_amount = instance.total_price
+        instance.save(update_fields=["total_price", "covered_amount"])
+
     def perform_create(self, serializer):
         instance = serializer.save()
-        instance.total_price = instance.calculate_price()
-        instance.save(update_fields=["total_price"])
+        self._set_totals(instance)
         self._sync_debt(instance)
 
     def perform_update(self, serializer):
         old_customer = serializer.instance.customer
         instance = serializer.save()
-        instance.total_price = instance.calculate_price()
-        instance.save(update_fields=["total_price"])
+        self._set_totals(instance)
         if old_customer and old_customer != instance.customer:
             old_customer.sync_debt()
         self._sync_debt(instance)
