@@ -34,7 +34,7 @@ class Product(models.Model):
     height = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     thick = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     arrival_price = models.DecimalField(verbose_name="Arrival Price in USD", max_digits=10, decimal_places=4, default=0)
-    sale_price = models.DecimalField(verbose_name="Sale Price in USD", max_digits=10, decimal_places=4, default=0)
+    sale_price = models.DecimalField(verbose_name="Sale Price in USD", max_digits=15, decimal_places=4, default=0)
     arrival_price_in_sum = models.DecimalField(verbose_name="Arrival Price in UZS", max_digits=15, decimal_places=4,
                                                default=0, editable=False)
     sale_price_in_sum = models.DecimalField(verbose_name="Sale Price in UZS", max_digits=15, decimal_places=4,
