@@ -47,9 +47,6 @@ class DebtService:
 
         customer = Customer.objects.select_for_update().get(pk=customer_id)
 
-        if amount > customer.overpayment:
-            raise ValidationError("Qaytarish summasi ortiqcha to'lovdan oshib ketdi")
-
         from utils.service.comprehensive_stats import DashboardStatsService
         stats = DashboardStatsService.get_stats()
         if amount > Decimal(str(stats["cashbox_total"])):
