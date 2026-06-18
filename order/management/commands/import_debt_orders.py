@@ -61,12 +61,7 @@ class Command(BaseCommand):
         for index, row in df.iterrows():
             try:
                 customer_name = str(row[0]).strip().lower()
-                customer_name = re.sub(
-                    r"\s+",
-                    " ",
-                    customer_name
-                )
-
+                customer_name = re.sub(r"\s+", " ", customer_name)
                 customer_name = customer_name.replace(".", "")
                 customer_name = customer_name.replace(",", "")
 
@@ -78,12 +73,7 @@ class Command(BaseCommand):
 
                 for c in customers:
                     db_name = c.full_name.strip().lower()
-                    db_name = re.sub(
-                        r"\s+",
-                        " ",
-                        db_name
-                    )
-
+                    db_name = re.sub(r"\s+", " ", db_name)
                     db_name = db_name.replace(".", "")
                     db_name = db_name.replace(",", "")
 
@@ -148,9 +138,7 @@ class Command(BaseCommand):
                                 cleaned_covered += char
 
                         if cleaned_covered not in ["", "-", ".", "-."]:
-                            covered_amount = abs(
-                                Decimal(cleaned_covered)
-                            )
+                            covered_amount = abs(Decimal(cleaned_covered))
 
                     except Exception:
 

@@ -713,11 +713,10 @@ class MaterialReportService:
             end_column=13
         )
 
-        inventory_dollar = Decimal("0")
+        inventory_dollar = inventory_total  # dollar hisobida
+        inventory_som = (inventory_dollar * rate_value) if rate_value else Decimal("0")
         customer_debt_dollar = Decimal("0")
         cashbox_dollar = Decimal("0")
-
-        inventory_dollar = inventory_total
 
         if rate_value:
             customer_debt_dollar = customer_debt_total / rate_value
@@ -728,7 +727,7 @@ class MaterialReportService:
 
         money_with_dollar(
             ws.cell(assets_row, 14),
-            inventory_total,
+            inventory_som,
             inventory_dollar,
         )
 
@@ -772,7 +771,7 @@ class MaterialReportService:
         assets_row += 1
 
         total_assets_dollar = inventory_dollar + customer_debt_dollar + cashbox_dollar
-        total_assets = total_assets_dollar
+        total_assets = inventory_som + customer_debt_total + cashbox_total
 
         ws.merge_cells(
             start_row=assets_row,

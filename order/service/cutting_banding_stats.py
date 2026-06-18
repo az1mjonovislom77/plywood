@@ -13,43 +13,28 @@ class DashboardStatsService:
         today = timezone.now().date()
 
         cutting_expr = ExpressionWrapper(
-            F("price") * F("count"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+            F("price") * F("count"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
         banding_expr = ExpressionWrapper(
-            F("length") * F("thickness"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+            F("length") * F("thickness"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
         services_expr = ExpressionWrapper(
-            F("price") * F("count"),
-            output_field=DecimalField(max_digits=14, decimal_places=2)
-        )
+            F("price") * F("count"), output_field=DecimalField(max_digits=14, decimal_places=2))
 
         cutting_stats = Cutting.objects.aggregate(
             total_cutting_income=Coalesce(Sum(cutting_expr), Decimal("0.00")),
             today_cutting_income=Coalesce(
-                Sum(cutting_expr, filter=Q(created_at__date=today)),
-                Decimal("0.00")
-            ),
-        )
+                Sum(cutting_expr, filter=Q(created_at__date=today)), Decimal("0.00")))
 
         banding_stats = Banding.objects.aggregate(
             total_banding_income=Coalesce(Sum(banding_expr), Decimal("0.00")),
             today_banding_income=Coalesce(
-                Sum(banding_expr, filter=Q(created_at__date=today)),
-                Decimal("0.00")
-            ),
-        )
+                Sum(banding_expr, filter=Q(created_at__date=today)), Decimal("0.00")))
 
         services_stats = Services.objects.aggregate(
             total_services_income=Coalesce(Sum(services_expr), Decimal("0.00")),
             today_services_income=Coalesce(
-                Sum(services_expr, filter=Q(created_at__date=today)),
-                Decimal("0.00")
-            ),
-        )
+                Sum(services_expr, filter=Q(created_at__date=today)), Decimal("0.00")))
 
         stats = {
             **cutting_stats,

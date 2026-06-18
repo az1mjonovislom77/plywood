@@ -95,8 +95,7 @@ class BandingPostSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         validate_percentage_discount(
-            attrs.get("discount_type", Banding.DiscountType.CASH),
-            attrs.get("discount", 0))
+            attrs.get("discount_type", Banding.DiscountType.CASH), attrs.get("discount", 0))
         return attrs
 
 
@@ -110,8 +109,7 @@ class CuttingCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         validate_percentage_discount(
-            attrs.get("discount_type", Cutting.DiscountType.CASH),
-            attrs.get("discount", 0))
+            attrs.get("discount_type", Cutting.DiscountType.CASH), attrs.get("discount", 0))
         return attrs
 
 
@@ -183,12 +181,8 @@ class OrderSerializer(serializers.ModelSerializer):
             return []
 
         user = request.user
-        if user.role not in [
-            User.UserRoles.MANAGER,
-            User.UserRoles.SELLER,
-            User.UserRoles.CASHIER,
-            User.UserRoles.WAREHOUSEMAN,
-        ]:
+        if user.role not in [User.UserRoles.MANAGER, User.UserRoles.SELLER, User.UserRoles.CASHIER,
+                             User.UserRoles.WAREHOUSEMAN]:
             return []
 
         return OrderHistorySerializer(obj.history.all(), many=True, context=self.context).data
@@ -204,9 +198,7 @@ class OrderCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         validate_percentage_discount(
-            attrs.get("discount_type", Order.DiscountType.CASH),
-            attrs.get("discount", 0),
-        )
+            attrs.get("discount_type", Order.DiscountType.CASH), attrs.get("discount", 0))
         return attrs
 
 
@@ -248,7 +240,5 @@ class OrderUpdateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         validate_percentage_discount(
-            attrs.get("discount_type", Order.DiscountType.CASH),
-            attrs.get("discount", 0),
-        )
+            attrs.get("discount_type", Order.DiscountType.CASH), attrs.get("discount", 0))
         return attrs

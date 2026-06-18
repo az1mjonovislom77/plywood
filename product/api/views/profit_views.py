@@ -136,15 +136,15 @@ class KromkaProfitView(APIView):
         )
 
         kassa = Decimal(str(DashboardStatsService._cashbox_total()))
-        jami = sklad + qarzdorlik + kassa
 
         rate_value = context["rate_value"]
-        itog_natsenka_dollar = (itog_natsenka / rate_value) if rate_value else Decimal("0")
         itog_rasxod_dollar = (total_expenses / rate_value) if rate_value else Decimal("0")
         net_profit_dollar = (net_profit / rate_value) if rate_value else Decimal("0")
-        sklad_dollar = sklad
+        sklad_dollar = sklad  # sklad dollar hisobida
+        sklad_som = (sklad_dollar * rate_value) if rate_value else Decimal("0")
         qarzdorlik_dollar = (qarzdorlik / rate_value) if rate_value else Decimal("0")
         kassa_dollar = (kassa / rate_value) if rate_value else Decimal("0")
+        jami_som = sklad_som + qarzdorlik + kassa
         jami_dollar = sklad_dollar + qarzdorlik_dollar + kassa_dollar
 
         return Response({
@@ -157,13 +157,11 @@ class KromkaProfitView(APIView):
             "itog_rasxod_in_dollar": float(itog_rasxod_dollar),
             "net_profit": float(net_profit),
             "net_profit_in_dollar": float(net_profit_dollar),
-            "sklad": float(sklad),
+            "sklad": float(sklad_som),
             "sklad_in_dollar": float(sklad_dollar),
             "qarzdorlik": float(qarzdorlik),
             "qarzdorlik_in_dollar": float(qarzdorlik_dollar),
-            "kassa": float(kassa),
-            "kassa_in_dollar": float(kassa_dollar),
-            "jami": float(jami),
+            "jami": float(jami_som),
             "jami_in_dollar": float(jami_dollar),
             **all_profit,
         })

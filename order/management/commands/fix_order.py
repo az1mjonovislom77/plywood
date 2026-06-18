@@ -16,14 +16,13 @@ class Command(BaseCommand):
         r = requests.get(url, timeout=15)
         r.raise_for_status()
         rate = Decimal(r.json()[0]["Rate"])
-
         CurrencyRate.objects.update_or_create(date=d, defaults={"rate": rate})
+
         return rate
 
     def handle(self, *args, **kwargs):
         items = OrderItem.objects.filter(
-            Q(exchange_rate__isnull=True) |
-            Q(new_sell_price__isnull=False, new_price_in_dollar__isnull=True)
+            Q(exchange_rate__isnull=True) | Q(new_sell_price__isnull=False, new_price_in_dollar__isnull=True)
         ).select_related("order")
 
         for item in items:
