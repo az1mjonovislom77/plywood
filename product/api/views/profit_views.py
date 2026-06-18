@@ -161,6 +161,8 @@ class KromkaProfitView(APIView):
             "sklad_in_dollar": float(sklad_dollar),
             "qarzdorlik": float(qarzdorlik),
             "qarzdorlik_in_dollar": float(qarzdorlik_dollar),
+            "kassa": float(kassa),
+            "kassa_in_dollar": float(kassa_dollar),
             "jami": float(jami_som),
             "jami_in_dollar": float(jami_dollar),
             **all_profit,
