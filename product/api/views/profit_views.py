@@ -140,7 +140,7 @@ class KromkaProfitView(APIView):
         rate_value = context["rate_value"]
         itog_rasxod_dollar = (total_expenses / rate_value) if rate_value else Decimal("0")
         net_profit_dollar = (net_profit / rate_value) if rate_value else Decimal("0")
-        sklad_dollar = sklad  # sklad dollar hisobida
+        sklad_dollar = sklad
         sklad_som = (sklad_dollar * rate_value) if rate_value else Decimal("0")
         qarzdorlik_dollar = (qarzdorlik / rate_value) if rate_value else Decimal("0")
         kassa_dollar = (kassa / rate_value) if rate_value else Decimal("0")

@@ -713,7 +713,7 @@ class MaterialReportService:
             end_column=13
         )
 
-        inventory_dollar = inventory_total  # dollar hisobida
+        inventory_dollar = inventory_total
         inventory_som = (inventory_dollar * rate_value) if rate_value else Decimal("0")
         customer_debt_dollar = Decimal("0")
         cashbox_dollar = Decimal("0")
