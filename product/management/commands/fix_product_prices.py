@@ -21,7 +21,7 @@ class Command(BaseCommand):
             acc.save(update_fields=['arrival_price_in_dollar', 'sale_price_in_dollar', 'arrival_price_in_sum',
                                     'sale_price_in_sum', 'price_type'])
 
-        self.stdout.write(self.style.SUCCESS("Acceptance jadvali to'g'rilandi."))
+        self.stdout.write(self.style.SUCCESS(" Acceptance jadvali to'g'rilandi."))
         self.stdout.write("2-bosqich: Product jadvalidagi narxlarni to'g'rilash boshlandi...")
         products = Product.objects.all()
         updated_count = 0
