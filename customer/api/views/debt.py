@@ -39,13 +39,9 @@ class RefundAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         try:
-            customer = DebtService.refund_overpayment(
-                customer_id=pk, amount=serializer.validated_data["amount"]
-            )
+            customer = DebtService.refund_overpayment(customer_id=pk, amount=serializer.validated_data["amount"])
             return Response(
-                {"message": "Qaytarildi", "overpayment": customer.overpayment},
-                status=status.HTTP_200_OK,
-            )
+                {"message": "Qaytarildi", "overpayment": customer.overpayment}, status=status.HTTP_200_OK)
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

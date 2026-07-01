@@ -29,11 +29,7 @@ class DebtService:
             overpayment=F("overpayment") + overpayment,
         )
 
-        BalanceHistory.objects.create(
-            customer=customer,
-            type=BalanceHistory.Type.PAYMENT,
-            amount=amount
-        )
+        BalanceHistory.objects.create(customer=customer, type=BalanceHistory.Type.PAYMENT, amount=amount)
 
         customer.refresh_from_db()
         logger.info("Debt covered: customer %s, amount %s", customer_id, amount)
