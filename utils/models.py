@@ -29,7 +29,7 @@ class Expenses(models.Model):
         CANCEL = "cancel", "Cancel"
         CREATED = "created", "Created"
     class ExpensesType(models.TextChoices):
-        ZAVOD = "ZAVOD", "ZAVOD"
+        ZAVOD = "Zavod", "Zavod"
         BOSHQA = "Boshqa", "Boshqa"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
