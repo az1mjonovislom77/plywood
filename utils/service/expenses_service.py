@@ -22,6 +22,7 @@ class ExpensesWorkflowService:
             ExpensesWorkflowService._apply_cashbox(value)
 
         expense = Expenses.objects.create(user=user, value=value, description=data.get("description"),
+                                          type=data.get("type", Expenses.ExpensesType.BOSHQA),
                                           expense_status=status)
 
         ExpensesHistory.objects.create(expense=expense, user=user, action=ExpensesHistory.Action.CREATE,

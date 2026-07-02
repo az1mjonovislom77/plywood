@@ -13,7 +13,7 @@ class CurrencySerializer(BaseReadSerializer):
 class ExpenseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expenses
-        fields = ["id", "value", "description"]
+        fields = ["id", "type", "value", "description"]
 
 
 class ExpenseHistorySerializer(serializers.ModelSerializer):
@@ -30,7 +30,7 @@ class ExpenseListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Expenses
-        fields = ["id", "user", "value", "description", "expense_status", "history", "created_at"]
+        fields = ["id", "user", "type", "value", "description", "expense_status", "history", "created_at"]
 
     def get_history(self, obj):
         request = self.context.get("request")

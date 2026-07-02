@@ -28,8 +28,12 @@ class Expenses(models.Model):
         WAITING = "waiting", "Waiting"
         CANCEL = "cancel", "Cancel"
         CREATED = "created", "Created"
+    class ExpensesType(models.TextChoices):
+        SEX = "Sex", "Sex"
+        BOSHQA = "Boshqa", "Boshqa"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    type = models.CharField(choices=ExpensesType.choices, default=ExpensesType.BOSHQA, max_length=10)
     value = models.PositiveIntegerField(default=0)
     description = models.CharField(max_length=200)
     expense_status = models.CharField(choices=ExpensesStatus.choices, default=ExpensesStatus.ACCEPT, max_length=10)

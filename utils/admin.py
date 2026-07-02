@@ -15,7 +15,7 @@ class NotificationSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(Expenses)
 class ExpensesAdmin(admin.ModelAdmin):
-    list_display = ["expense_status", "description"]
+    list_display = ["type", "expense_status", "description"]
 
 
 @admin.register(ExpensesHistory)
