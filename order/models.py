@@ -62,7 +62,7 @@ class Banding(models.Model):
 
         total = self.calculate_price().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if self.covered_amount > total:
-            raise ValidationError("To'langan summa umumiy narxdan oshmasligi kerak")
+            raise ValidationError("To'langan summa umumiy narxdan oshmasligi kerak!")
 
     def __str__(self):
         return f"{self.length}"
