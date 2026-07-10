@@ -49,6 +49,28 @@ class BasketAddItemSerializer(serializers.Serializer):
         return value
 
 
+class CuttingPriceStatSerializer(serializers.Serializer):
+    price = TrimmedDecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_count = TrimmedDecimalField(max_digits=20, decimal_places=3, read_only=True)
+
+
+class BandingPriceStatSerializer(serializers.Serializer):
+    price = TrimmedDecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_length = TrimmedDecimalField(max_digits=20, decimal_places=2, read_only=True)
+
+
+class CuttingStatsSerializer(serializers.Serializer):
+    cuttings_count = serializers.IntegerField(read_only=True)
+    total_count = TrimmedDecimalField(max_digits=20, decimal_places=3, read_only=True)
+    by_price = CuttingPriceStatSerializer(many=True, read_only=True)
+
+
+class BandingStatsSerializer(serializers.Serializer):
+    bandings_count = serializers.IntegerField(read_only=True)
+    total_length = TrimmedDecimalField(max_digits=20, decimal_places=2, read_only=True)
+    by_price = BandingPriceStatSerializer(many=True, read_only=True)
+
+
 class CuttingSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
     customer_fullname = serializers.CharField(source="customer.full_name", read_only=True)

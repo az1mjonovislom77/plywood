@@ -6,6 +6,24 @@ from order.models import Banding, Cutting
 from utils.models import Services
 
 
+class PriceBreakdownService:
+    """Har bir narx uchun sotilgan umumiy hajm (cutting - count, banding - length)."""
+
+    @staticmethod
+    def cutting_by_price(queryset):
+        return list(
+            queryset.values("price")
+            .annotate(total_count=Coalesce(Sum("count"), Decimal("0")))
+            .order_by("price"))
+
+    @staticmethod
+    def banding_by_price(queryset):
+        return list(
+            queryset.values(price=F("thickness"))
+            .annotate(total_length=Coalesce(Sum("length"), Decimal("0")))
+            .order_by("price"))
+
+
 class DashboardStatsService:
 
     @staticmethod

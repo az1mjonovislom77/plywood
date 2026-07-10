@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
@@ -5,8 +6,9 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
-from order.api.serializers import CuttingCreateSerializer, CuttingSerializer
+from order.api.serializers import CuttingCreateSerializer, CuttingSerializer, CuttingStatsSerializer
 from order.models import Cutting
+from order.service.cutting_banding_stats import PriceBreakdownService
 from order.service.order import OrderService
 from utils.base.views_base import BaseUserViewSet
 
@@ -45,6 +47,20 @@ class CuttingViewSet(BaseUserViewSet):
                 queryset = queryset.filter(created_at__lt=end)
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        cuttings = list(queryset)
+        by_price = PriceBreakdownService.cutting_by_price(queryset)
+
+        stats = CuttingStatsSerializer({
+            "cuttings_count": len(cuttings),
+            "total_count": sum((row["total_count"] for row in by_price), Decimal("0")),
+            "by_price": by_price})
+
+        return Response({
+            "stats": stats.data,
+            "data": self.get_serializer(cuttings, many=True).data})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
